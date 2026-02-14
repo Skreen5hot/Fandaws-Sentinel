@@ -285,15 +285,16 @@ function generateFactory() {
   }
 
   const params = FACTORY_PARAMS[factoryName] || [];
-  const args = params.map((p) => {
+  const argsObj = {};
+  for (const p of params) {
     const val = document.getElementById(`param-${p.name}`)?.value ?? p.default;
-    if (p.type === 'boolean') return val === 'true';
-    if (p.type === 'number') return Number(val);
-    return val || undefined;
-  });
+    if (p.type === 'boolean') argsObj[p.name] = val === 'true';
+    else if (p.type === 'number') argsObj[p.name] = Number(val);
+    else argsObj[p.name] = val || undefined;
+  }
 
   try {
-    const result = fn(...args);
+    const result = fn(argsObj);
     document.getElementById('factory-output').textContent = JSON.stringify(result, null, 2);
   } catch (err) {
     document.getElementById('factory-output').textContent = `Error: ${err.message}`;

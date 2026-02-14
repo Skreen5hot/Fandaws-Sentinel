@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": 3,
+  "currentPhase": "4b",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -62,20 +62,20 @@
     {
       "id": 4,
       "name": "Validator",
-      "status": "not-started",
+      "status": "complete",
       "track": "B",
       "depends": [3],
-      "description": "Graph integrity validation: cycle detection, orphan check, constraint enforcement.",
-      "deliverables": ["validator.js", "ValidationResult JSON-LD output"]
+      "description": "Pure-function validator: compound statement rejection, structural grounding, cycle detection (CVS-005), property redundancy (duplicate/ancestor/descendant), relationship basics, modification/deletion/merge checks. 104 new tests across 6 suites.",
+      "deliverables": ["validator.js", "input-sanitizer.js", "sanity-check.js", "property-redundancy.js", "ValidationResult JSON-LD output", "93 unit tests", "11 integration tests"]
     },
     {
       "id": "4b",
       "name": "OCE/IEE Governance Stubs",
-      "status": "not-started",
+      "status": "complete",
       "track": "B",
       "depends": [4],
-      "description": "Null governance implementations for blocking-flag-as-EpistemicFailure behavior (v3.4). Testable before M2M.",
-      "deliverables": ["governance-check.js", "EpistemicFailure JSON-LD nodes"]
+      "description": "Null governance implementations: checkGovernanceBlock (blocking-flag-as-EpistemicFailure), nullOCECheck (always coherent), nullIEECheck (never contested), createGovernanceEpistemicFailure factory.",
+      "deliverables": ["governance-check.js", "EpistemicFailure JSON-LD nodes", "nullOCECheck", "nullIEECheck"]
     },
     {
       "id": 5,
@@ -83,8 +83,8 @@
       "status": "not-started",
       "track": "B",
       "depends": ["4b"],
-      "description": "First full knowledge workflow: 'X is a Y' creates concept + isA relationship.",
-      "deliverables": ["classification-workflow.js", "20+ golden corpus cases"]
+      "description": "First full knowledge workflow: NLParser → Classifier → KnowledgeEngine → Validator → StateAdapter. 'X is a Y' creates/locates both concepts, establishes IS_A, validates, applies. Includes ambiguity handling (ConversationPrompt for disambiguation), unknown-parent negotiation (nested session state), ScopeResolver no-op confirmation (scopeResolutionEnabled: false), and DescriptionEngine stub.",
+      "deliverables": ["classification-workflow.js", "ambiguity-handler.js", "golden corpus for classification patterns", "nested session negotiation", "ScopeResolver no-op test"]
     },
     {
       "id": 6,

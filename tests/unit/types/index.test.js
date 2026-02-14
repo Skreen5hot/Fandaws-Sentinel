@@ -7,7 +7,7 @@ describe('types/index barrel export', () => {
     expect(types.FANDAWS_CONTEXT).toHaveProperty('@context');
   });
 
-  it('exports all 18 type factory functions', () => {
+  it('exports all 20 type factory functions', () => {
     const expectedFactories = [
       'createConcept',
       'createProperty',
@@ -27,13 +27,15 @@ describe('types/index barrel export', () => {
       'createResolvedFromAnnotation',
       'createShadowsAnnotation',
       'createDisambiguatedFromAnnotation',
+      'createParseResult',
+      'createClassificationAction',
     ];
     for (const name of expectedFactories) {
       expect(typeof types[name]).toBe('function');
     }
   });
 
-  it('exports exactly 19 members (1 context + 18 factories)', () => {
-    expect(Object.keys(types)).toHaveLength(19);
+  it('exports exactly 21 members (1 context + 20 factories)', () => {
+    expect(Object.keys(types)).toHaveLength(21);
   });
 });

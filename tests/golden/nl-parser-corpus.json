@@ -1,0 +1,680 @@
+{
+  "description": "Golden corpus for NLParser (Section 3.2.1). Each entry defines input text, optional context, and expected ParseResult.",
+  "corpus": [
+    {
+      "id": "cls-is-a-basic",
+      "input": "A dog is an animal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-is-an",
+      "input": "A bird is an animal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "bird",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-are",
+      "input": "Dogs are animals",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Dogs",
+        "fandaws:predicate": "are",
+        "fandaws:object": "animals",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-multiword-subject",
+      "input": "The golden retriever is a dog",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "golden retriever",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "dog",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-bare-is",
+      "input": "Water is liquid",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Water",
+        "fandaws:predicate": "is",
+        "fandaws:object": "liquid",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-uppercase",
+      "input": "A DOG IS AN ANIMAL",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "DOG",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "ANIMAL",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-mixed-case",
+      "input": "a Dog is An Animal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Dog",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "Animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-no-subject-article",
+      "input": "Dog is an animal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Dog",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-an-subject",
+      "input": "An apple is a fruit",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "apple",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "fruit",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-plurals-are",
+      "input": "Cats are pets",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Cats",
+        "fandaws:predicate": "are",
+        "fandaws:object": "pets",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-the-subject",
+      "input": "The whale is a mammal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "whale",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "mammal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-whitespace",
+      "input": "  A  dog  is  an  animal  ",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-has-basic",
+      "input": "A dog has fur",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "has",
+        "fandaws:object": "fur",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-has-a",
+      "input": "A bird has a beak",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "bird",
+        "fandaws:predicate": "has",
+        "fandaws:object": "beak",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-has-an",
+      "input": "A dog has an owner",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "has",
+        "fandaws:object": "owner",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-have-plural",
+      "input": "Dogs have four legs",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Dogs",
+        "fandaws:predicate": "have",
+        "fandaws:object": "four legs",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-the-subject",
+      "input": "The cat has whiskers",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "cat",
+        "fandaws:predicate": "has",
+        "fandaws:object": "whiskers",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-multiword-object",
+      "input": "A dog has four legs",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "has",
+        "fandaws:object": "four legs",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-uppercase",
+      "input": "A DOG HAS FUR",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "DOG",
+        "fandaws:predicate": "has",
+        "fandaws:object": "FUR",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-no-subject-article",
+      "input": "Dog has fur",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Dog",
+        "fandaws:predicate": "has",
+        "fandaws:object": "fur",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-have-multiword",
+      "input": "Birds have colorful feathers",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Birds",
+        "fandaws:predicate": "have",
+        "fandaws:object": "colorful feathers",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "prop-whitespace",
+      "input": "  A  dog  has  fur  ",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "has",
+        "fandaws:object": "fur",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-basic",
+      "input": "Dogs chase cats",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Dogs",
+        "fandaws:predicate": "chase",
+        "fandaws:object": "cats",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-article-subject",
+      "input": "The sun heats the earth",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "sun",
+        "fandaws:predicate": "heats",
+        "fandaws:object": "earth",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-no-articles",
+      "input": "Teachers educate students",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Teachers",
+        "fandaws:predicate": "educate",
+        "fandaws:object": "students",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-article-object",
+      "input": "Birds eat the worms",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Birds",
+        "fandaws:predicate": "eat",
+        "fandaws:object": "worms",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-verb-s-form",
+      "input": "A dog chases a cat",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "chases",
+        "fandaws:object": "cat",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-verb-complex",
+      "input": "Fire consumes wood",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Fire",
+        "fandaws:predicate": "consumes",
+        "fandaws:object": "wood",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-verb-es",
+      "input": "Water extinguishes fire",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Water",
+        "fandaws:predicate": "extinguishes",
+        "fandaws:object": "fire",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-the-both",
+      "input": "The teacher instructs the student",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "teacher",
+        "fandaws:predicate": "instructs",
+        "fandaws:object": "student",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-nourishes",
+      "input": "Rain nourishes plants",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Rain",
+        "fandaws:predicate": "nourishes",
+        "fandaws:object": "plants",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "err-empty",
+      "input": "",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "empty-input"
+      }
+    },
+    {
+      "id": "err-whitespace",
+      "input": "   ",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "empty-input"
+      }
+    },
+    {
+      "id": "err-single-word",
+      "input": "dog",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "no-predicate"
+      }
+    },
+    {
+      "id": "err-article-only",
+      "input": "A dog",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "incomplete-utterance"
+      }
+    },
+    {
+      "id": "err-the-only",
+      "input": "The cat",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "incomplete-utterance"
+      }
+    },
+    {
+      "id": "err-an-only",
+      "input": "An apple",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "incomplete-utterance"
+      }
+    },
+    {
+      "id": "err-numbers",
+      "input": "42",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "no-predicate"
+      }
+    },
+    {
+      "id": "err-two-words-no-match",
+      "input": "big dog",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "incomplete-utterance"
+      }
+    },
+    {
+      "id": "det-repeated",
+      "input": "A dog is an animal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "det-whitespace-variant",
+      "input": "  A  dog  is  an  animal  ",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "dog",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-is-a-standard",
+      "input": "A cat is a pet",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "cat",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "pet",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "cls-multiword-both",
+      "input": "A house cat is a domestic animal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "house cat",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "domestic animal",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-uppercase",
+      "input": "DOGS CHASE CATS",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "DOGS",
+        "fandaws:predicate": "CHASE",
+        "fandaws:object": "CATS",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "rel-multiword-object",
+      "input": "Rain nourishes the green plants",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Rain",
+        "fandaws:predicate": "nourishes",
+        "fandaws:object": "green plants",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    }
+  ]
+}

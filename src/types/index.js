@@ -26,3 +26,5 @@ export {
   createShadowsAnnotation,
   createDisambiguatedFromAnnotation,
 } from './shadows-annotation.js';
+export { createParseResult } from './parse-result.js';
+export { createClassificationAction } from './classification-action.js';

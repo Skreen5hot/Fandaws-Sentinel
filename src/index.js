@@ -28,6 +28,8 @@ export {
   createResolvedFromAnnotation,
   createShadowsAnnotation,
   createDisambiguatedFromAnnotation,
+  createParseResult,
+  createClassificationAction,
 } from './types/index.js';
 
 // Core modules
@@ -40,6 +42,18 @@ export {
   caseFold,
   expandAbbreviations,
 } from './core/identity/identity-simplification.js';
+
+export {
+  parse,
+  validateInput,
+  normalizeInput,
+  stripArticle,
+  matchClassification,
+  matchProperty,
+  matchCustomRelationship,
+} from './core/nl-parser/nl-parser.js';
+
+export { classify } from './core/classifier/classifier.js';
 
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';

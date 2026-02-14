@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fandaws — InMemoryStateAdapter Browser Tests</title>
+  <style>
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #1a1d27;
+      color: #e1e4ed;
+      padding: 24px;
+      margin: 0;
+    }
+    h1 { color: #7b8eff; margin-bottom: 4px; }
+    .subtitle { color: #6b7394; margin-top: 0; margin-bottom: 24px; }
+    .test { padding: 6px 0; font-size: 0.9rem; }
+    .pass { color: #3dd68c; }
+    .pass::before { content: "✓ "; }
+    .fail { color: #ff6b6b; }
+    .fail::before { content: "✗ "; }
+    .summary {
+      margin-top: 24px;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+    .summary.pass { background: rgba(61, 214, 140, 0.12); border: 1px solid #3dd68c; }
+    .summary.fail { background: rgba(255, 107, 107, 0.12); border: 1px solid #ff6b6b; }
+  </style>
+</head>
+<body>
+  <h1>Fandaws Sentinel — Browser Tests</h1>
+  <p class="subtitle">InMemoryStateAdapter + Identity Simplification</p>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <script type="module">
+    import {
+      InMemoryStateAdapter,
+      createKnowledgeGraph,
+      createConcept,
+      createRelationship,
+      createGraphMutation,
+      simplify,
+    } from '../../docs/dist/fandaws.js';
+
+    const results = [];
+    const container = document.getElementById('results');
+
+    function assert(condition, name) {
+      const passed = !!condition;
+      results.push({ name, passed });
+      const el = document.createElement('div');
+      el.className = `test ${passed ? 'pass' : 'fail'}`;
+      el.textContent = `${passed ? 'PASS' : 'FAIL'}: ${name}`;
+      container.appendChild(el);
+    }
+
+    // ── Test 1: saveGraph + loadGraph round-trip ──
+    const adapter = new InMemoryStateAdapter();
+    const graph = createKnowledgeGraph({ id: 'fandaws:graph/test' });
+    adapter.saveGraph('fandaws:graph/test', graph);
+    const loaded = adapter.loadGraph('fandaws:graph/test');
+    assert(loaded !== null, 'saveGraph + loadGraph round-trips');
+    assert(loaded['@type'] === 'fandaws:KnowledgeGraph', 'loaded graph has correct @type');
+
+    // ── Test 2: loadGraph returns null for unknown ──
+    assert(adapter.loadGraph('unknown') === null, 'loadGraph returns null for unknown ID');
+
+    // ── Test 3: applyMutation adds concept + index lookup ──
+    const concept = createConcept({
+      id: 'fandaws:concept/dog',
+      displayLabel: 'Dog',
+      canonicalLabel: 'dog',
+    });
+    const mutation = createGraphMutation({
+      additions: [concept],
+      reason: 'Browser test: add dog',
+    });
+    const updated = adapter.applyMutation('fandaws:graph/test', mutation);
+    assert(
+      updated['fandaws:concepts'].length === 1,
+      'applyMutation adds concept to graph',
+    );
+    assert(
+      updated['fandaws:concepts'][0]['@id'] === 'fandaws:concept/dog',
+      'added concept has correct @id',
+    );
+
+    // Verify index was built
+    const idx = adapter.getIndices('fandaws:graph/test');
+    assert(
+      idx && idx.canonicalLabelToIri.get('dog') === 'fandaws:concept/dog',
+      'canonicalLabel index lookup succeeds after mutation',
+    );
+
+    // ── Test 4: simplify() produces correct canonicalLabel ──
+    const simplified = simplify('  The   Golden   Retriever  ');
+    assert(
+      simplified.canonicalLabel === 'golden retriever',
+      'simplify() produces correct canonicalLabel',
+    );
+
+    // ── Test 5: verifyIntegrity returns clean ──
+    const ghosts = adapter.verifyIntegrity('fandaws:graph/test');
+    assert(
+      Array.isArray(ghosts) && ghosts.length === 0,
+      'verifyIntegrity returns empty on healthy graph',
+    );
+
+    // ── Test 6: Browser context sanity ──
+    assert(typeof window !== 'undefined', 'Running in browser context');
+
+    // ── Summary ──
+    const passed = results.filter((r) => r.passed).length;
+    const total = results.length;
+    const summary = document.getElementById('summary');
+    summary.className = `summary ${passed === total ? 'pass' : 'fail'}`;
+    summary.textContent = `${passed}/${total} browser tests passed`;
+  </script>
+</body>
+</html>

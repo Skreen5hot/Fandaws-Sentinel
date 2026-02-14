@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": 2,
+  "currentPhase": 3,
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -53,11 +53,11 @@
     {
       "id": 3,
       "name": "InMemoryStateAdapter",
-      "status": "not-started",
+      "status": "complete",
       "track": "B",
       "depends": [1],
-      "description": "Reference state adapter with 5 indices for O(1) lookups. Browser bundle verification (brain-in-a-box).",
-      "deliverables": ["in-memory-state-adapter.js", "5 maintained indices", "verifyIntegrity()", "browser test harness"]
+      "description": "Reference in-memory state adapter with 5 maintained indices (canonicalLabel, parent, children, properties, reverse relationships). Atomic snapshot-and-swap mutations. 86 tests, browser test harness.",
+      "deliverables": ["in-memory-state-adapter.js", "5 maintained indices", "verifyIntegrity()", "browser test harness", "86 unit tests"]
     },
     {
       "id": 4,

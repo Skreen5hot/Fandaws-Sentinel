@@ -57,5 +57,6 @@ export { classify } from './core/classifier/classifier.js';
 
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';
+export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';
 export { IntegrationAdapter } from './adapters/integration/integration-adapter.js';
 export { OrchestrationAdapter } from './adapters/orchestration/orchestration-adapter.js';

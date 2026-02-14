@@ -1,174 +1,181 @@
 {
-  "generatedAt": "2026-02-14T18:36:27.665Z",
+  "generatedAt": "2026-02-14T20:13:41.015Z",
   "success": true,
-  "totalSuites": 23,
-  "passedSuites": 23,
+  "totalSuites": 24,
+  "passedSuites": 24,
   "failedSuites": 0,
-  "totalTests": 301,
-  "passedTests": 301,
+  "totalTests": 387,
+  "passedTests": 387,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
-    {
-      "name": "unit/types/resolved-from.test.js",
-      "passed": 6,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 1398
-    },
-    {
-      "name": "unit/types/conflict-report.test.js",
-      "passed": 12,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 1409
-    },
     {
       "name": "unit/types/concept.test.js",
       "passed": 7,
       "failed": 0,
       "skipped": 0,
-      "duration": 1431
-    },
-    {
-      "name": "unit/types/knowledge-graph.test.js",
-      "passed": 7,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 1495
-    },
-    {
-      "name": "golden/identity-simplification-golden.test.js",
-      "passed": 30,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 1563
+      "duration": 1526
     },
     {
       "name": "unit/types/shadows-annotation.test.js",
       "passed": 9,
       "failed": 0,
       "skipped": 0,
-      "duration": 1569
+      "duration": 1562
+    },
+    {
+      "name": "unit/types/knowledge-graph.test.js",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1511
+    },
+    {
+      "name": "golden/identity-simplification-golden.test.js",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1718
     },
     {
       "name": "unit/identity-simplification.test.js",
       "passed": 51,
       "failed": 0,
       "skipped": 0,
-      "duration": 1653
+      "duration": 1699
     },
     {
-      "name": "unit/types/scope-configuration.test.js",
+      "name": "unit/types/conflict-report.test.js",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1582
+    },
+    {
+      "name": "unit/types/resolved-from.test.js",
       "passed": 6,
       "failed": 0,
       "skipped": 0,
-      "duration": 400
+      "duration": 298
     },
     {
       "name": "unit/nl-parser.test.js",
       "passed": 57,
       "failed": 0,
       "skipped": 0,
-      "duration": 541
-    },
-    {
-      "name": "unit/types/property.test.js",
-      "passed": 5,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 385
+      "duration": 388
     },
     {
       "name": "unit/types/scope-resolution.test.js",
       "passed": 5,
       "failed": 0,
       "skipped": 0,
-      "duration": 443
-    },
-    {
-      "name": "unit/types/conversation-prompt.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 434
-    },
-    {
-      "name": "unit/classifier.test.js",
-      "passed": 16,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 526
-    },
-    {
-      "name": "unit/types/relationship.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 428
-    },
-    {
-      "name": "unit/types/parse-result.test.js",
-      "passed": 6,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 330
+      "duration": 312
     },
     {
       "name": "unit/types/validation-result.test.js",
       "passed": 4,
       "failed": 0,
       "skipped": 0,
-      "duration": 400
-    },
-    {
-      "name": "unit/types/deferred-result.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 343
+      "duration": 278
     },
     {
       "name": "unit/types/graph-mutation.test.js",
       "passed": 4,
       "failed": 0,
       "skipped": 0,
-      "duration": 376
+      "duration": 332
     },
     {
-      "name": "golden/nl-parser-golden.test.js",
-      "passed": 46,
+      "name": "unit/classifier.test.js",
+      "passed": 16,
       "failed": 0,
       "skipped": 0,
-      "duration": 572
+      "duration": 331
+    },
+    {
+      "name": "unit/types/property.test.js",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 280
+    },
+    {
+      "name": "unit/types/scope-configuration.test.js",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 315
+    },
+    {
+      "name": "unit/types/relationship.test.js",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 286
     },
     {
       "name": "unit/types/conversation-session.test.js",
       "passed": 6,
       "failed": 0,
       "skipped": 0,
-      "duration": 461
+      "duration": 305
     },
     {
       "name": "unit/types/context.test.js",
       "passed": 4,
       "failed": 0,
       "skipped": 0,
-      "duration": 358
+      "duration": 307
+    },
+    {
+      "name": "golden/nl-parser-golden.test.js",
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 351
+    },
+    {
+      "name": "unit/types/conversation-prompt.test.js",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 251
+    },
+    {
+      "name": "unit/types/parse-result.test.js",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 249
     },
     {
       "name": "unit/types/index.test.js",
       "passed": 3,
       "failed": 0,
       "skipped": 0,
-      "duration": 264
+      "duration": 270
+    },
+    {
+      "name": "unit/types/deferred-result.test.js",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 259
     },
     {
       "name": "unit/types/classification-action.test.js",
       "passed": 5,
       "failed": 0,
       "skipped": 0,
-      "duration": 253
+      "duration": 217
+    },
+    {
+      "name": "unit/in-memory-state-adapter.test.js",
+      "passed": 86,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 4777
     }
   ]
 }

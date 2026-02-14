@@ -55,6 +55,28 @@ export {
 
 export { classify } from './core/classifier/classifier.js';
 
+// Validator (Phase 4)
+export { validate } from './core/validator/validator.js';
+export {
+  checkCompoundStatement,
+  checkStructuralGrounding,
+  validateConfirmationResponse,
+} from './core/validator/input-sanitizer.js';
+export {
+  detectCycle,
+  buildParentIndex,
+  checkMutationForCycles,
+} from './core/validator/sanity-check.js';
+export { checkPropertyRedundancy } from './core/validator/property-redundancy.js';
+
+// Governance stubs (Phase 4b)
+export {
+  checkGovernanceBlock,
+  nullOCECheck,
+  nullIEECheck,
+  createGovernanceEpistemicFailure,
+} from './core/validator/governance-check.js';
+
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';
 export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';

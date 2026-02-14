@@ -194,5 +194,3 @@ Core areas in progress:
 
 ## License
 MIT License - See [LICENSE]
-
-_To be determined_

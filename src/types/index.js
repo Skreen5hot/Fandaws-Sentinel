@@ -16,3 +16,13 @@ export { createValidationResult } from './validation-result.js';
 export { createConversationSession } from './conversation-session.js';
 export { createScopeConfiguration, createScopeEntry } from './scope-configuration.js';
 export { createScopeResolution } from './scope-resolution.js';
+export {
+  createConflictReport,
+  createConflictingDefinition,
+  createResolutionOption,
+} from './conflict-report.js';
+export { createResolvedFromAnnotation } from './resolved-from.js';
+export {
+  createShadowsAnnotation,
+  createDisambiguatedFromAnnotation,
+} from './shadows-annotation.js';

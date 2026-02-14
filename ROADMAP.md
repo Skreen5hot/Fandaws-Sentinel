@@ -11,17 +11,18 @@ After Phase 1 (Identity Simplification), development splits into three parallel 
 
 ```mermaid
 graph TD
-  P0["Phase 0 — Scaffolding + Types + Config"] --> P1["Phase 1 — Identity Simplification"]
+  P0["Phase 0 — Scaffolding ✓"] --> P1["Phase 1 — Identity Simplification ✓"]
 
   %% Track A — Linguistics & IO
   P1 --> P2["Phase 2 — NLParser + Classifier (A)"]
-  P1 --> P7["Phase 7 — DescriptionEngine (A)"]
+  P3 --> P7["Phase 7 — DescriptionEngine (A/B)"]
   P2 --> P10["Phase 10 — ExportEngine (A)"]
 
   %% Track B — Graph Mechanics
   P1 --> P3["Phase 3 — InMemoryStateAdapter (B)"]
   P3 --> P4["Phase 4 — Validator (B)"]
-  P4 --> P5["Phase 5 — Classification Workflow (B)"]
+  P4 --> P4b["Phase 4b — OCE/IEE Stubs (B)"]
+  P4b --> P5["Phase 5 — Classification Workflow (B)"]
   P5 --> P6["Phase 6 — Property Workflow (B)"]
   P5 --> P9["Phase 9 — Relationships + Termidium (B)"]
 
@@ -38,21 +39,25 @@ graph TD
   P8 --> P13["Phase 13 — M2M Protocol"]
   P13 --> P14["Phase 14 — Ecosystem Adapters"]
 
-  style P8 fill:#f9f,stroke:#333,stroke-width:3px
+  style P0 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P1 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f
 ```
 
 ### Track Summary
 
 | Track | Theme | Phases | Gate |
 |-------|-------|--------|------|
-| **A** | Linguistics & IO | P2, P7, P10 | P2 + P7 required before P8 |
-| **B** | Graph Mechanics | P3, P4, P5, P6, P9 | P5 required before P8 |
+| **A** | Linguistics & IO | P2, P10 | P2 required before P8 |
+| **A/B** | Cross-track | P7 (DescriptionEngine) | Depends on P3 (graph traversal); required before P8 |
+| **B** | Graph Mechanics | P3, P4, P4b, P5, P6, P9 | P5 required before P8 |
 | **C** | Lifecycle & Federation | P11, P12 | Independent — merge after P8 |
 
 ### Parallelism Rules
 
-- Tracks A, B, and C may proceed concurrently after Phase 1.
+- Tracks A and B may proceed concurrently after Phase 1. Track C starts after Phase 3.
 - Within a track, phases are sequential (each depends on the prior).
+- **Cross-track dependency:** P7 (DescriptionEngine) requires P3 (StateAdapter) for graph traversal of parent chains and inherited properties. P7 cannot start until P3 is complete.
 - **Phase 8 gate:** requires P2 (NLParser), P5 (Classification Workflow), and P7 (DescriptionEngine).
 - P6, P9, P10, P11, P12 may continue in parallel with or after Phase 8.
 - P13 and P14 are strictly post-convergence.
@@ -104,6 +109,32 @@ graph TD
 - [x] All 20 configuration parameters from Section 11.1 present with spec defaults
 
 **NOT in scope:** Domain-specific configs, environment overrides, runtime config loading.
+
+### 0.5 Missing Metadata Type Factories
+
+**Status:** Complete
+**Priority:** High (blocks Phase 12)
+
+**Stakeholder finding:** Three metadata types from v3.4 were missing from the type factory set. These are independently constructable JSON-LD nodes needed by ScopeResolver (Phase 12).
+
+> **Spec clarification:** The spec uses `fandaws:shadows` (not `forkedFrom`) for the refine action annotation. Additionally, `createDistinct` uses a `fandaws:disambiguatedFrom` annotation. Both are implemented as separate factories: `createShadowsAnnotation` and `createDisambiguatedFromAnnotation`.
+
+**Deliverables:**
+- `src/types/conflict-report.js` — `createConflictReport()`, `createConflictingDefinition()`, `createResolutionOption()` (Section 4.2.10)
+- `src/types/resolved-from.js` — `createResolvedFromAnnotation()` (Section 4.2.11)
+- `src/types/shadows-annotation.js` — `createShadowsAnnotation()`, `createDisambiguatedFromAnnotation()` (Section 5.11.2)
+- `tests/unit/types/conflict-report.test.js` (12 tests)
+- `tests/unit/types/resolved-from.test.js` (6 tests)
+- `tests/unit/types/shadows-annotation.test.js` (9 tests)
+
+**Acceptance Criteria:**
+- [x] `createConflictReport()` output matches spec Section 4.2.10 / Appendix A.11 shape
+- [x] `createResolvedFromAnnotation()` output matches spec Section 4.2.11 / Appendix A.10 shape
+- [x] `createShadowsAnnotation()` output includes `shadows` array and disambiguated display label
+- [x] `createDisambiguatedFromAnnotation()` output includes original term and source graph reference
+- [x] Each factory has at least 3 unit tests (27 total across 3 suites)
+- [x] All 18 type factories exported from `src/types/index.js` (19 members total including FANDAWS_CONTEXT)
+- [x] FANDAWS_CONTEXT updated with new type namespaces (resolvedFrom, shadows, disambiguatedFrom, definitions, resolutionOptions)
 
 ---
 
@@ -326,6 +357,25 @@ Enum matching to route ParseResult to the correct workflow.
 
 > **Technical Advisory — verifyIntegrity():** Add a `verifyIntegrity(graphId)` method that walks all five indices and reports any IRI that points to a concept not present in the graph. This traps "ghost pointers" — stale index entries left behind by buggy mutation paths. Call it in test teardowns and integration tests. It's cheap insurance against index corruption.
 
+### 3.2 Browser Bundle Verification
+
+**Goal:** Prove the "brain in a box" single-file deployment model. The esbuild bundle (`docs/dist/fandaws.js`) must include InMemoryStateAdapter and run a full graph round-trip in a browser context.
+
+**Deliverables:**
+- `src/index.js` — export `InMemoryStateAdapter`
+- `tests/browser/state-adapter-browser.test.html` — browser test harness (opens in any browser, runs assertions, reports pass/fail)
+
+**Acceptance Criteria:**
+- [ ] `npm run build` produces a single `docs/dist/fandaws.js` that exports `InMemoryStateAdapter`
+- [ ] Browser test harness imports the bundle via `<script type="module">`
+- [ ] In-browser test: `saveGraph` + `loadGraph` round-trips a KnowledgeGraph
+- [ ] In-browser test: `applyMutation` adds a concept and index lookup succeeds
+- [ ] In-browser test: `simplify()` produces correct canonicalLabel
+- [ ] Bundle size remains < 20KB (single-file constraint)
+- [ ] No Node.js-only APIs used in core (no `fs`, `path`, `process` in bundled code)
+
+> **Technical Advisory — Single-File Deployment:** The stakeholder requirement is "a brain in a box" — one `.js` file that any web app can `import` to get the full Fandaws engine. This is validated here at Phase 3 rather than Phase 8 to catch Node.js-only API leaks early. The esbuild bundle (ADR-002) already produces this file; this phase adds the proof.
+
 **NOT in scope:** FileSystemStateAdapter, queryGraph (pattern matching), IPFS CID resolution.
 
 ---
@@ -402,13 +452,40 @@ Enum matching to route ParseResult to the correct workflow.
 
 ---
 
+## Phase 4b: OCE/IEE Governance Stubs `[Track B — Graph Mechanics]`
+
+**Goal:** Wire up the governance flows from Section 10.4.3 (OCE blocking flags) and Section 10.5.2 (IEE ethical contestation) with null implementations. This enables the blocking-flag-as-EpistemicFailure behavior from v3.4 to be testable before Phase 13 (M2M), where deadlock prevention depends on it.
+**Status:** Not Started
+**Priority:** High
+**Effort:** Low
+**Depends on:** Phase 4
+
+> **Stakeholder finding:** The blocking-flag-as-EpistemicFailure behavior added in v3.4 is a Validator/OrchestrationAdapter concern, not an ecosystem concern. It should be testable before the M2M protocol (Phase 13) so that the deadlock prevention path can be exercised. Null implementations are sufficient — the real OCE/IEE adapters remain in Phase 14.
+
+**Deliverables:**
+- `src/core/validator/governance-check.js`
+- `tests/unit/governance-check.test.js`
+
+**Acceptance Criteria:**
+- [ ] `checkGovernanceBlock(concept, graph)` returns `{blocked: false}` by default (null implementation)
+- [ ] When a concept has `fandaws:governanceFlag: "blocked"`, returns `{blocked: true, reason, epistemicFailure}` with EpistemicFailure JSON-LD node
+- [ ] EpistemicFailure node includes `flagType` (OCE/IEE), `flaggedBy`, `flaggedAt`, `reason`
+- [ ] Validator (Phase 4.3) calls `checkGovernanceBlock` before approving mutations
+- [ ] Blocked mutations produce a GraphMutation with `mutationType: "governanceRejection"`
+- [ ] OrchestrationAdapter can check governance status before pipeline execution
+- [ ] 8+ unit tests covering: no flag, OCE block, IEE block, cleared flag, malformed flag
+
+**NOT in scope:** Actual OCE/IEE adapter implementations, external governance service integration, human review workflows.
+
+---
+
 ## Phase 5: KnowledgeEngine — Classification Workflow `[Track B — Graph Mechanics]`
 
 **Goal:** Implement "X is a Y" — the simplest and most foundational workflow.
 **Status:** Not Started
 **Priority:** Critical
 **Effort:** High
-**Depends on:** Phase 4
+**Depends on:** Phase 4b (Validator + governance stubs)
 
 ### 5.1 Classification Workflow
 
@@ -456,7 +533,9 @@ Enum matching to route ParseResult to the correct workflow.
 *Golden corpus:*
 - [ ] 20+ classification scenarios passing
 
-**NOT in scope:** Termidium deduplication (Phase 9), scope resolution, property attachment.
+**NOT in scope:** Termidium deduplication (Phase 9.3 — the 8-level hierarchy search, merge governance, and `mergeReviewThreshold` are scoped there because they depend on the Classification Workflow being operational first), scope resolution, property attachment.
+
+> **Stakeholder note — Termidium placement:** Termidium (Section 6.2) is a Validator-adjacent concern but depends on a working classification hierarchy to search. Phase 9.3 contains its full acceptance criteria: 8-level bounded search, tie-breaking merge policy, recursive merge, `mergedFrom` tracking, `ReverseRelationshipIndex` usage, and `mergeReviewThreshold` confirmation. The Classification Workflow (Phase 5) must be complete first to provide the graph structures Termidium operates on.
 
 ---
 
@@ -535,13 +614,15 @@ Enum matching to route ParseResult to the correct workflow.
 
 ---
 
-## Phase 7: DescriptionEngine `[Track A — Linguistics]`
+## Phase 7: DescriptionEngine `[Track A/B — Linguistics + Graph]`
 
 **Goal:** Auto-generate natural-language definitions from graph structure.
 **Status:** Not Started
 **Priority:** High
 **Effort:** Low
-**Depends on:** Phase 1 (uses displayLabel/canonicalLabel conventions)
+**Depends on:** Phase 3 (requires graph traversal for parent chain and inherited properties)
+
+> **Stakeholder note:** Phase 7 was originally scoped as Track A (Phase 1 only), but the description templates reference parent concepts and properties (`"[Term] is a [parent] that has [prop1]..."`), which requires walking the concept's parent chain in the graph. This makes Phase 3 (StateAdapter) a prerequisite. The function remains pure (concept IRI + graph data in → description string out), but it needs a realized graph structure to traverse.
 
 ### 7.1 Description Templates
 
@@ -587,7 +668,7 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 2. Measure: (a) parse success rate, (b) false-positive rate, (c) ambiguity handling
 3. If success rate ≥ 95% on golden corpus → continue with regex parser
 4. If success rate < 95% → create a `TagTeamNLParserAdapter` that delegates to TagTeam.js for parsing, preserving the same JSON-LD ParseResult interface
-5. Decision recorded in `docs/architecture/design-decisions.md` as ADR-002
+5. Decision recorded in `docs/architecture/design-decisions.md` as ADR-003
 
 **Outcome:** Either the existing regex NLParser proceeds unchanged, or a TagTeam adapter is added as an alternative NLParser implementation behind the same interface. The rest of the pipeline is unaffected either way.
 
@@ -649,7 +730,7 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 
 *TagTeam evaluation:*
 - [ ] NLParser golden corpus success rate measured and recorded
-- [ ] ADR-002 written with decision + rationale
+- [ ] ADR-003 written with decision + rationale
 
 *Error handling:*
 - [ ] Invalid input (empty, compound) → appropriate ConversationPrompt, no crash
@@ -876,7 +957,7 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 **Status:** Not Started
 **Priority:** Medium
 **Effort:** High
-**Depends on:** Phase 11
+**Depends on:** Phase 11, Phase 3 (explicit — uses `loadGraph`, `loadScopeConfig`, `saveScopeConfig`), Phase 0.5 (needs ConflictReport, ResolvedFromAnnotation, ForkedFromAnnotation factories)
 
 ### 12.1 ScopeResolver
 
@@ -1069,7 +1150,7 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 | Decision | Options | Decide By |
 |----------|---------|-----------|
 | Testing framework | Jest, Vitest, Node test runner | Phase 0 checkpoint |
-| Browser bundling | Rollup, esbuild, native ES modules | Phase 8 (Spec Test) |
+| Browser bundling | ~~Deferred~~ **Decided: esbuild** (ADR-002) | Resolved at Phase 3 |
 | TypeScript vs JSDoc | TS compilation, JSDoc annotations, plain JS | Phase 1 start |
 | IPFS client library | js-ipfs, Helia, HTTP gateway only | Phase 14.4 |
 | Verb lemmatization | Custom regex, external library, lookup table | Phase 9.1 |
@@ -1095,5 +1176,5 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 3. Determinism verified: 3 identical runs → identical output
 4. Pipeline latency < 40ms for non-disambiguation assertions
 5. System runs with only Node.js + JSON-LD files (no infrastructure)
-6. NLParser golden corpus success rate measured → TagTeam decision recorded as ADR-002
+6. NLParser golden corpus success rate measured → TagTeam decision recorded as ADR-003
 7. `verifyIntegrity()` returns clean on all integration test graphs

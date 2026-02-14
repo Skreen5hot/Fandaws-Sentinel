@@ -19,7 +19,7 @@
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
         <span class="badge badge--green" id="badge-phase">Phase 1 Complete</span>
-        <span class="badge badge--green" id="badge-tests">Loading...</span>
+        <span class="badge badge--green" id="badge-tests">171/171 Tests Pass</span>
       </div>
     </header>
 
@@ -47,12 +47,13 @@
   P0["Phase 0 — Scaffolding ✓"] --> P1["Phase 1 — Identity Simplification ✓"]
 
   P1 --> P2["Phase 2 — NLParser (A)"]
-  P1 --> P7["Phase 7 — DescriptionEngine (A)"]
+  P3 --> P7["Phase 7 — DescriptionEngine (A/B)"]
   P2 --> P10["Phase 10 — ExportEngine (A)"]
 
   P1 --> P3["Phase 3 — StateAdapter (B)"]
   P3 --> P4["Phase 4 — Validator (B)"]
-  P4 --> P5["Phase 5 — Classification (B)"]
+  P4 --> P4b["Phase 4b — OCE/IEE Stubs (B)"]
+  P4b --> P5["Phase 5 — Classification (B)"]
   P5 --> P6["Phase 6 — Properties (B)"]
   P5 --> P9["Phase 9 — Relationships (B)"]
 
@@ -116,7 +117,7 @@
           <h3 class="card-title" style="margin-top: 20px;">Golden Corpus Samples</h3>
           <table class="corpus-table" id="corpus-table">
             <thead>
-              <tr><th>Input</th><th>Expected</th></tr>
+              <tr><th>Input</th><th>Expected</th><th>Note</th></tr>
             </thead>
             <tbody id="corpus-tbody">
               <!-- Populated by app.js -->

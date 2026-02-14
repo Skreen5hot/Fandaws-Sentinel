@@ -22,6 +22,12 @@ export {
   createScopeConfiguration,
   createScopeEntry,
   createScopeResolution,
+  createConflictReport,
+  createConflictingDefinition,
+  createResolutionOption,
+  createResolvedFromAnnotation,
+  createShadowsAnnotation,
+  createDisambiguatedFromAnnotation,
 } from './types/index.js';
 
 // Core modules

@@ -70,39 +70,60 @@ const STEP_LABELS = [
 ];
 
 const GOLDEN_SAMPLES = [
-  { input: '  A Dog  ', expected: 'dog' },
-  { input: 'The   golden   retriever', expected: 'golden retriever' },
-  { input: 'An Apple', expected: 'apple' },
-  { input: 'CAF\u00C9', expected: 'caf\u00E9' },
-  { input: '\uFB01nance', expected: 'finance' },
-  { input: '\uFF21\uFF22\uFF23', expected: 'abc' },
-  { input: '', expected: '' },
-  { input: 'The Hague', expected: 'the hague', protected: true },
-  { input: 'The Beatles', expected: 'the beatles', protected: true },
-  { input: 'The dog', expected: 'dog' },
-  { input: 'govt', expected: 'government', abbr: true },
+  // Whitespace & articles (en)
+  { input: '  A Dog  ', expected: 'dog', note: 'trim + article + case fold' },
+  { input: 'The   golden   retriever', expected: 'golden retriever', note: 'article + collapse WS' },
+  { input: 'An Apple', expected: 'apple', note: 'article "an" removed' },
+  { input: 'The dog', expected: 'dog', note: 'not protected, article stripped' },
+  // NFKC normalization
+  { input: 'CAF\u00C9', expected: 'caf\u00E9', note: 'case fold preserves diacritics' },
+  { input: '\uFB01nance', expected: 'finance', note: 'NFKC fi ligature' },
+  { input: '\uFF21\uFF22\uFF23', expected: 'abc', note: 'NFKC fullwidth + case fold' },
+  { input: 'x\u00B2', expected: 'x2', note: 'NFKC superscript' },
+  // Protected proper nouns
+  { input: 'The Hague', expected: 'the hague', protected: true, note: 'protected — article kept' },
+  { input: 'The Beatles', expected: 'the beatles', protected: true, note: 'protected — article kept' },
+  { input: 'The Gambia', expected: 'the gambia', protected: true, note: 'protected — article kept' },
+  // Abbreviation expansion
+  { input: 'govt', expected: 'government', abbr: true, note: 'abbreviation expansion' },
+  { input: 'The dept of govt', expected: 'department of government', abbr: true, note: 'article + multi-abbreviation' },
+  // Turkish dotted I (Section 6.6 i18n)
+  { input: '\u0130STANBUL', expected: 'istanbul', locale: 'tr', note: 'Turkish \u0130 \u2192 i (locale-aware)' },
+  // CJK pass-through
+  { input: '\u6D4B\u8BD5\u6982\u5FF5', expected: '\u6D4B\u8BD5\u6982\u5FF5', locale: 'zh', note: 'CJK no-op (no case concept)' },
 ];
 
 function buildCorpusTable() {
   const tbody = document.getElementById('corpus-tbody');
-  tbody.innerHTML = GOLDEN_SAMPLES.map((s) => {
+  tbody.innerHTML = GOLDEN_SAMPLES.map((s, i) => {
     const inputDisplay = JSON.stringify(s.input);
-    return `<tr data-input="${s.input.replace(/"/g, '&quot;')}">
+    return `<tr data-idx="${i}">
       <td>${inputDisplay}</td>
       <td>${JSON.stringify(s.expected)}</td>
+      <td style="color: var(--text-muted); font-family: var(--font-sans); font-size: 0.75rem">${s.note || ''}</td>
     </tr>`;
   }).join('');
 
   tbody.addEventListener('click', (e) => {
     const row = e.target.closest('tr');
     if (!row) return;
-    const input = row.dataset.input;
-    document.getElementById('input-term').value = input;
+    const sample = GOLDEN_SAMPLES[Number(row.dataset.idx)];
+    if (!sample) return;
 
-    // Set appropriate options for special cases
-    const sample = GOLDEN_SAMPLES.find((s) => s.input === input);
-    if (sample?.abbr) {
-      document.getElementById('input-abbreviations').value = '{"govt": "government"}';
+    document.getElementById('input-term').value = sample.input;
+
+    // Set locale for non-English samples
+    if (sample.locale) {
+      document.getElementById('input-locale').value = sample.locale;
+    } else {
+      document.getElementById('input-locale').value = 'en';
+    }
+
+    // Set abbreviation table for abbreviation samples
+    if (sample.abbr) {
+      document.getElementById('input-abbreviations').value = '{"govt": "government", "dept": "department"}';
+    } else {
+      document.getElementById('input-abbreviations').value = '{}';
     }
 
     runPipeline();

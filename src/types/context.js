@@ -22,5 +22,10 @@ export const FANDAWS_CONTEXT = {
     'fandaws:mergedFrom': { '@container': '@set', '@type': '@id' },
     'fandaws:createdAt': { '@type': 'xsd:dateTime' },
     'fandaws:bfoMapping': { '@type': '@id' },
+    'fandaws:resolvedFrom': { '@type': '@id' },
+    'fandaws:shadows': { '@container': '@set' },
+    'fandaws:disambiguatedFrom': { '@type': '@id' },
+    'fandaws:definitions': { '@container': '@set' },
+    'fandaws:resolutionOptions': { '@container': '@set' },
   },
 };

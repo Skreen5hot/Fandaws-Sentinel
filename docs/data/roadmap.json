@@ -3,8 +3,9 @@
   "specVersion": "v3.4",
   "currentPhase": 1,
   "tracks": [
-    { "id": "A", "theme": "Linguistics & IO", "phases": [2, 7, 10] },
-    { "id": "B", "theme": "Graph Mechanics", "phases": [3, 4, 5, 6, 9] },
+    { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
+    { "id": "A/B", "theme": "Cross-track", "phases": [7] },
+    { "id": "B", "theme": "Graph Mechanics", "phases": [3, 4, "4b", 5, 6, 9] },
     { "id": "C", "theme": "Lifecycle & Federation", "phases": [11, 12] }
   ],
   "convergenceGate": {
@@ -21,6 +22,15 @@
       "depends": [],
       "description": "Project structure, tooling, JSON-LD types, adapter interfaces, default config.",
       "deliverables": ["12 type factories", "3 adapter base classes", "20 config params"]
+    },
+    {
+      "id": "0.5",
+      "name": "Missing Metadata Type Factories",
+      "status": "not-started",
+      "track": null,
+      "depends": [0],
+      "description": "ConflictReport, ResolvedFromAnnotation, ForkedFromAnnotation — metadata types needed by ScopeResolver (Phase 12).",
+      "deliverables": ["createConflictReport", "createResolvedFromAnnotation", "createForkedFromAnnotation"]
     },
     {
       "id": 1,
@@ -46,8 +56,8 @@
       "status": "not-started",
       "track": "B",
       "depends": [1],
-      "description": "Reference state adapter with 5 indices for O(1) lookups. Foundation for all graph operations.",
-      "deliverables": ["in-memory-state-adapter.js", "5 maintained indices", "verifyIntegrity()"]
+      "description": "Reference state adapter with 5 indices for O(1) lookups. Browser bundle verification (brain-in-a-box).",
+      "deliverables": ["in-memory-state-adapter.js", "5 maintained indices", "verifyIntegrity()", "browser test harness"]
     },
     {
       "id": 4,
@@ -59,13 +69,22 @@
       "deliverables": ["validator.js", "ValidationResult JSON-LD output"]
     },
     {
+      "id": "4b",
+      "name": "OCE/IEE Governance Stubs",
+      "status": "not-started",
+      "track": "B",
+      "depends": [4],
+      "description": "Null governance implementations for blocking-flag-as-EpistemicFailure behavior (v3.4). Testable before M2M.",
+      "deliverables": ["governance-check.js", "EpistemicFailure JSON-LD nodes"]
+    },
+    {
       "id": 5,
       "name": "Classification Workflow",
       "status": "not-started",
       "track": "B",
-      "depends": [4],
+      "depends": ["4b"],
       "description": "First full knowledge workflow: 'X is a Y' creates concept + isA relationship.",
-      "deliverables": ["classification-workflow.js", "Termidium integration"]
+      "deliverables": ["classification-workflow.js", "20+ golden corpus cases"]
     },
     {
       "id": 6,
@@ -80,9 +99,9 @@
       "id": 7,
       "name": "DescriptionEngine",
       "status": "not-started",
-      "track": "A",
-      "depends": [1],
-      "description": "Generates human-readable descriptions from graph state for confirmation prompts.",
+      "track": "A/B",
+      "depends": [3],
+      "description": "Generates human-readable descriptions from graph structure. Requires graph traversal for parent chain and inherited properties.",
       "deliverables": ["description-engine.js", "template system"]
     },
     {
@@ -100,8 +119,8 @@
       "status": "not-started",
       "track": "B",
       "depends": [5],
-      "description": "Custom relationship workflow and Termidium semantic distance engine.",
-      "deliverables": ["relationship-workflow.js", "termidium.js"]
+      "description": "Custom relationship workflow and Termidium 8-level deduplication engine with merge governance.",
+      "deliverables": ["relationship-workflow.js", "termidium.js", "15+ merge test cases"]
     },
     {
       "id": 10,
@@ -109,7 +128,7 @@
       "status": "not-started",
       "track": "A",
       "depends": [2],
-      "description": "Export knowledge graphs to external formats (JSON-LD, RDF, CSV).",
+      "description": "Export knowledge graphs to external formats (SKOS, OWL, RDF/XML, Turtle).",
       "deliverables": ["export-engine.js", "format adapters"]
     },
     {
@@ -126,8 +145,8 @@
       "name": "ScopeResolver & Federation",
       "status": "not-started",
       "track": "C",
-      "depends": [11],
-      "description": "Cross-graph scope resolution and federated knowledge queries.",
+      "depends": [11, 3, "0.5"],
+      "description": "Cross-graph scope resolution and federated knowledge queries. Needs ConflictReport, ResolvedFrom, ForkedFrom factories.",
       "deliverables": ["scope-resolver.js", "ScopeResolution JSON-LD"]
     },
     {

@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": 1,
+  "currentPhase": 2,
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -26,11 +26,11 @@
     {
       "id": "0.5",
       "name": "Missing Metadata Type Factories",
-      "status": "not-started",
+      "status": "complete",
       "track": null,
       "depends": [0],
-      "description": "ConflictReport, ResolvedFromAnnotation, ForkedFromAnnotation — metadata types needed by ScopeResolver (Phase 12).",
-      "deliverables": ["createConflictReport", "createResolvedFromAnnotation", "createForkedFromAnnotation"]
+      "description": "ConflictReport, ResolvedFromAnnotation, ShadowsAnnotation, DisambiguatedFromAnnotation — metadata types needed by ScopeResolver (Phase 12). 6 factories, 27 tests.",
+      "deliverables": ["createConflictReport", "createConflictingDefinition", "createResolutionOption", "createResolvedFromAnnotation", "createShadowsAnnotation", "createDisambiguatedFromAnnotation"]
     },
     {
       "id": 1,
@@ -44,11 +44,11 @@
     {
       "id": 2,
       "name": "NLParser & Classifier",
-      "status": "not-started",
+      "status": "complete",
       "track": "A",
       "depends": [1],
-      "description": "Grammar-based parsing of natural language into structured frames, routed to workflows.",
-      "deliverables": ["nl-parser.js", "classifier.js", "40+ golden corpus cases"]
+      "description": "Deterministic regex-based NLParser (7 step functions) and enum-routing Classifier. 45-entry golden corpus. 130 new tests.",
+      "deliverables": ["nl-parser.js", "classifier.js", "parse-result.js", "classification-action.js", "45 golden corpus cases"]
     },
     {
       "id": 3,
@@ -146,7 +146,7 @@
       "status": "not-started",
       "track": "C",
       "depends": [11, 3, "0.5"],
-      "description": "Cross-graph scope resolution and federated knowledge queries. Needs ConflictReport, ResolvedFrom, ForkedFrom factories.",
+      "description": "Cross-graph scope resolution and federated knowledge queries. Needs ConflictReport, ResolvedFrom, ShadowsAnnotation, DisambiguatedFrom factories (complete).",
       "deliverables": ["scope-resolver.js", "ScopeResolution JSON-LD"]
     },
     {

@@ -1,0 +1,105 @@
+{
+  "generatedAt": "2026-02-14T18:27:16.417Z",
+  "success": true,
+  "totalSuites": 23,
+  "passedSuites": 23,
+  "failedSuites": 0,
+  "totalTests": 301,
+  "passedTests": 301,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "suites": [
+    {
+      "name": "unit/types/resolved-from.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/conflict-report.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/concept.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/knowledge-graph.test.js",
+      "duration": 0
+    },
+    {
+      "name": "golden/identity-simplification-golden.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/shadows-annotation.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/identity-simplification.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/scope-configuration.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/nl-parser.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/property.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/scope-resolution.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/conversation-prompt.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/classifier.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/relationship.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/parse-result.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/validation-result.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/deferred-result.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/graph-mutation.test.js",
+      "duration": 0
+    },
+    {
+      "name": "golden/nl-parser-golden.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/conversation-session.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/context.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/index.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/classification-action.test.js",
+      "duration": 0
+    }
+  ]
+}

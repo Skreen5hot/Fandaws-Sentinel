@@ -18,8 +18,8 @@
       <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
-        <span class="badge badge--green" id="badge-phase">Phase 1 Complete</span>
-        <span class="badge badge--green" id="badge-tests">171/171 Tests Pass</span>
+        <span class="badge badge--green" id="badge-phase">Phase 2 Complete</span>
+        <span class="badge badge--green" id="badge-tests">301/301 Tests Pass</span>
       </div>
     </header>
 
@@ -44,9 +44,10 @@
 
       <div class="mermaid-container">
         <pre class="mermaid">graph TD
-  P0["Phase 0 — Scaffolding ✓"] --> P1["Phase 1 — Identity Simplification ✓"]
+  P0["Phase 0 — Scaffolding ✓"] --> P05["Phase 0.5 — Metadata Types ✓"]
+  P0 --> P1["Phase 1 — Identity Simplification ✓"]
 
-  P1 --> P2["Phase 2 — NLParser (A)"]
+  P1 --> P2["Phase 2 — NLParser & Classifier ✓"]
   P3 --> P7["Phase 7 — DescriptionEngine (A/B)"]
   P2 --> P10["Phase 10 — ExportEngine (A)"]
 
@@ -68,7 +69,9 @@
   P13 --> P14["Phase 14 — Ecosystem"]
 
   style P0 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P05 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P1 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P2 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f</pre>
       </div>
 
@@ -164,6 +167,14 @@
               <option value="createScopeConfiguration">createScopeConfiguration</option>
               <option value="createScopeEntry">createScopeEntry</option>
               <option value="createScopeResolution">createScopeResolution</option>
+              <option value="createConflictReport">createConflictReport</option>
+              <option value="createConflictingDefinition">createConflictingDefinition</option>
+              <option value="createResolutionOption">createResolutionOption</option>
+              <option value="createResolvedFromAnnotation">createResolvedFromAnnotation</option>
+              <option value="createShadowsAnnotation">createShadowsAnnotation</option>
+              <option value="createDisambiguatedFromAnnotation">createDisambiguatedFromAnnotation</option>
+              <option value="createParseResult">createParseResult</option>
+              <option value="createClassificationAction">createClassificationAction</option>
             </select>
           </div>
 

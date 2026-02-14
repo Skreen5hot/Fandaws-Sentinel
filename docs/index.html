@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fandaws Sentinel — Stakeholder Review</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Header -->
+    <header class="site-header">
+      <h1>Fandaws Sentinel</h1>
+      <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
+      <div class="badges">
+        <span class="badge badge--accent">Spec v3.4</span>
+        <span class="badge badge--green" id="badge-phase">Phase 1 Complete</span>
+        <span class="badge badge--green" id="badge-tests">Loading...</span>
+      </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav-tabs" id="nav-tabs">
+      <button class="nav-tab active" data-tab="roadmap">Roadmap</button>
+      <button class="nav-tab" data-tab="playground">Identity Playground</button>
+      <button class="nav-tab" data-tab="types">Type Explorer</button>
+      <button class="nav-tab" data-tab="tests">Test Results</button>
+    </nav>
+
+    <!-- Section: Roadmap -->
+    <section class="section active" id="section-roadmap">
+      <h2 class="section-title">Development Roadmap</h2>
+
+      <div class="track-legend">
+        <div class="track-item"><span class="track-dot track-dot--a"></span> Track A — Linguistics &amp; IO</div>
+        <div class="track-item"><span class="track-dot track-dot--b"></span> Track B — Graph Mechanics</div>
+        <div class="track-item"><span class="track-dot track-dot--c"></span> Track C — Lifecycle &amp; Federation</div>
+        <div class="track-item"><span class="track-dot track-dot--conv"></span> Convergence Gate</div>
+      </div>
+
+      <div class="mermaid-container">
+        <pre class="mermaid">graph TD
+  P0["Phase 0 — Scaffolding ✓"] --> P1["Phase 1 — Identity Simplification ✓"]
+
+  P1 --> P2["Phase 2 — NLParser (A)"]
+  P1 --> P7["Phase 7 — DescriptionEngine (A)"]
+  P2 --> P10["Phase 10 — ExportEngine (A)"]
+
+  P1 --> P3["Phase 3 — StateAdapter (B)"]
+  P3 --> P4["Phase 4 — Validator (B)"]
+  P4 --> P5["Phase 5 — Classification (B)"]
+  P5 --> P6["Phase 6 — Properties (B)"]
+  P5 --> P9["Phase 9 — Relationships (B)"]
+
+  P3 --> P11["Phase 11 — Sessions (C)"]
+  P11 --> P12["Phase 12 — Federation (C)"]
+
+  P2 --> P8["Phase 8 — Integration ★"]
+  P5 --> P8
+  P7 --> P8
+
+  P8 --> P13["Phase 13 — M2M Protocol"]
+  P13 --> P14["Phase 14 — Ecosystem"]
+
+  style P0 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P1 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f</pre>
+      </div>
+
+      <div class="phase-grid" id="phase-grid">
+        <!-- Populated by app.js -->
+      </div>
+    </section>
+
+    <!-- Section: Identity Playground -->
+    <section class="section" id="section-playground">
+      <h2 class="section-title">Identity Simplification Playground</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Type any term to see the 7-step normalization pipeline in real time.
+        Each step shows the intermediate result — changes are highlighted in green.
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <div class="field-group">
+            <label for="input-term">Input Term</label>
+            <input type="text" id="input-term" placeholder='Try "  The   Golden   Retriever  "' value="  The   Golden   Retriever  ">
+          </div>
+
+          <div class="field-group">
+            <label for="input-locale">Locale</label>
+            <select id="input-locale">
+              <option value="en" selected>English (en)</option>
+              <option value="de">German (de)</option>
+              <option value="fr">French (fr)</option>
+              <option value="zh">Chinese (zh)</option>
+              <option value="ja">Japanese (ja)</option>
+              <option value="tr">Turkish (tr)</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="input-abbreviations">Abbreviation Table (JSON)</label>
+            <textarea id="input-abbreviations" rows="2" placeholder='{"govt": "government"}'>{}</textarea>
+          </div>
+
+          <div class="field-group">
+            <label for="input-protected">Protected Proper Nouns (comma-separated)</label>
+            <input type="text" id="input-protected" placeholder="the hague, the bronx" value="the hague, the bronx, the beatles, the gambia">
+          </div>
+
+          <h3 class="card-title" style="margin-top: 20px;">Golden Corpus Samples</h3>
+          <table class="corpus-table" id="corpus-table">
+            <thead>
+              <tr><th>Input</th><th>Expected</th></tr>
+            </thead>
+            <tbody id="corpus-tbody">
+              <!-- Populated by app.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="playground-output">
+          <label>Pipeline Steps</label>
+          <div class="pipeline-steps" id="pipeline-steps">
+            <!-- Populated by app.js -->
+          </div>
+
+          <div class="final-result" id="final-result">
+            <div class="result-label">Canonical Label</div>
+            <div id="final-canonical"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Type Explorer -->
+    <section class="section" id="section-types">
+      <h2 class="section-title">Type Factory Explorer</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Select a type factory, fill in parameters, and generate a JSON-LD node.
+        All computation runs in your browser — the bundle is loaded from <code>dist/fandaws.js</code>.
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <div class="field-group">
+            <label for="factory-select">Factory</label>
+            <select id="factory-select">
+              <option value="createConcept">createConcept</option>
+              <option value="createProperty">createProperty</option>
+              <option value="createRelationship">createRelationship</option>
+              <option value="createKnowledgeGraph">createKnowledgeGraph</option>
+              <option value="createGraphMutation">createGraphMutation</option>
+              <option value="createConversationPrompt">createConversationPrompt</option>
+              <option value="createDeferredResult">createDeferredResult</option>
+              <option value="createValidationResult">createValidationResult</option>
+              <option value="createConversationSession">createConversationSession</option>
+              <option value="createScopeConfiguration">createScopeConfiguration</option>
+              <option value="createScopeEntry">createScopeEntry</option>
+              <option value="createScopeResolution">createScopeResolution</option>
+            </select>
+          </div>
+
+          <div id="factory-params" class="factory-form">
+            <!-- Dynamic param fields generated by app.js -->
+          </div>
+
+          <button class="btn btn--primary" id="factory-generate" style="margin-top: 12px;">Generate</button>
+        </div>
+
+        <div class="playground-output">
+          <label>JSON-LD Output</label>
+          <div class="factory-output" id="factory-output">
+            Select a factory and click Generate.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Test Results -->
+    <section class="section" id="section-tests">
+      <h2 class="section-title">Test Results</h2>
+
+      <div class="test-summary" id="test-summary">
+        <!-- Populated by app.js -->
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Suite Breakdown</h3>
+        <table class="suite-table" id="suite-table">
+          <thead>
+            <tr><th>Suite</th><th>Passed</th><th>Failed</th><th>Duration</th></tr>
+          </thead>
+          <tbody id="suite-tbody">
+            <!-- Populated by app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <p>Fandaws Sentinel &mdash; Spec v3.4 &mdash;
+        <a href="https://github.com/aaron-dm/fandaws-sentinel">GitHub</a>
+      </p>
+    </footer>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+  <script type="module">
+    // Mermaid — CDN with graceful degradation
+    try {
+      const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+          primaryColor: '#1a1d27',
+          primaryTextColor: '#e1e4ed',
+          lineColor: '#4a5f99',
+          secondaryColor: '#232733',
+          tertiaryColor: '#2e3345',
+        },
+      });
+    } catch {
+      // Mermaid failed to load — the <pre> text remains visible as fallback
+    }
+  </script>
+</body>
+</html>

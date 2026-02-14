@@ -1,0 +1,179 @@
+{
+  "description": "Golden corpus for Identity Simplification (Section 6.6). Each entry defines input, options, and expected output.",
+  "corpus": [
+    {
+      "id": "trim-basic",
+      "input": "  A Dog  ",
+      "options": {},
+      "expected": { "canonicalLabel": "dog", "languageTag": "en" }
+    },
+    {
+      "id": "article-the-whitespace",
+      "input": "The   golden   retriever",
+      "options": {},
+      "expected": { "canonicalLabel": "golden retriever", "languageTag": "en" }
+    },
+    {
+      "id": "article-an",
+      "input": "An Apple",
+      "options": {},
+      "expected": { "canonicalLabel": "apple", "languageTag": "en" }
+    },
+    {
+      "id": "case-fold-diacritics",
+      "input": "CAFÉ",
+      "options": {},
+      "expected": { "canonicalLabel": "café", "languageTag": "en" }
+    },
+    {
+      "id": "nfkc-fi-ligature",
+      "input": "\uFB01nance",
+      "options": {},
+      "expected": { "canonicalLabel": "finance", "languageTag": "en" }
+    },
+    {
+      "id": "nfkc-fullwidth",
+      "input": "\uFF21\uFF22\uFF23",
+      "options": {},
+      "expected": { "canonicalLabel": "abc", "languageTag": "en" }
+    },
+    {
+      "id": "empty-string",
+      "input": "",
+      "options": {},
+      "expected": { "canonicalLabel": "", "languageTag": "en" }
+    },
+    {
+      "id": "whitespace-only",
+      "input": "   ",
+      "options": {},
+      "expected": { "canonicalLabel": "", "languageTag": "en" }
+    },
+    {
+      "id": "abbreviation-govt",
+      "input": "govt",
+      "options": { "abbreviationTable": { "govt": "government" } },
+      "expected": { "canonicalLabel": "government", "languageTag": "en" }
+    },
+    {
+      "id": "abbreviation-in-phrase",
+      "input": "The dept of govt",
+      "options": { "abbreviationTable": { "dept": "department", "govt": "government" } },
+      "expected": { "canonicalLabel": "department of government", "languageTag": "en" }
+    },
+    {
+      "id": "article-then-abbreviation",
+      "input": "A govt",
+      "options": { "abbreviationTable": { "govt": "government" } },
+      "expected": { "canonicalLabel": "government", "languageTag": "en" }
+    },
+    {
+      "id": "protected-the-hague",
+      "input": "The Hague",
+      "options": { "protectedProperNouns": ["the hague"] },
+      "expected": { "canonicalLabel": "the hague", "languageTag": "en" }
+    },
+    {
+      "id": "protected-the-bronx",
+      "input": "The Bronx",
+      "options": { "protectedProperNouns": ["the bronx"] },
+      "expected": { "canonicalLabel": "the bronx", "languageTag": "en" }
+    },
+    {
+      "id": "protected-the-beatles",
+      "input": "The Beatles",
+      "options": { "protectedProperNouns": ["the beatles"] },
+      "expected": { "canonicalLabel": "the beatles", "languageTag": "en" }
+    },
+    {
+      "id": "not-protected-the-dog",
+      "input": "The dog",
+      "options": { "protectedProperNouns": ["the hague", "the bronx", "the beatles"] },
+      "expected": { "canonicalLabel": "dog", "languageTag": "en" }
+    },
+    {
+      "id": "already-canonical",
+      "input": "dog",
+      "options": {},
+      "expected": { "canonicalLabel": "dog", "languageTag": "en" }
+    },
+    {
+      "id": "single-word-uppercase",
+      "input": "DOG",
+      "options": {},
+      "expected": { "canonicalLabel": "dog", "languageTag": "en" }
+    },
+    {
+      "id": "multi-word-mixed-case",
+      "input": "  Golden   RETRIEVER  ",
+      "options": {},
+      "expected": { "canonicalLabel": "golden retriever", "languageTag": "en" }
+    },
+    {
+      "id": "article-a-simple",
+      "input": "a cat",
+      "options": {},
+      "expected": { "canonicalLabel": "cat", "languageTag": "en" }
+    },
+    {
+      "id": "no-article-embedded",
+      "input": "theatrical performance",
+      "options": {},
+      "expected": { "canonicalLabel": "theatrical performance", "languageTag": "en" }
+    },
+    {
+      "id": "tab-whitespace",
+      "input": "\tA\tdog\t",
+      "options": {},
+      "expected": { "canonicalLabel": "dog", "languageTag": "en" }
+    },
+    {
+      "id": "nfkc-circled-number",
+      "input": "item\u2460",
+      "options": {},
+      "expected": { "canonicalLabel": "item1", "languageTag": "en" }
+    },
+    {
+      "id": "locale-chinese",
+      "input": "测试概念",
+      "options": { "locale": "zh" },
+      "expected": { "canonicalLabel": "测试概念", "languageTag": "zh" }
+    },
+    {
+      "id": "locale-japanese",
+      "input": "テスト",
+      "options": { "locale": "ja" },
+      "expected": { "canonicalLabel": "テスト", "languageTag": "ja" }
+    },
+    {
+      "id": "locale-german",
+      "input": "Straße",
+      "options": { "locale": "de" },
+      "expected": { "canonicalLabel": "straße", "languageTag": "de" }
+    },
+    {
+      "id": "locale-french",
+      "input": "Résumé",
+      "options": { "locale": "fr" },
+      "expected": { "canonicalLabel": "résumé", "languageTag": "fr" }
+    },
+    {
+      "id": "determinism-check",
+      "input": "  The   Golden   Retriever  ",
+      "options": {},
+      "expected": { "canonicalLabel": "golden retriever", "languageTag": "en" }
+    },
+    {
+      "id": "protected-the-gambia",
+      "input": "The Gambia",
+      "options": { "protectedProperNouns": ["the gambia"] },
+      "expected": { "canonicalLabel": "the gambia", "languageTag": "en" }
+    },
+    {
+      "id": "nfkc-superscript",
+      "input": "x\u00B2",
+      "options": {},
+      "expected": { "canonicalLabel": "x2", "languageTag": "en" }
+    }
+  ]
+}

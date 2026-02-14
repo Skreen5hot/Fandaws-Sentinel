@@ -1,0 +1,152 @@
+{
+  "project": "Fandaws Sentinel",
+  "specVersion": "v3.4",
+  "currentPhase": 1,
+  "tracks": [
+    { "id": "A", "theme": "Linguistics & IO", "phases": [2, 7, 10] },
+    { "id": "B", "theme": "Graph Mechanics", "phases": [3, 4, 5, 6, 9] },
+    { "id": "C", "theme": "Lifecycle & Federation", "phases": [11, 12] }
+  ],
+  "convergenceGate": {
+    "phase": 8,
+    "requires": [2, 5, 7],
+    "description": "Pipeline Integration — TagTeam Decision Gate"
+  },
+  "phases": [
+    {
+      "id": 0,
+      "name": "Project Scaffolding",
+      "status": "complete",
+      "track": null,
+      "depends": [],
+      "description": "Project structure, tooling, JSON-LD types, adapter interfaces, default config.",
+      "deliverables": ["12 type factories", "3 adapter base classes", "20 config params"]
+    },
+    {
+      "id": 1,
+      "name": "Identity Simplification",
+      "status": "complete",
+      "track": null,
+      "depends": [0],
+      "description": "7-step deterministic normalization pipeline producing canonicalLabel for all concept matching.",
+      "deliverables": ["identity-simplification.js", "29 golden corpus cases", "< 1ms/term perf"]
+    },
+    {
+      "id": 2,
+      "name": "NLParser & Classifier",
+      "status": "not-started",
+      "track": "A",
+      "depends": [1],
+      "description": "Grammar-based parsing of natural language into structured frames, routed to workflows.",
+      "deliverables": ["nl-parser.js", "classifier.js", "40+ golden corpus cases"]
+    },
+    {
+      "id": 3,
+      "name": "InMemoryStateAdapter",
+      "status": "not-started",
+      "track": "B",
+      "depends": [1],
+      "description": "Reference state adapter with 5 indices for O(1) lookups. Foundation for all graph operations.",
+      "deliverables": ["in-memory-state-adapter.js", "5 maintained indices", "verifyIntegrity()"]
+    },
+    {
+      "id": 4,
+      "name": "Validator",
+      "status": "not-started",
+      "track": "B",
+      "depends": [3],
+      "description": "Graph integrity validation: cycle detection, orphan check, constraint enforcement.",
+      "deliverables": ["validator.js", "ValidationResult JSON-LD output"]
+    },
+    {
+      "id": 5,
+      "name": "Classification Workflow",
+      "status": "not-started",
+      "track": "B",
+      "depends": [4],
+      "description": "First full knowledge workflow: 'X is a Y' creates concept + isA relationship.",
+      "deliverables": ["classification-workflow.js", "Termidium integration"]
+    },
+    {
+      "id": 6,
+      "name": "Property Workflow",
+      "status": "not-started",
+      "track": "B",
+      "depends": [5],
+      "description": "Property assignment workflow with Scope Narrowing and Leap Check optimization.",
+      "deliverables": ["property-workflow.js", "scope-narrowing.js", "Leap Check algorithm"]
+    },
+    {
+      "id": 7,
+      "name": "DescriptionEngine",
+      "status": "not-started",
+      "track": "A",
+      "depends": [1],
+      "description": "Generates human-readable descriptions from graph state for confirmation prompts.",
+      "deliverables": ["description-engine.js", "template system"]
+    },
+    {
+      "id": 8,
+      "name": "Pipeline Integration",
+      "status": "not-started",
+      "track": null,
+      "depends": [2, 5, 7],
+      "description": "Convergence gate. Full user utterance → graph mutation pipeline. TagTeam Decision Gate.",
+      "deliverables": ["orchestration-adapter impl", "end-to-end pipeline", "TagTeam evaluation"]
+    },
+    {
+      "id": 9,
+      "name": "Relationships & Termidium",
+      "status": "not-started",
+      "track": "B",
+      "depends": [5],
+      "description": "Custom relationship workflow and Termidium semantic distance engine.",
+      "deliverables": ["relationship-workflow.js", "termidium.js"]
+    },
+    {
+      "id": 10,
+      "name": "ExportEngine",
+      "status": "not-started",
+      "track": "A",
+      "depends": [2],
+      "description": "Export knowledge graphs to external formats (JSON-LD, RDF, CSV).",
+      "deliverables": ["export-engine.js", "format adapters"]
+    },
+    {
+      "id": 11,
+      "name": "Session Lifecycle",
+      "status": "not-started",
+      "track": "C",
+      "depends": [3],
+      "description": "Conversation session management, persistence, and state recovery.",
+      "deliverables": ["session-manager.js", "ConversationSession JSON-LD"]
+    },
+    {
+      "id": 12,
+      "name": "ScopeResolver & Federation",
+      "status": "not-started",
+      "track": "C",
+      "depends": [11],
+      "description": "Cross-graph scope resolution and federated knowledge queries.",
+      "deliverables": ["scope-resolver.js", "ScopeResolution JSON-LD"]
+    },
+    {
+      "id": 13,
+      "name": "M2M Protocol",
+      "status": "not-started",
+      "track": null,
+      "depends": [8],
+      "description": "Machine-to-machine protocol for inter-agent knowledge exchange.",
+      "deliverables": ["m2m-protocol.js", "ConversationPrompt M2M mode"]
+    },
+    {
+      "id": 14,
+      "name": "Ecosystem Adapters",
+      "status": "not-started",
+      "track": null,
+      "depends": [13],
+      "description": "Platform-specific adapters for browser, Electron, cloud, and edge runtimes.",
+      "deliverables": ["browser-adapter.js", "runtime detection"]
+    }
+  ]
+}

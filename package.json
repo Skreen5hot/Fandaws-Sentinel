@@ -1,0 +1,37 @@
+{
+  "name": "fandaws-sentinel",
+  "version": "0.1.0",
+  "description": "Fandaws (Fact and Answer Web Service) — Edge-canonical conversational knowledge-building platform with JSON-LD knowledge graphs",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "npx --node-options=--experimental-vm-modules jest",
+    "test:unit": "npx --node-options=--experimental-vm-modules jest tests/unit",
+    "test:integration": "npx --node-options=--experimental-vm-modules jest tests/integration",
+    "test:watch": "npx --node-options=--experimental-vm-modules jest --watch",
+    "test:json": "npx --node-options=--experimental-vm-modules jest --json --outputFile=test-results.json",
+    "lint": "eslint src/ tests/",
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.js",
+    "build:site": "node scripts/build.js && node scripts/generate-test-results.js",
+    "validate:spec": "node scripts/validate-spec.js"
+  },
+  "keywords": [
+    "fandaws",
+    "knowledge-graph",
+    "json-ld",
+    "ontology",
+    "conversational-ai",
+    "edge-canonical",
+    "bfo",
+    "semantic-web"
+  ],
+  "author": "Aaron Damiano",
+  "license": "MIT",
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "esbuild": "^0.27.3",
+    "jest": "^30.2.0"
+  }
+}

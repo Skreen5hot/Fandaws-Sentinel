@@ -1,0 +1,47 @@
+{
+  "@context": {
+    "fandaws": "https://fandaws.org/schema/"
+  },
+  "@type": "fandaws:Configuration",
+  "fandaws:cacheStalenessThreshold": "PT24H",
+  "fandaws:deduplicationDepth": 8,
+  "fandaws:repetitionLimit": 5,
+  "fandaws:descriptionTemplate": {
+    "standard": "[Term] is a [parent] that has [prop1], [prop2], [prop3].",
+    "process": "[Object] [term] is the [parent+ing] of [object] by [subject]."
+  },
+  "fandaws:bfoAlignmentMode": "auto",
+  "fandaws:offlineMode": "adaptive",
+  "fandaws:exportFormats": ["skos", "owl", "rdf", "turtle"],
+  "fandaws:callerMode": "human",
+  "fandaws:commitBatchInterval": "PT5S",
+  "fandaws:commitBatchSize": 50,
+  "fandaws:mergeReviewThreshold": 10,
+  "fandaws:locale": "en",
+  "fandaws:abbreviationTable": {},
+  "fandaws:protectedProperNouns": [
+    "the hague",
+    "the bronx",
+    "the beatles",
+    "the gambia",
+    "the bahamas",
+    "the netherlands",
+    "the philippines",
+    "the united states",
+    "the united kingdom"
+  ],
+  "fandaws:articles": {
+    "en": ["a", "an", "the"]
+  },
+  "fandaws:agentRateLimit": 100,
+  "fandaws:oceMode": "advisory",
+  "fandaws:contestationExpiryDuration": "PT72H",
+  "fandaws:contestationRateLimit": 10,
+  "fandaws:sessionExpiryDuration": "P7D",
+  "fandaws:maxNestingDepth": 10,
+  "fandaws:maxConcurrentSessions": 5,
+  "fandaws:scopeResolutionEnabled": false,
+  "fandaws:staleCopyAction": "prompt",
+  "fandaws:autoPromotionThreshold": 3,
+  "fandaws:autoPromotionCooldown": "P7D"
+}

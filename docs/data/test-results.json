@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-14T18:27:16.417Z",
+  "generatedAt": "2026-02-14T18:36:27.665Z",
   "success": true,
   "totalSuites": 23,
   "passedSuites": 23,
@@ -11,95 +11,164 @@
   "suites": [
     {
       "name": "unit/types/resolved-from.test.js",
-      "duration": 0
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1398
     },
     {
       "name": "unit/types/conflict-report.test.js",
-      "duration": 0
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1409
     },
     {
       "name": "unit/types/concept.test.js",
-      "duration": 0
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1431
     },
     {
       "name": "unit/types/knowledge-graph.test.js",
-      "duration": 0
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1495
     },
     {
       "name": "golden/identity-simplification-golden.test.js",
-      "duration": 0
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1563
     },
     {
       "name": "unit/types/shadows-annotation.test.js",
-      "duration": 0
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1569
     },
     {
       "name": "unit/identity-simplification.test.js",
-      "duration": 0
+      "passed": 51,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1653
     },
     {
       "name": "unit/types/scope-configuration.test.js",
-      "duration": 0
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 400
     },
     {
       "name": "unit/nl-parser.test.js",
-      "duration": 0
+      "passed": 57,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 541
     },
     {
       "name": "unit/types/property.test.js",
-      "duration": 0
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 385
     },
     {
       "name": "unit/types/scope-resolution.test.js",
-      "duration": 0
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 443
     },
     {
       "name": "unit/types/conversation-prompt.test.js",
-      "duration": 0
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 434
     },
     {
       "name": "unit/classifier.test.js",
-      "duration": 0
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 526
     },
     {
       "name": "unit/types/relationship.test.js",
-      "duration": 0
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 428
     },
     {
       "name": "unit/types/parse-result.test.js",
-      "duration": 0
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 330
     },
     {
       "name": "unit/types/validation-result.test.js",
-      "duration": 0
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 400
     },
     {
       "name": "unit/types/deferred-result.test.js",
-      "duration": 0
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 343
     },
     {
       "name": "unit/types/graph-mutation.test.js",
-      "duration": 0
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 376
     },
     {
       "name": "golden/nl-parser-golden.test.js",
-      "duration": 0
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 572
     },
     {
       "name": "unit/types/conversation-session.test.js",
-      "duration": 0
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 461
     },
     {
       "name": "unit/types/context.test.js",
-      "duration": 0
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 358
     },
     {
       "name": "unit/types/index.test.js",
-      "duration": 0
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 264
     },
     {
       "name": "unit/types/classification-action.test.js",
-      "duration": 0
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 253
     }
   ]
 }

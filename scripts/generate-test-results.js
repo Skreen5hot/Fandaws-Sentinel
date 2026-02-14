@@ -27,15 +27,15 @@ const suites = raw.testResults.map((suite) => {
     .replace(/\\/g, '/')
     .split('tests/')[1] || suite.name;
 
-  return {
-    name,
-    passed: suite.numPassingTests,
-    failed: suite.numFailingTests,
-    skipped: suite.numPendingTests,
-    duration: suite.perfStats
-      ? suite.perfStats.end - suite.perfStats.start
-      : 0,
-  };
+  const assertions = suite.assertionResults || [];
+  const passed = assertions.filter((a) => a.status === 'passed').length;
+  const failed = assertions.filter((a) => a.status === 'failed').length;
+  const skipped = assertions.filter((a) => a.status === 'pending').length;
+  const duration = (suite.endTime && suite.startTime)
+    ? suite.endTime - suite.startTime
+    : 0;
+
+  return { name, passed, failed, skipped, duration };
 });
 
 const summary = {

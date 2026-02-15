@@ -539,6 +539,10 @@ const DESC_HIERARCHY = [
   { id: 'fandaws:concept/elephant', label: 'Elephant', prefLabel: 'elephant', broader: 'fandaws:concept/animal' },
   { id: 'fandaws:concept/hunt', label: 'Hunt', prefLabel: 'hunt', broader: null },
   { id: 'fandaws:concept/predation', label: 'Predation', prefLabel: 'predation', broader: 'fandaws:concept/hunt' },
+  { id: 'fandaws:concept/university', label: 'University', prefLabel: 'university', broader: null },
+  { id: 'fandaws:concept/oxford', label: 'Oxford', prefLabel: 'oxford', broader: 'fandaws:concept/university' },
+  { id: 'fandaws:concept/hour', label: 'Hour', prefLabel: 'hour', broader: null },
+  { id: 'fandaws:concept/minute', label: 'Minute', prefLabel: 'minute', broader: 'fandaws:concept/hour' },
 ];
 
 let descProperties = [];
@@ -551,6 +555,8 @@ const DESC_EXAMPLES = [
   { label: 'Root concept: Entity', concept: 'fandaws:concept/entity', properties: [], rel: null },
   { label: 'Root + properties: Entity + mass, energy', concept: 'fandaws:concept/entity', properties: ['mass', 'energy'], rel: null },
   { label: 'Process: Predation (hunt + chases)', concept: 'fandaws:concept/predation', properties: [], rel: { verb: 'chases', subject: 'fandaws:concept/dog', object: 'fandaws:concept/cat' } },
+  { label: 'Limitation: "an University" (vowel letter)', concept: 'fandaws:concept/oxford', properties: [], rel: null },
+  { label: 'Limitation: "a Hour" (consonant letter)', concept: 'fandaws:concept/minute', properties: [], rel: null },
 ];
 
 function initDescriptionDemo() {
@@ -558,7 +564,7 @@ function initDescriptionDemo() {
   if (!hierarchyEl) return;
 
   // Render hierarchy tree
-  const indent = { 'entity': 0, 'living thing': 1, 'animal': 2, 'mammal': 3, 'dog': 4, 'cat': 4, 'elephant': 3, 'hunt': 0, 'predation': 1 };
+  const indent = { 'entity': 0, 'living thing': 1, 'animal': 2, 'mammal': 3, 'dog': 4, 'cat': 4, 'elephant': 3, 'hunt': 0, 'predation': 1, 'university': 0, 'oxford': 1, 'hour': 0, 'minute': 1 };
   const lines = [];
   for (const c of DESC_HIERARCHY) {
     const depth = indent[c.prefLabel] || 0;

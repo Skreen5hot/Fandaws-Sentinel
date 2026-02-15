@@ -143,6 +143,46 @@ describe('createGovernanceEpistemicFailure', () => {
 // nullOCECheck / nullIEECheck
 // ─────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────
+// SUP-07 edge cases: governance halt path
+// Note: The pipeline-level halt test (governance flag → pipeline returns
+// validation-failed) is covered by SUP-03d in pipeline-contracts.test.js.
+// These tests cover unit-level edge cases for checkGovernanceBlock.
+// ─────────────────────────────────────────────────────────
+
+describe('checkGovernanceBlock — SUP-07 edge cases', () => {
+  it('SUP-07a: flag with no severity field defaults to non-blocking', () => {
+    const existing = {
+      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      'fandaws:governanceFlag': {
+        'fandaws:reason': 'Under review.',
+        // no severity field
+      },
+    };
+    const graph = makeGraph([existing]);
+    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    expect(checkGovernanceBlock(concept, graph).blocked).toBe(false);
+  });
+
+  it('SUP-07b: flag with unknown severity string defaults to non-blocking', () => {
+    const existing = {
+      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      'fandaws:governanceFlag': {
+        'fandaws:severity': 'critical',
+        'fandaws:reason': 'Unknown severity level.',
+      },
+    };
+    const graph = makeGraph([existing]);
+    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    // Only 'blocking' severity triggers the halt; unknown severities are safe
+    expect(checkGovernanceBlock(concept, graph).blocked).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// nullOCECheck / nullIEECheck
+// ─────────────────────────────────────────────────────────
+
 describe('nullOCECheck', () => {
   it('always returns coherent', () => {
     const result = nullOCECheck({}, 'fandaws:graph/test');

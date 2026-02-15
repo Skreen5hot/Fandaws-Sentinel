@@ -233,6 +233,110 @@ describe('DescriptionEngine', () => {
     });
   });
 
+  // ── Article heuristic limitations ─────────────────────
+
+  describe('Article heuristic — known limitations', () => {
+    it('says "an University" (vowel letter U, but phonetically "a") — known limitation', () => {
+      const university = makeConcept('fandaws:concept/university', 'University');
+      const oxford = makeConcept('fandaws:concept/oxford', 'Oxford', 'fandaws:concept/university');
+      const graph = makeGraph([university, oxford]);
+
+      // Heuristic uses vowel-letter check, not phonetic analysis
+      expect(describeConcept(oxford, graph)).toBe('Oxford is an University.');
+    });
+
+    it('says "a Hour" (consonant letter H, but phonetically "an") — known limitation', () => {
+      const hour = makeConcept('fandaws:concept/hour', 'Hour');
+      const minute = makeConcept('fandaws:concept/minute', 'Minute', 'fandaws:concept/hour');
+      const graph = makeGraph([hour, minute]);
+
+      // Heuristic uses vowel-letter check, not phonetic analysis
+      expect(describeConcept(minute, graph)).toBe('Minute is a Hour.');
+    });
+  });
+
+  // ── Gerund morphology edge cases ────────────────────────
+
+  describe('Gerund morphology', () => {
+    it('"ee" ending preserved: Free → freeing', () => {
+      const free = makeConcept('fandaws:concept/free', 'Free');
+      const cat = makeConcept('fandaws:concept/cat', 'Cat');
+      const dog = makeConcept('fandaws:concept/dog', 'Dog');
+      const liberation = makeConcept('fandaws:concept/liberation', 'Liberation', 'fandaws:concept/free');
+      addRelationship(liberation, 'releases', 'fandaws:concept/cat', 'fandaws:concept/dog');
+      const graph = makeGraph([free, cat, dog, liberation]);
+
+      expect(describeConcept(liberation, graph)).toBe('Liberation is the freeing of Cat by Dog.');
+    });
+
+    it('consonant doubling not handled: Run → runing — known limitation', () => {
+      const run = makeConcept('fandaws:concept/run', 'Run');
+      const cat = makeConcept('fandaws:concept/cat', 'Cat');
+      const dog = makeConcept('fandaws:concept/dog', 'Dog');
+      const sprint = makeConcept('fandaws:concept/sprint', 'Sprint', 'fandaws:concept/run');
+      addRelationship(sprint, 'chases', 'fandaws:concept/cat', 'fandaws:concept/dog');
+      const graph = makeGraph([run, cat, dog, sprint]);
+
+      // Known limitation: "run" → "runing" instead of "running"
+      expect(describeConcept(sprint, graph)).toBe('Sprint is the runing of Cat by Dog.');
+    });
+  });
+
+  // ── Extended property combinations ──────────────────────
+
+  describe('Extended property combinations', () => {
+    it('4 properties → Oxford comma', () => {
+      const animal = makeConcept('fandaws:concept/animal', 'Animal');
+      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+      addProperties(dog, ['fur', 'four legs', 'tail', 'wet nose']);
+      const graph = makeGraph([animal, dog]);
+
+      expect(describeConcept(dog, graph)).toBe(
+        'Dog is an Animal that has fur, four legs, tail, and wet nose.',
+      );
+    });
+
+    it('process template ignores properties (process takes priority)', () => {
+      const hunt = makeConcept('fandaws:concept/hunt', 'Hunt');
+      const cat = makeConcept('fandaws:concept/cat', 'Cat');
+      const dog = makeConcept('fandaws:concept/dog', 'Dog');
+      const predation = makeConcept('fandaws:concept/predation', 'Predation', 'fandaws:concept/hunt');
+      addProperties(predation, ['stealth']);
+      addRelationship(predation, 'chases', 'fandaws:concept/cat', 'fandaws:concept/dog');
+      const graph = makeGraph([hunt, cat, dog, predation]);
+
+      // Process template takes priority — properties not shown
+      expect(describeConcept(predation, graph)).toBe(
+        'Predation is the hunting of Cat by Dog.',
+      );
+    });
+
+    it('relationship object IRI not in graph → uses raw IRI', () => {
+      const hunt = makeConcept('fandaws:concept/hunt', 'Hunt');
+      const dog = makeConcept('fandaws:concept/dog', 'Dog');
+      const predation = makeConcept('fandaws:concept/predation', 'Predation', 'fandaws:concept/hunt');
+      addRelationship(predation, 'chases', 'fandaws:concept/unknown-prey', 'fandaws:concept/dog');
+      const graph = makeGraph([hunt, dog, predation]);
+
+      // Unknown prey IRI used as-is since no concept found to resolve label
+      expect(describeConcept(predation, graph)).toBe(
+        'Predation is the hunting of fandaws:concept/unknown-prey by Dog.',
+      );
+    });
+
+    it('multiple concepts in graph — resolves correct parent', () => {
+      const animal = makeConcept('fandaws:concept/animal', 'Animal');
+      const mammal = makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal');
+      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal');
+      const cat = makeConcept('fandaws:concept/cat', 'Cat', 'fandaws:concept/mammal');
+      const graph = makeGraph([animal, mammal, dog, cat]);
+
+      expect(describeConcept(dog, graph)).toBe('Dog is a Mammal.');
+      expect(describeConcept(cat, graph)).toBe('Cat is a Mammal.');
+      expect(describeConcept(mammal, graph)).toBe('Mammal is an Animal.');
+    });
+  });
+
   // ── Edge cases ─────────────────────────────────────────
 
   describe('Edge cases', () => {

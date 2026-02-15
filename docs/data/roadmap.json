@@ -101,8 +101,8 @@
       "status": "complete",
       "track": "A/B",
       "depends": [3],
-      "description": "Auto-generates human-readable descriptions from graph structure. Article selection (a/an), display label capitalization, property listing with Oxford comma, process template with gerund morphology. 20-entry golden corpus, 39 new tests across 2 suites.",
-      "deliverables": ["description-engine.js (enhanced)", "selectArticle", "capitalizeLabel", "process template", "addIngSuffix", "20 golden corpus cases", "39 new tests"]
+      "description": "Auto-generates human-readable descriptions from graph structure. Article selection (a/an), display label capitalization, property listing with Oxford comma, process template with gerund morphology. 25-entry golden corpus, 52 new tests across 2 suites.",
+      "deliverables": ["description-engine.js (enhanced)", "selectArticle", "capitalizeLabel", "process template", "addIngSuffix", "25 golden corpus entries (26 golden tests)", "52 new tests"]
     },
     {
       "id": 8,

@@ -139,6 +139,59 @@
       "note": "Process template: 'Chase' drops 'e' → 'chasing'"
     },
     {
+      "id": "desc-article-university",
+      "concept": { "id": "fandaws:concept/oxford", "label": "Oxford", "prefLabel": "oxford", "broader": "fandaws:concept/university", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/university", "label": "University", "prefLabel": "university" }],
+      "expected": "Oxford is an University.",
+      "note": "Known limitation: vowel-letter 'U' produces 'an' (phonetically should be 'a university')"
+    },
+    {
+      "id": "desc-article-hour",
+      "concept": { "id": "fandaws:concept/minute", "label": "Minute", "prefLabel": "minute", "broader": "fandaws:concept/hour", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/hour", "label": "Hour", "prefLabel": "hour" }],
+      "expected": "Minute is a Hour.",
+      "note": "Known limitation: consonant-letter 'H' produces 'a' (phonetically should be 'an hour')"
+    },
+    {
+      "id": "desc-gerund-ee",
+      "concept": {
+        "id": "fandaws:concept/liberation", "label": "Liberation", "prefLabel": "liberation",
+        "broader": "fandaws:concept/free",
+        "properties": [],
+        "relationships": [{ "verb": "releases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+      },
+      "graphConcepts": [
+        { "id": "fandaws:concept/free", "label": "Free", "prefLabel": "free" },
+        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+      ],
+      "expected": "Liberation is the freeing of Cat by Dog.",
+      "note": "Gerund: 'ee' ending preserved — 'Free' → 'freeing'"
+    },
+    {
+      "id": "desc-gerund-no-double",
+      "concept": {
+        "id": "fandaws:concept/sprint", "label": "Sprint", "prefLabel": "sprint",
+        "broader": "fandaws:concept/run",
+        "properties": [],
+        "relationships": [{ "verb": "chases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+      },
+      "graphConcepts": [
+        { "id": "fandaws:concept/run", "label": "Run", "prefLabel": "run" },
+        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+      ],
+      "expected": "Sprint is the runing of Cat by Dog.",
+      "note": "Known limitation: consonant doubling not handled — 'Run' → 'runing' instead of 'running'"
+    },
+    {
+      "id": "desc-props-four",
+      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": ["fur", "four legs", "tail", "wet nose"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "expected": "Dog is an Animal that has fur, four legs, tail, and wet nose.",
+      "note": "Four properties with Oxford comma"
+    },
+    {
       "id": "desc-process-no-parent",
       "concept": {
         "id": "fandaws:concept/predation", "label": "Predation", "prefLabel": "predation",

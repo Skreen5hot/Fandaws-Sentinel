@@ -79,8 +79,8 @@ function buildGraph(conceptEntry, graphConceptEntries) {
 // ─────────────────────────────────────────────────────────
 
 describe('DescriptionEngine — Golden Corpus', () => {
-  it(`corpus has 15+ test cases (has ${corpus.length})`, () => {
-    expect(corpus.length).toBeGreaterThanOrEqual(15);
+  it(`corpus has 20+ test cases (has ${corpus.length})`, () => {
+    expect(corpus.length).toBeGreaterThanOrEqual(20);
   });
 
   for (const entry of corpus) {

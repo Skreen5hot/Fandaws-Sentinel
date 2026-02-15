@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-02-14T22:56:57.122Z",
+  "generatedAt": "2026-02-14T23:45:00.000Z",
   "success": true,
-  "totalSuites": 30,
-  "passedSuites": 30,
+  "totalSuites": 34,
+  "passedSuites": 34,
   "failedSuites": 0,
-  "totalTests": 491,
-  "passedTests": 491,
+  "totalTests": 571,
+  "passedTests": 571,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -218,6 +218,34 @@
       "failed": 0,
       "skipped": 0,
       "duration": 7552
+    },
+    {
+      "name": "unit/iri-generator.test.js",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 656
+    },
+    {
+      "name": "unit/knowledge-engine.test.js",
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 642
+    },
+    {
+      "name": "integration/classification-pipeline.test.js",
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 651
+    },
+    {
+      "name": "golden/classification-golden.test.js",
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 627
     }
   ]
 }

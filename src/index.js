@@ -77,6 +77,19 @@ export {
   createGovernanceEpistemicFailure,
 } from './core/validator/governance-check.js';
 
+// KnowledgeEngine (Phase 5)
+export { processClassification } from './core/knowledge-engine/knowledge-engine.js';
+export { generateConceptIri } from './core/knowledge-engine/iri-generator.js';
+
+// ScopeResolver stub (Phase 5)
+export { resolveScope } from './core/scope-resolver/scope-resolver.js';
+
+// DescriptionEngine stub (Phase 5)
+export { describeConcept } from './core/description-engine/description-engine.js';
+
+// Classification Pipeline (Phase 5)
+export { runClassificationPipeline } from './core/pipeline/classification-pipeline.js';
+
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';
 export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';

@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "4b",
+  "currentPhase": "5",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -80,11 +80,11 @@
     {
       "id": 5,
       "name": "Classification Workflow",
-      "status": "not-started",
+      "status": "complete",
       "track": "B",
       "depends": ["4b"],
-      "description": "First full knowledge workflow: NLParser → Classifier → KnowledgeEngine → Validator → StateAdapter. 'X is a Y' creates/locates both concepts, establishes IS_A, validates, applies. Includes ambiguity handling (ConversationPrompt for disambiguation), unknown-parent negotiation (nested session state), ScopeResolver no-op confirmation (scopeResolutionEnabled: false), and DescriptionEngine stub.",
-      "deliverables": ["classification-workflow.js", "ambiguity-handler.js", "golden corpus for classification patterns", "nested session negotiation", "ScopeResolver no-op test"]
+      "description": "First full knowledge workflow: NLParser → Classifier → KnowledgeEngine → Validator → StateAdapter. 'X is a Y' creates/locates both concepts, establishes IS_A, validates, applies. 4 mutation cases (both new, object exists, both exist, object new). Ambiguity handling (ConversationPrompt for disambiguation), unknown-parent negotiation, ScopeResolver null stub, DescriptionEngine stub. 20-entry golden corpus. 80 new tests across 4 suites.",
+      "deliverables": ["knowledge-engine.js", "iri-generator.js", "classification-pipeline.js", "scope-resolver.js (stub)", "description-engine.js (stub)", "20 golden corpus cases", "80 new tests"]
     },
     {
       "id": 6,

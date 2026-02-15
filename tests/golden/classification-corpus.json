@@ -1,0 +1,275 @@
+[
+  {
+    "id": "cls-both-new",
+    "utterance": "A dog is an animal",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "dog",
+      "objectCanonical": "animal",
+      "parentLink": true
+    },
+    "note": "Both concepts new on empty graph"
+  },
+  {
+    "id": "cls-object-exists",
+    "utterance": "A dog is an animal",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "dog",
+      "objectCanonical": "animal",
+      "parentLink": true
+    },
+    "note": "Object exists, subject is new"
+  },
+  {
+    "id": "cls-chain-extend",
+    "utterance": "A poodle is a dog",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal", "depth": 1 }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 3,
+      "subjectCanonical": "poodle",
+      "objectCanonical": "dog",
+      "parentLink": true,
+      "subjectDepth": 2
+    },
+    "note": "Extends chain: poodle → dog → animal"
+  },
+  {
+    "id": "cls-multi-word",
+    "utterance": "A golden retriever is a dog",
+    "setup": [
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "golden retriever",
+      "subjectIri": "fandaws:concept/golden-retriever",
+      "parentLink": true
+    },
+    "note": "Multi-word subject term with hyphenated IRI"
+  },
+  {
+    "id": "cls-bare-is",
+    "utterance": "Water is liquid",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "water",
+      "objectCanonical": "liquid",
+      "parentLink": true
+    },
+    "note": "Bare 'is' without article"
+  },
+  {
+    "id": "cls-are",
+    "utterance": "Dogs are animals",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "dogs",
+      "objectCanonical": "animals",
+      "parentLink": true
+    },
+    "note": "Plural 'are' pattern"
+  },
+  {
+    "id": "cls-re-assertion",
+    "utterance": "A dog is an animal",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal", "depth": 1 }
+    ],
+    "expect": {
+      "success": true,
+      "mutationNull": true,
+      "conceptCount": 2
+    },
+    "note": "Re-assertion idempotency: already classified, no-op"
+  },
+  {
+    "id": "cls-circular-reject",
+    "utterance": "An animal is a dog",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal", "depth": 1 }
+    ],
+    "expect": {
+      "success": false,
+      "errorContains": "circular"
+    },
+    "note": "Circular: animal → dog when dog → animal exists"
+  },
+  {
+    "id": "cls-self-classify",
+    "utterance": "A dog is a dog",
+    "setup": [],
+    "expect": {
+      "success": false,
+      "errorContains": "self-classification"
+    },
+    "note": "Self-classification rejected"
+  },
+  {
+    "id": "cls-deep-chain",
+    "utterance": "A chihuahua is a dog",
+    "setup": [
+      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "depth": 0 },
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing", "depth": 1 },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal", "depth": 2 },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/mammal", "depth": 3 }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 5,
+      "subjectCanonical": "chihuahua",
+      "subjectDepth": 4,
+      "parentLink": true
+    },
+    "note": "Deep chain: chihuahua → dog → mammal → animal → living thing"
+  },
+  {
+    "id": "cls-articles",
+    "utterance": "The cat is an animal",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "cat",
+      "objectCanonical": "animal",
+      "parentLink": true
+    },
+    "note": "Article 'the' stripped from subject"
+  },
+  {
+    "id": "cls-case-insensitive",
+    "utterance": "A DOG is an ANIMAL",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "dog",
+      "parentLink": true
+    },
+    "note": "Case-insensitive matching against existing concepts"
+  },
+  {
+    "id": "cls-whitespace",
+    "utterance": "  A   dog   is   an   animal  ",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "subjectCanonical": "dog",
+      "objectCanonical": "animal",
+      "parentLink": true
+    },
+    "note": "Extra whitespace normalized by parser"
+  },
+  {
+    "id": "cls-both-exist-link",
+    "utterance": "A dog is an animal",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "parentLink": true
+    },
+    "note": "Both exist but unlinked — links them"
+  },
+  {
+    "id": "cls-disambiguation",
+    "utterance": "An atm is a bank",
+    "setup": [
+      { "id": "fandaws:concept/bank-1", "displayLabel": "Bank (financial)", "canonicalLabel": "bank" },
+      { "id": "fandaws:concept/bank-2", "displayLabel": "Bank (river)", "canonicalLabel": "bank" }
+    ],
+    "expect": {
+      "success": false,
+      "promptType": "disambiguation",
+      "promptCount": 1
+    },
+    "note": "Object 'bank' has 2 meanings → disambiguation prompt"
+  },
+  {
+    "id": "cls-unknown-parent-auto",
+    "utterance": "A dog is an animal",
+    "setup": [
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+    ],
+    "options": { "negotiateUnknownParent": false },
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "parentLink": true
+    },
+    "note": "Object not in graph → auto-created as root"
+  },
+  {
+    "id": "cls-unknown-parent-negotiate",
+    "utterance": "A dog is an animal",
+    "setup": [
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+    ],
+    "options": { "negotiateUnknownParent": true },
+    "expect": {
+      "success": false,
+      "promptCount": 1
+    },
+    "note": "Object not in graph with negotiation → prompt"
+  },
+  {
+    "id": "cls-depth-chain",
+    "utterance": "A poodle is a dog",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal", "depth": 1 },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/mammal", "depth": 2 }
+    ],
+    "expect": {
+      "success": true,
+      "subjectCanonical": "poodle",
+      "subjectDepth": 3,
+      "parentLink": true
+    },
+    "note": "Depth is parent+1: poodle depth = dog depth (2) + 1 = 3"
+  },
+  {
+    "id": "cls-scope-disabled",
+    "utterance": "A dog is an animal",
+    "setup": [],
+    "options": { "scopeResolutionEnabled": false },
+    "expect": {
+      "success": true,
+      "scopeResolutionsNull": true
+    },
+    "note": "ScopeResolver explicitly skipped"
+  },
+  {
+    "id": "cls-description-generated",
+    "utterance": "A dog is an animal",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "hasDescriptions": true
+    },
+    "note": "Stub produces descriptions for new concepts"
+  }
+]

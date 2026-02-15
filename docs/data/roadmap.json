@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "6",
+  "currentPhase": "7",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -98,11 +98,11 @@
     {
       "id": 7,
       "name": "DescriptionEngine",
-      "status": "not-started",
+      "status": "complete",
       "track": "A/B",
       "depends": [3],
-      "description": "Generates human-readable descriptions from graph structure. Requires graph traversal for parent chain and inherited properties.",
-      "deliverables": ["description-engine.js", "template system"]
+      "description": "Auto-generates human-readable descriptions from graph structure. Article selection (a/an), display label capitalization, property listing with Oxford comma, process template with gerund morphology. 20-entry golden corpus, 39 new tests across 2 suites.",
+      "deliverables": ["description-engine.js (enhanced)", "selectArticle", "capitalizeLabel", "process template", "addIngSuffix", "20 golden corpus cases", "39 new tests"]
     },
     {
       "id": 8,

@@ -526,6 +526,249 @@ function escapeHtml(str) {
 }
 
 // ─────────────────────────────────────────────────────────
+// Description Engine Demo
+// ─────────────────────────────────────────────────────────
+
+const DESC_HIERARCHY = [
+  { id: 'fandaws:concept/entity', label: 'Entity', prefLabel: 'entity', broader: null },
+  { id: 'fandaws:concept/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:concept/entity' },
+  { id: 'fandaws:concept/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:concept/living-thing' },
+  { id: 'fandaws:concept/mammal', label: 'Mammal', prefLabel: 'mammal', broader: 'fandaws:concept/animal' },
+  { id: 'fandaws:concept/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:concept/mammal' },
+  { id: 'fandaws:concept/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:concept/mammal' },
+  { id: 'fandaws:concept/elephant', label: 'Elephant', prefLabel: 'elephant', broader: 'fandaws:concept/animal' },
+  { id: 'fandaws:concept/hunt', label: 'Hunt', prefLabel: 'hunt', broader: null },
+  { id: 'fandaws:concept/predation', label: 'Predation', prefLabel: 'predation', broader: 'fandaws:concept/hunt' },
+];
+
+let descProperties = [];
+
+const DESC_EXAMPLES = [
+  { label: 'Standard: Dog is a Mammal', concept: 'fandaws:concept/dog', properties: [], rel: null },
+  { label: 'Article "an": Animal is a Living Thing', concept: 'fandaws:concept/animal', properties: [], rel: null },
+  { label: 'With properties: Dog + fur, four legs', concept: 'fandaws:concept/dog', properties: ['fur', 'four legs'], rel: null },
+  { label: 'Oxford comma: Cat + whiskers, claws, tail', concept: 'fandaws:concept/cat', properties: ['whiskers', 'claws', 'tail'], rel: null },
+  { label: 'Root concept: Entity', concept: 'fandaws:concept/entity', properties: [], rel: null },
+  { label: 'Root + properties: Entity + mass, energy', concept: 'fandaws:concept/entity', properties: ['mass', 'energy'], rel: null },
+  { label: 'Process: Predation (hunt + chases)', concept: 'fandaws:concept/predation', properties: [], rel: { verb: 'chases', subject: 'fandaws:concept/dog', object: 'fandaws:concept/cat' } },
+];
+
+function initDescriptionDemo() {
+  const hierarchyEl = document.getElementById('desc-hierarchy');
+  if (!hierarchyEl) return;
+
+  // Render hierarchy tree
+  const indent = { 'entity': 0, 'living thing': 1, 'animal': 2, 'mammal': 3, 'dog': 4, 'cat': 4, 'elephant': 3, 'hunt': 0, 'predation': 1 };
+  const lines = [];
+  for (const c of DESC_HIERARCHY) {
+    const depth = indent[c.prefLabel] || 0;
+    const prefix = depth === 0 ? '' : '  '.repeat(depth - 1) + '\u2514\u2500 ';
+    lines.push(`${prefix}${c.label}`);
+  }
+  hierarchyEl.textContent = lines.join('\n');
+
+  // Populate concept dropdowns
+  const conceptSelect = document.getElementById('desc-concept');
+  const subjectSelect = document.getElementById('desc-rel-subject');
+  const objectSelect = document.getElementById('desc-rel-object');
+
+  for (const c of DESC_HIERARCHY) {
+    conceptSelect.add(new Option(c.label, c.id));
+    subjectSelect.add(new Option(c.label, c.id));
+    objectSelect.add(new Option(c.label, c.id));
+  }
+
+  // Pre-select interesting defaults
+  conceptSelect.value = 'fandaws:concept/dog';
+  subjectSelect.value = 'fandaws:concept/dog';
+  objectSelect.value = 'fandaws:concept/cat';
+
+  // Render examples
+  const examplesEl = document.getElementById('desc-examples');
+  examplesEl.innerHTML = DESC_EXAMPLES.map((ex, i) =>
+    `<button class="desc-example-btn" data-idx="${i}">${escapeHtml(ex.label)}</button>`,
+  ).join('');
+
+  examplesEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.desc-example-btn');
+    if (!btn) return;
+    const ex = DESC_EXAMPLES[Number(btn.dataset.idx)];
+    if (!ex) return;
+
+    conceptSelect.value = ex.concept;
+    descProperties = [...ex.properties];
+    renderDescPropertyTags();
+
+    // Set relationship fields
+    document.getElementById('desc-rel-verb').value = ex.rel ? ex.rel.verb : '';
+    if (ex.rel) {
+      subjectSelect.value = ex.rel.subject;
+      objectSelect.value = ex.rel.object;
+    }
+
+    updateDescription();
+  });
+
+  // Wire events
+  conceptSelect.addEventListener('change', updateDescription);
+  document.getElementById('desc-rel-verb').addEventListener('input', updateDescription);
+  subjectSelect.addEventListener('change', updateDescription);
+  objectSelect.addEventListener('change', updateDescription);
+
+  document.getElementById('desc-add-prop-btn').addEventListener('click', () => {
+    const input = document.getElementById('desc-add-property');
+    const val = input.value.trim();
+    if (val && !descProperties.includes(val)) {
+      descProperties.push(val);
+      renderDescPropertyTags();
+      updateDescription();
+    }
+    input.value = '';
+    input.focus();
+  });
+
+  document.getElementById('desc-add-property').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('desc-add-prop-btn').click();
+    }
+  });
+
+  // Initial render
+  updateDescription();
+}
+
+function renderDescPropertyTags() {
+  const container = document.getElementById('desc-property-tags');
+  container.innerHTML = descProperties.map((p, i) =>
+    `<span class="desc-tag">${escapeHtml(p)}<button class="desc-tag-remove" data-idx="${i}">&times;</button></span>`,
+  ).join('');
+
+  container.querySelectorAll('.desc-tag-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      descProperties.splice(Number(btn.dataset.idx), 1);
+      renderDescPropertyTags();
+      updateDescription();
+    });
+  });
+}
+
+function updateDescription() {
+  const conceptId = document.getElementById('desc-concept').value;
+  const conceptDef = DESC_HIERARCHY.find((c) => c.id === conceptId);
+  if (!conceptDef) return;
+
+  // Build the concept JSON-LD
+  const concept = Fandaws.createConcept({
+    id: conceptDef.id,
+    label: conceptDef.label,
+    prefLabel: conceptDef.prefLabel,
+    broader: conceptDef.broader,
+  });
+
+  // Attach properties
+  for (const prop of descProperties) {
+    concept['rdfs:subClassOf'].push({
+      '@type': 'owl:Restriction',
+      'owl:onProperty': prop,
+      'fandaws:restrictionKind': 'property',
+    });
+  }
+
+  // Attach relationship if verb is set
+  const verb = document.getElementById('desc-rel-verb').value.trim();
+  const subjectIri = document.getElementById('desc-rel-subject').value;
+  const objectIri = document.getElementById('desc-rel-object').value;
+  let hasRelationship = false;
+
+  if (verb) {
+    concept['rdfs:subClassOf'].push({
+      '@type': 'owl:Restriction',
+      'owl:onProperty': verb,
+      'owl:someValuesFrom': objectIri,
+      'fandaws:attachedTo': subjectIri,
+      'fandaws:restrictionKind': 'relationship',
+    });
+    hasRelationship = true;
+  }
+
+  // Build graph with all hierarchy concepts
+  const graphConcepts = DESC_HIERARCHY.map((c) =>
+    Fandaws.createConcept({
+      id: c.id,
+      label: c.label,
+      prefLabel: c.prefLabel,
+      broader: c.broader,
+    }),
+  );
+
+  // Replace the target concept in graph with our modified version
+  const idx = graphConcepts.findIndex((c) => c['@id'] === concept['@id']);
+  if (idx !== -1) graphConcepts[idx] = concept;
+  else graphConcepts.push(concept);
+
+  const graph = Fandaws.createKnowledgeGraph({
+    id: 'fandaws:graph/desc-demo',
+    concepts: graphConcepts,
+  });
+
+  // Generate description
+  const description = Fandaws.describeConcept(concept, graph);
+
+  // Render description
+  document.getElementById('desc-result-text').textContent = description;
+
+  // Determine template used
+  let templateName = 'Standard';
+  if (!conceptDef.broader) {
+    templateName = 'Root';
+  } else if (hasRelationship && conceptDef.broader) {
+    // Check if parent exists in graph
+    const parentExists = DESC_HIERARCHY.some((c) => c.id === conceptDef.broader);
+    if (parentExists) templateName = 'Process';
+  }
+  document.getElementById('desc-template-badge').textContent = templateName;
+
+  // Render breakdown
+  const breakdown = document.getElementById('desc-breakdown');
+  const parts = [];
+
+  parts.push({ label: 'Display Label', value: conceptDef.label });
+
+  if (conceptDef.broader) {
+    const parent = DESC_HIERARCHY.find((c) => c.id === conceptDef.broader);
+    parts.push({ label: 'Parent', value: parent ? parent.label : conceptDef.broader });
+
+    if (templateName === 'Standard') {
+      const article = 'aeiou'.includes((parent?.label || '')[0]?.toLowerCase() || '') ? 'an' : 'a';
+      parts.push({ label: 'Article', value: `"${article}"` });
+    }
+  } else {
+    parts.push({ label: 'Parent', value: '(none — root concept)' });
+  }
+
+  if (descProperties.length > 0) {
+    parts.push({ label: 'Properties', value: descProperties.join(', ') });
+  }
+
+  if (hasRelationship) {
+    const subjectLabel = DESC_HIERARCHY.find((c) => c.id === subjectIri)?.label || subjectIri;
+    const objectLabel = DESC_HIERARCHY.find((c) => c.id === objectIri)?.label || objectIri;
+    parts.push({ label: 'Relationship', value: `${subjectLabel} ${verb} ${objectLabel}` });
+  }
+
+  breakdown.innerHTML = parts.map((p) =>
+    `<div class="pipeline-step">
+      <span class="step-label" style="min-width: 100px;">${escapeHtml(p.label)}</span>
+      <span class="step-result step-result--changed">${escapeHtml(p.value)}</span>
+    </div>`,
+  ).join('');
+
+  // Render JSON-LD
+  document.getElementById('desc-json-output').textContent = JSON.stringify(concept, null, 2);
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -535,3 +778,4 @@ buildCorpusTable();
 renderFactoryParams();
 runPipeline();
 initPropertyDemo();
+initDescriptionDemo();

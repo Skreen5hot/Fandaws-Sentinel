@@ -10,6 +10,33 @@
 import { isRestrictionNode } from '../../types/type-checks.js';
 
 /**
+ * Unwrap a JSON-LD language-tagged value to a bare string.
+ *
+ * External SPARQL/SKOS imports may deliver `{ '@value': 'dog', '@language': 'en' }`
+ * instead of the bare string `'dog'`. This helper normalizes both forms.
+ *
+ * @param {*} val - Value to unwrap
+ * @returns {*} Bare string if language-tagged, otherwise the original value
+ */
+function unwrapValue(val) {
+  if (val != null && typeof val === 'object' && '@value' in val) {
+    return val['@value'];
+  }
+  return val;
+}
+
+/**
+ * Normalize a value that may be a scalar or array into an array.
+ *
+ * @param {*} val - Value to normalize
+ * @returns {Array} Array (empty if null/undefined, wrapped if scalar)
+ */
+function normalizeArray(val) {
+  if (val == null) return [];
+  return Array.isArray(val) ? val : [val];
+}
+
+/**
  * Compute depth of a concept by walking the skos:broader chain.
  *
  * @param {string} conceptIri - Concept IRI to compute depth for
@@ -90,14 +117,14 @@ export function hydrate(concept, graph) {
   return {
     id: iri,
     type: concept['@type'],
-    label: concept['rdfs:label'],
-    prefLabel: concept['skos:prefLabel'],
+    label: unwrapValue(concept['rdfs:label']),
+    prefLabel: unwrapValue(concept['skos:prefLabel']),
     broader: concept['skos:broader'] || null,
-    definition: concept['skos:definition'] || '',
+    definition: unwrapValue(concept['skos:definition']) || '',
     created: concept['dcterms:created'],
     modified: concept['dcterms:modified'] || null,
     wasDerivedFrom: concept['prov:wasDerivedFrom'] || [],
-    altLabel: concept['skos:altLabel'] || [],
+    altLabel: normalizeArray(concept['skos:altLabel']),
     inScheme: concept['skos:inScheme'] || null,
     subClassOf: concept['rdfs:subClassOf'] || [],
 

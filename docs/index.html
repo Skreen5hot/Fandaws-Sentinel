@@ -18,8 +18,8 @@
       <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
-        <span class="badge badge--green" id="badge-phase">Phase 6 Complete</span>
-        <span class="badge badge--green" id="badge-tests">682/682 Tests Pass</span>
+        <span class="badge badge--green" id="badge-phase">Phase 7 Complete</span>
+        <span class="badge badge--green" id="badge-tests">762/762 Tests Pass</span>
       </div>
     </header>
 
@@ -29,6 +29,7 @@
       <button class="nav-tab" data-tab="playground">Identity Playground</button>
       <button class="nav-tab" data-tab="types">Type Explorer</button>
       <button class="nav-tab" data-tab="property">Property Demo</button>
+      <button class="nav-tab" data-tab="description">Description Demo</button>
       <button class="nav-tab" data-tab="tests">Test Results</button>
     </nav>
 
@@ -49,7 +50,7 @@
   P0 --> P1["Phase 1 — Identity Simplification ✓"]
 
   P1 --> P2["Phase 2 — NLParser + Classifier ✓"]
-  P3 --> P7["Phase 7 — DescriptionEngine (A/B)"]
+  P3 --> P7["Phase 7 — DescriptionEngine ✓"]
   P2 --> P10["Phase 10 — ExportEngine (A)"]
 
   P1 --> P3["Phase 3 — StateAdapter (B) ✓"]
@@ -78,6 +79,7 @@
   style P4b fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P5 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P6 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P7 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f</pre>
       </div>
 
@@ -229,6 +231,104 @@
           <label>Pipeline Stages</label>
           <div id="property-stages" class="pipeline-steps">
             <div style="color: var(--text-muted);">Click "Run Pipeline" to see results.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Description Demo -->
+    <section class="section" id="section-description">
+      <h2 class="section-title">Description Engine Demo</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Phase 7 auto-generates human-readable descriptions from graph structure.
+        Select a concept, add properties, and see the description update live.
+        Supports standard, root, and process templates with automatic article selection ("a" vs "an").
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <div class="card" style="margin-bottom: 16px;">
+            <h3 class="card-title">Concept Hierarchy</h3>
+            <pre id="desc-hierarchy" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); line-height: 1.8;"></pre>
+          </div>
+
+          <div class="field-group">
+            <label for="desc-concept">Select Concept</label>
+            <select id="desc-concept">
+              <!-- Populated by app.js -->
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="desc-add-property">Add Properties</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="desc-add-property" placeholder='e.g. "fur"' style="flex: 1;">
+              <button class="btn btn--primary" id="desc-add-prop-btn" style="white-space: nowrap;">+ Add</button>
+            </div>
+          </div>
+
+          <div id="desc-property-tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
+            <!-- Property tags rendered here -->
+          </div>
+
+          <div class="card" style="margin-bottom: 16px; padding: 14px;">
+            <h3 class="card-title" style="font-size: 0.8rem;">Process Template (Relationship)</h3>
+            <p class="card-description" style="margin-bottom: 10px; font-size: 0.75rem;">
+              Add a relationship to trigger the process template instead of standard.
+            </p>
+            <div class="field-group" style="margin-bottom: 8px;">
+              <label for="desc-rel-verb" style="font-size: 0.7rem;">Verb</label>
+              <input type="text" id="desc-rel-verb" placeholder='e.g. "chases"' style="font-size: 0.8rem;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="field-group" style="margin-bottom: 0;">
+                <label for="desc-rel-subject" style="font-size: 0.7rem;">Subject</label>
+                <select id="desc-rel-subject" style="font-size: 0.8rem;">
+                  <!-- Populated by app.js -->
+                </select>
+              </div>
+              <div class="field-group" style="margin-bottom: 0;">
+                <label for="desc-rel-object" style="font-size: 0.7rem;">Object</label>
+                <select id="desc-rel-object" style="font-size: 0.8rem;">
+                  <!-- Populated by app.js -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="card-title" style="margin-top: 16px;">Quick Examples</h3>
+          <div id="desc-examples" class="desc-examples">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+
+        <div class="playground-output">
+          <label>Generated Description</label>
+          <div class="final-result" id="desc-output" style="margin-top: 0; font-size: 1.05rem; line-height: 1.6;">
+            <div class="result-label">Description</div>
+            <div id="desc-result-text">Select a concept to see its description.</div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label>Template Used</label>
+            <div class="pipeline-step" style="border-bottom: none;">
+              <span class="step-label" style="min-width: 80px;">Template</span>
+              <span class="step-result step-result--changed" id="desc-template-badge">—</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label>Breakdown</label>
+            <div class="pipeline-steps" id="desc-breakdown">
+              <!-- Populated by app.js -->
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label>Concept JSON-LD</label>
+            <div class="factory-output" id="desc-json-output" style="max-height: 250px;">
+              Select a concept to see its JSON-LD.
+            </div>
           </div>
         </div>
       </div>

@@ -384,6 +384,68 @@ describe('hydrate/dehydrate — round-trip fidelity with restrictions (SUP-06)',
 });
 
 // ─────────────────────────────────────────────────────────
+// SUP-04: External JSON-LD forms
+// ─────────────────────────────────────────────────────────
+
+describe('hydrate — external JSON-LD forms (SUP-04)', () => {
+  it('SUP-04a: hydrates language-tagged prefLabel, label, and definition', () => {
+    const concept = {
+      '@id': 'ext:concept/dog',
+      '@type': ['owl:Class', 'skos:Concept'],
+      'rdfs:label': { '@value': 'Dog', '@language': 'en' },
+      'skos:prefLabel': { '@value': 'dog', '@language': 'en' },
+      'skos:definition': { '@value': 'A domesticated carnivore', '@language': 'en' },
+      'skos:broader': null,
+      'dcterms:created': '2025-01-01T00:00:00Z',
+      'rdfs:subClassOf': [],
+    };
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    expect(view.prefLabel).toBe('dog');
+    expect(view.label).toBe('Dog');
+    expect(view.definition).toBe('A domesticated carnivore');
+  });
+
+  it('SUP-04b: hydrates when subClassOf is absent (not null, not [])', () => {
+    const concept = {
+      '@id': 'ext:concept/thing',
+      '@type': ['owl:Class', 'skos:Concept'],
+      'rdfs:label': 'Thing',
+      'skos:prefLabel': 'thing',
+      'skos:broader': null,
+      'dcterms:created': '2025-01-01T00:00:00Z',
+      // rdfs:subClassOf completely absent
+    };
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    expect(view.subClassOf).toEqual([]);
+    expect(view.properties).toEqual([]);
+    expect(view.relationships).toEqual([]);
+  });
+
+  it('SUP-04c: plain string values pass through unchanged', () => {
+    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    expect(view.prefLabel).toBe('dog');
+    expect(view.label).toBe('Dog');
+  });
+
+  it('SUP-04d: scalar altLabel is wrapped to array', () => {
+    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    concept['skos:altLabel'] = 'pupper'; // scalar, not array
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    expect(view.altLabel).toEqual(['pupper']);
+    expect(Array.isArray(view.altLabel)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
 // dehydrate
 // ─────────────────────────────────────────────────────────
 

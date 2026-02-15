@@ -179,7 +179,7 @@ describe('Classification Pipeline', () => {
       (d) => d.conceptIri === 'fandaws:concept/dog',
     );
     expect(dogDesc).toBeDefined();
-    expect(dogDesc.description).toContain('dog');
+    expect(dogDesc.description).toContain('Dog');
   });
 
   it('generates "root concept" description for new root', () => {
@@ -315,5 +315,116 @@ describe('Classification Pipeline', () => {
     expect(result.success).toBe(true);
     expect(result.validation).not.toBeNull();
     expect(result.validation['fandaws:valid']).toBe(true);
+  });
+
+  // ── Governance halt path (SUP-07) ──
+
+  it('SUP-07a: pipeline halts when concept has blocking governance flag', () => {
+    const dog = {
+      ...makeConcept('fandaws:concept/dog', 'Dog', 'dog'),
+      'fandaws:governanceFlag': {
+        'fandaws:severity': 'blocking',
+        'fandaws:reason': 'Under OCE review.',
+      },
+    };
+    adapter.saveGraph(GRAPH_ID, makeGraph([dog]));
+
+    const result = runClassificationPipeline('A dog is an animal', context);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(true);
+    expect(result.errorReason).toBe('validation-failed');
+
+    // Graph must be unchanged — animal not created
+    const graph = adapter.loadGraph(GRAPH_ID);
+    expect(graph['fandaws:concepts']).toHaveLength(1);
+    expect(graph['fandaws:concepts'][0]['skos:prefLabel']).toBe('dog');
+  });
+
+  it('SUP-07b: pipeline proceeds when concept has advisory governance flag', () => {
+    const dog = {
+      ...makeConcept('fandaws:concept/dog', 'Dog', 'dog'),
+      'fandaws:governanceFlag': {
+        'fandaws:severity': 'advisory',
+        'fandaws:reason': 'Consider renaming.',
+      },
+    };
+    adapter.saveGraph(GRAPH_ID, makeGraph([dog]));
+
+    const result = runClassificationPipeline('A dog is an animal', context);
+    expect(result.success).toBe(true);
+    expect(result.graph['fandaws:concepts']).toHaveLength(2);
+  });
+
+  it('SUP-07c: pipeline proceeds when concept has no governance flag', () => {
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+    adapter.saveGraph(GRAPH_ID, makeGraph([dog]));
+
+    const result = runClassificationPipeline('A dog is an animal', context);
+    expect(result.success).toBe(true);
+  });
+
+  // ── Blank answer handling (SUP-12) ──
+
+  it('SUP-12a: empty string returns parse-error, no concepts created', () => {
+    const result = runClassificationPipeline('', context);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(true);
+    expect(result.errorReason).toBe('parse-error: empty-input');
+    expect(adapter.loadGraph(GRAPH_ID)['fandaws:concepts']).toHaveLength(0);
+  });
+
+  it('SUP-12b: whitespace-only returns parse-error, no concepts created', () => {
+    const result = runClassificationPipeline('   ', context);
+    expect(result.success).toBe(false);
+    expect(result.errorReason).toBe('parse-error: empty-input');
+    expect(adapter.loadGraph(GRAPH_ID)['fandaws:concepts']).toHaveLength(0);
+  });
+
+  it('SUP-12c: tab-only input returns parse-error', () => {
+    const result = runClassificationPipeline('\t\t', context);
+    expect(result.success).toBe(false);
+    expect(result.errorReason).toBe('parse-error: empty-input');
+  });
+
+  // ── Novel parent creation (SUP-13) ──
+
+  it('SUP-13a: novel parent creates both concepts, parent as root', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const mammal = makeConcept(
+      'fandaws:concept/mammal', 'Mammal', 'mammal', 'fandaws:concept/animal',
+    );
+    adapter.saveGraph(GRAPH_ID, makeGraph([animal, mammal]));
+
+    const result = runClassificationPipeline('A dog is a canine', context);
+    expect(result.success).toBe(true);
+
+    const concepts = result.graph['fandaws:concepts'];
+    expect(concepts).toHaveLength(4);
+
+    const canine = concepts.find((c) => c['skos:prefLabel'] === 'canine');
+    const dog = concepts.find((c) => c['skos:prefLabel'] === 'dog');
+    expect(canine).toBeDefined();
+    expect(canine['skos:broader']).toBeNull(); // root
+    expect(dog).toBeDefined();
+    expect(dog['skos:broader']).toBe(canine['@id']);
+
+    // Existing tree untouched
+    const savedAnimal = concepts.find((c) => c['skos:prefLabel'] === 'animal');
+    const savedMammal = concepts.find((c) => c['skos:prefLabel'] === 'mammal');
+    expect(savedAnimal['skos:broader']).toBeNull();
+    expect(savedMammal['skos:broader']).toBe('fandaws:concept/animal');
+  });
+
+  it('SUP-13b: novel parent does not corrupt existing tree indices', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const mammal = makeConcept(
+      'fandaws:concept/mammal', 'Mammal', 'mammal', 'fandaws:concept/animal',
+    );
+    adapter.saveGraph(GRAPH_ID, makeGraph([animal, mammal]));
+
+    runClassificationPipeline('A dog is a canine', context);
+
+    const ghosts = adapter.verifyIntegrity(GRAPH_ID);
+    expect(ghosts).toHaveLength(0);
   });
 });

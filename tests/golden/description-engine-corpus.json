@@ -1,0 +1,173 @@
+{
+  "description": "Golden corpus for DescriptionEngine (Phase 7, Section 3.2.5). Each entry specifies a concept, graph context, and expected description string.",
+  "corpus": [
+    {
+      "id": "desc-vowel-parent",
+      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "expected": "Dog is an Animal.",
+      "note": "Article 'an' before vowel-starting parent"
+    },
+    {
+      "id": "desc-consonant-parent",
+      "concept": { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat", "broader": "fandaws:concept/mammal", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/mammal", "label": "Mammal", "prefLabel": "mammal" }],
+      "expected": "Cat is a Mammal.",
+      "note": "Article 'a' before consonant-starting parent"
+    },
+    {
+      "id": "desc-props-two",
+      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": ["fur", "four legs"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "expected": "Dog is an Animal that has fur and four legs.",
+      "note": "Two properties joined with 'and'"
+    },
+    {
+      "id": "desc-props-one",
+      "concept": { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat", "broader": "fandaws:concept/animal", "properties": ["whiskers"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "expected": "Cat is an Animal that has whiskers.",
+      "note": "Single property, no comma or 'and'"
+    },
+    {
+      "id": "desc-props-three",
+      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/mammal", "properties": ["fur", "legs", "tail"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/mammal", "label": "Mammal", "prefLabel": "mammal" }],
+      "expected": "Dog is a Mammal that has fur, legs, and tail.",
+      "note": "Three properties with Oxford comma"
+    },
+    {
+      "id": "desc-root-bare",
+      "concept": { "id": "fandaws:concept/entity", "label": "Entity", "prefLabel": "entity", "properties": [], "relationships": [] },
+      "graphConcepts": [],
+      "expected": "Entity is a root concept.",
+      "note": "Root concept with no parent, no properties"
+    },
+    {
+      "id": "desc-root-props-one",
+      "concept": { "id": "fandaws:concept/entity", "label": "Entity", "prefLabel": "entity", "properties": ["mass"], "relationships": [] },
+      "graphConcepts": [],
+      "expected": "Entity is a root concept that has mass.",
+      "note": "Root concept with one property"
+    },
+    {
+      "id": "desc-root-props-two",
+      "concept": { "id": "fandaws:concept/entity", "label": "Entity", "prefLabel": "entity", "properties": ["mass", "energy"], "relationships": [] },
+      "graphConcepts": [],
+      "expected": "Entity is a root concept that has mass and energy.",
+      "note": "Root concept with two properties"
+    },
+    {
+      "id": "desc-missing-parent",
+      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": [], "relationships": [] },
+      "graphConcepts": [],
+      "expected": "Dog is a concept.",
+      "note": "Parent IRI not found in graph — fallback"
+    },
+    {
+      "id": "desc-missing-parent-props",
+      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": ["fur"], "relationships": [] },
+      "graphConcepts": [],
+      "expected": "Dog is a concept that has fur.",
+      "note": "Parent missing but properties still shown"
+    },
+    {
+      "id": "desc-capitalize-lower",
+      "concept": { "id": "fandaws:concept/dog", "label": "dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "animal", "prefLabel": "animal" }],
+      "expected": "Dog is an Animal.",
+      "note": "Lowercase labels capitalized in output"
+    },
+    {
+      "id": "desc-vowel-e",
+      "concept": { "id": "fandaws:concept/mouse", "label": "Mouse", "prefLabel": "mouse", "broader": "fandaws:concept/elephant", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/elephant", "label": "Elephant", "prefLabel": "elephant" }],
+      "expected": "Mouse is an Elephant.",
+      "note": "Article 'an' before 'E'"
+    },
+    {
+      "id": "desc-vowel-i",
+      "concept": { "id": "fandaws:concept/cell", "label": "Cell", "prefLabel": "cell", "broader": "fandaws:concept/invertebrate", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/invertebrate", "label": "Invertebrate", "prefLabel": "invertebrate" }],
+      "expected": "Cell is an Invertebrate.",
+      "note": "Article 'an' before 'I'"
+    },
+    {
+      "id": "desc-vowel-o",
+      "concept": { "id": "fandaws:concept/goat", "label": "Goat", "prefLabel": "goat", "broader": "fandaws:concept/organism", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/organism", "label": "Organism", "prefLabel": "organism" }],
+      "expected": "Goat is an Organism.",
+      "note": "Article 'an' before 'O'"
+    },
+    {
+      "id": "desc-consonant-u",
+      "concept": { "id": "fandaws:concept/screw", "label": "Screw", "prefLabel": "screw", "broader": "fandaws:concept/utensil", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/utensil", "label": "Utensil", "prefLabel": "utensil" }],
+      "expected": "Screw is an Utensil.",
+      "note": "Simple vowel check: 'U' treated as vowel (known limitation — 'a utensil' would be phonetically correct)"
+    },
+    {
+      "id": "desc-process-basic",
+      "concept": {
+        "id": "fandaws:concept/predation", "label": "Predation", "prefLabel": "predation",
+        "broader": "fandaws:concept/hunt",
+        "properties": [],
+        "relationships": [{ "verb": "chases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+      },
+      "graphConcepts": [
+        { "id": "fandaws:concept/hunt", "label": "Hunt", "prefLabel": "hunt" },
+        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+      ],
+      "expected": "Predation is the hunting of Cat by Dog.",
+      "note": "Process template: parent 'Hunt' → gerund 'hunting'"
+    },
+    {
+      "id": "desc-process-chase",
+      "concept": {
+        "id": "fandaws:concept/pursuit", "label": "Pursuit", "prefLabel": "pursuit",
+        "broader": "fandaws:concept/chase",
+        "properties": [],
+        "relationships": [{ "verb": "follows", "object": "fandaws:concept/prey", "subject": "fandaws:concept/predator" }]
+      },
+      "graphConcepts": [
+        { "id": "fandaws:concept/chase", "label": "Chase", "prefLabel": "chase" },
+        { "id": "fandaws:concept/prey", "label": "Prey", "prefLabel": "prey" },
+        { "id": "fandaws:concept/predator", "label": "Predator", "prefLabel": "predator" }
+      ],
+      "expected": "Pursuit is the chasing of Prey by Predator.",
+      "note": "Process template: 'Chase' drops 'e' → 'chasing'"
+    },
+    {
+      "id": "desc-process-no-parent",
+      "concept": {
+        "id": "fandaws:concept/predation", "label": "Predation", "prefLabel": "predation",
+        "properties": [],
+        "relationships": [{ "verb": "chases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+      },
+      "graphConcepts": [
+        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+      ],
+      "expected": "Predation is a root concept.",
+      "note": "Relationship present but no parent → falls back to root template"
+    },
+    {
+      "id": "desc-deep-chain",
+      "concept": { "id": "fandaws:concept/chihuahua", "label": "Chihuahua", "prefLabel": "chihuahua", "broader": "fandaws:concept/dog", "properties": [], "relationships": [] },
+      "graphConcepts": [
+        { "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" },
+        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal" }
+      ],
+      "expected": "Chihuahua is a Dog.",
+      "note": "Deep hierarchy — describes immediate parent only"
+    },
+    {
+      "id": "desc-multi-word-label",
+      "concept": { "id": "fandaws:concept/golden-retriever", "label": "Golden Retriever", "prefLabel": "golden retriever", "broader": "fandaws:concept/dog", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }],
+      "expected": "Golden Retriever is a Dog.",
+      "note": "Multi-word display label preserved"
+    }
+  ]
+}

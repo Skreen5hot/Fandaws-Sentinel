@@ -545,6 +545,152 @@ describe('validate — governance block', () => {
 });
 
 // ─────────────────────────────────────────────────────────
+// SUP-08: Modification mutation expansion
+// ─────────────────────────────────────────────────────────
+
+describe('validate — modification expansion (SUP-08)', () => {
+  it('SUP-08a: rejects modification targeting non-existent restriction IRI', () => {
+    const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog')]);
+    const mutation = makeMutation({
+      modifications: [
+        {
+          '@id': 'fandaws:restriction/nonexistent',
+          'owl:onProperty': 'barks',
+        },
+      ],
+    });
+    const result = validate(mutation, graph);
+    expect(result['fandaws:valid']).toBe(false);
+    expect(
+      result['fandaws:violations'].some((v) => v.reason === 'targetNotFound'),
+    ).toBe(true);
+  });
+
+  it('SUP-08b: rejects 3-node cycle via reparent modification', () => {
+    const graph = makeGraph([
+      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal'),
+      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+    ]);
+    // animal → dog → mammal → animal = 3-node cycle
+    const mutation = makeMutation({
+      modifications: [
+        {
+          '@id': 'fandaws:concept/animal',
+          'skos:broader': 'fandaws:concept/dog',
+        },
+      ],
+    });
+    const result = validate(mutation, graph);
+    expect(result['fandaws:valid']).toBe(false);
+    expect(
+      result['fandaws:violations'].some((v) => v.reason === 'circularHierarchy'),
+    ).toBe(true);
+  });
+
+  it('SUP-08c: accepts valid reparent modification', () => {
+    const graph = makeGraph([
+      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal'),
+      makeConcept('fandaws:concept/canine', 'Canine'),
+      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/canine'),
+    ]);
+    // Reparent dog under mammal — valid, no cycle
+    const mutation = makeMutation({
+      modifications: [
+        {
+          '@id': 'fandaws:concept/dog',
+          'skos:broader': 'fandaws:concept/mammal',
+        },
+      ],
+    });
+    const result = validate(mutation, graph);
+    expect(
+      result['fandaws:violations'].some(
+        (v) => v.reason === 'circularHierarchy' || v.reason === 'targetNotFound',
+      ),
+    ).toBe(false);
+  });
+
+  it('SUP-08d: label collision on modification is not currently validated (known gap)', () => {
+    const graph = makeGraph([
+      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:concept/plant', 'Plant'),
+    ]);
+    // Rename plant's prefLabel to 'animal' — would collide, but validator
+    // does not currently check label uniqueness on modifications
+    const mutation = makeMutation({
+      modifications: [
+        {
+          '@id': 'fandaws:concept/plant',
+          'skos:prefLabel': 'animal',
+        },
+      ],
+    });
+    const result = validate(mutation, graph);
+    // Documents known gap: this should ideally fail but currently passes
+    expect(result['fandaws:valid']).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// SUP-09: Deletion with orphan prevention
+// ─────────────────────────────────────────────────────────
+
+describe('validate — deletion expansion (SUP-09)', () => {
+  it('SUP-09a: deletion of concept with children produces orphanRisk warning', () => {
+    const graph = makeGraph([
+      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal'),
+      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+    ]);
+    const mutation = makeMutation({
+      deletions: ['fandaws:concept/mammal'],
+    });
+    const result = validate(mutation, graph);
+    expect(result['fandaws:valid']).toBe(false);
+    const orphanViolation = result['fandaws:violations'].find(
+      (v) => v.reason === 'orphanRisk',
+    );
+    expect(orphanViolation).toBeDefined();
+    expect(orphanViolation.severity).toBe('warning');
+  });
+
+  it('SUP-09b: deletion of leaf concept produces no violations', () => {
+    const graph = makeGraph([
+      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+    ]);
+    const mutation = makeMutation({
+      deletions: ['fandaws:concept/dog'],
+    });
+    const result = validate(mutation, graph);
+    expect(result['fandaws:valid']).toBe(true);
+    expect(result['fandaws:violations']).toEqual([]);
+  });
+
+  it('SUP-09c: deletion of non-existent concept produces no violation (known gap)', () => {
+    const graph = makeGraph([makeConcept('fandaws:concept/animal', 'Animal')]);
+    const mutation = makeMutation({
+      deletions: ['fandaws:concept/ghost'],
+    });
+    const result = validate(mutation, graph);
+    // Documents known gap: validator does not check deletion target existence
+    expect(result['fandaws:valid']).toBe(true);
+  });
+
+  it('SUP-09d: deletion of root with no children produces no violations', () => {
+    const graph = makeGraph([makeConcept('fandaws:concept/standalone', 'Standalone')]);
+    const mutation = makeMutation({
+      deletions: ['fandaws:concept/standalone'],
+    });
+    const result = validate(mutation, graph);
+    expect(result['fandaws:valid']).toBe(true);
+    expect(result['fandaws:violations']).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
 // Multi-violation collection
 // ─────────────────────────────────────────────────────────
 

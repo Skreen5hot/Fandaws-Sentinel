@@ -675,6 +675,96 @@
         "fandaws:error": false,
         "fandaws:errorReason": null
       }
+    },
+    {
+      "id": "adv-whitespace-caps",
+      "input": "DOG    is a    ANIMAL",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "DOG",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "ANIMAL",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "adv-multiword-article",
+      "input": "a Bengal Tiger is a Pantherinae",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Bengal Tiger",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "Pantherinae",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "adv-property-multiword",
+      "input": "Golden Retriever has friendly temperament",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Golden Retriever",
+        "fandaws:predicate": "has",
+        "fandaws:object": "friendly temperament",
+        "fandaws:verbType": "property",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "adv-unicode-accent",
+      "input": "café is a restaurant",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "café",
+        "fandaws:predicate": "is a",
+        "fandaws:object": "restaurant",
+        "fandaws:verbType": "classification",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "adv-question-form",
+      "input": "Is dog an animal?",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": "Is",
+        "fandaws:predicate": "dog",
+        "fandaws:object": "animal?",
+        "fandaws:verbType": "customRelationship",
+        "fandaws:confidence": 1.0,
+        "fandaws:error": false,
+        "fandaws:errorReason": null
+      }
+    },
+    {
+      "id": "adv-tab-separated",
+      "input": "A\tdog\tis\ta\tanimal",
+      "context": {},
+      "expected": {
+        "@type": "fandaws:ParseResult",
+        "fandaws:subject": null,
+        "fandaws:predicate": null,
+        "fandaws:object": null,
+        "fandaws:verbType": null,
+        "fandaws:confidence": 0,
+        "fandaws:error": true,
+        "fandaws:errorReason": "no-predicate"
+      }
     }
   ]
 }

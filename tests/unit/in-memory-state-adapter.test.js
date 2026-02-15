@@ -1619,3 +1619,87 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
     expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────
+// SUP-14: Sequential mutation consistency
+// ─────────────────────────────────────────────────────────
+
+describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', () => {
+  let adapter;
+
+  beforeEach(() => {
+    adapter = new InMemoryStateAdapter();
+    adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [] }));
+  });
+
+  it('SUP-14a: rapid sequential modifications — last write wins', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal, dog] }));
+
+    // Two sequential definition writes
+    adapter.applyMutation(GRAPH_ID, makeMutation({
+      modifications: [{
+        '@id': 'fandaws:concept/dog',
+        'fandaws:field': 'skos:definition',
+        'fandaws:value': 'first',
+      }],
+    }));
+    adapter.applyMutation(GRAPH_ID, makeMutation({
+      modifications: [{
+        '@id': 'fandaws:concept/dog',
+        'fandaws:field': 'skos:definition',
+        'fandaws:value': 'second',
+      }],
+    }));
+
+    const graph = adapter.loadGraph(GRAPH_ID);
+    const updatedDog = graph['fandaws:concepts'].find(
+      (c) => c['@id'] === 'fandaws:concept/dog',
+    );
+    expect(updatedDog['skos:definition']).toBe('second');
+    expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
+  });
+
+  it('SUP-14b: loadGraph after mutation reflects latest state', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
+
+    const before = adapter.loadGraph(GRAPH_ID);
+    expect(before['fandaws:concepts']).toHaveLength(1);
+
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
+
+    const after = adapter.loadGraph(GRAPH_ID);
+    expect(after['fandaws:concepts']).toHaveLength(2);
+  });
+
+  it('SUP-14c: indices consistent after 10 rapid sequential mutations', () => {
+    // Build a 10-concept chain: concept-0 → concept-1 → ... → concept-9
+    let parentIri = null;
+    for (let i = 0; i < 10; i++) {
+      const iri = `fandaws:concept/c${i}`;
+      const label = `Concept${i}`;
+      const concept = makeConcept(iri, label, parentIri);
+      if (i === 0) concept['fandaws:allowRoot'] = true;
+      adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [concept] }));
+      parentIri = iri;
+    }
+
+    const idx = adapter.getIndices(GRAPH_ID);
+    expect(idx.canonicalLabelToIri.size).toBe(10);
+
+    // Verify parent chain from c9 back to c0
+    let current = 'fandaws:concept/c9';
+    for (let i = 8; i >= 0; i--) {
+      const parent = idx.iriToParent.get(current);
+      expect(parent).toBe(`fandaws:concept/c${i}`);
+      current = parent;
+    }
+    // c0 is root
+    expect(idx.iriToParent.get('fandaws:concept/c0')).toBeNull();
+
+    expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
+  });
+});

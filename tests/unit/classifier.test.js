@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { classify } from '../../src/core/classifier/classifier.js';
+import { parse } from '../../src/core/nl-parser/nl-parser.js';
 import { createParseResult } from '../../src/types/parse-result.js';
 
 // ─────────────────────────────────────────────────────────
@@ -142,6 +143,44 @@ describe('classify — error handling', () => {
   it('error output still has @type fandaws:ClassificationAction', () => {
     const action = classify(null);
     expect(action['@type']).toBe('fandaws:ClassificationAction');
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Property Routing (Phase 6)
+// ─────────────────────────────────────────────────────────
+
+describe('classify — property routing (Phase 6)', () => {
+  it('routes "have" plural form to property workflow', () => {
+    const pr = createParseResult({
+      subject: 'dogs', predicate: 'have', object: 'four legs',
+      verbType: 'property', confidence: 1.0,
+    });
+    const action = classify(pr);
+    expect(action['fandaws:workflow']).toBe('property');
+    expect(action['fandaws:subject']).toBe('dogs');
+    expect(action['fandaws:object']).toBe('four legs');
+  });
+
+  it('preserves multi-word operands through classification', () => {
+    const pr = createParseResult({
+      subject: 'golden retriever', predicate: 'has', object: 'friendly temperament',
+      verbType: 'property', confidence: 1.0,
+    });
+    const action = classify(pr);
+    expect(action['fandaws:workflow']).toBe('property');
+    expect(action['fandaws:subject']).toBe('golden retriever');
+    expect(action['fandaws:object']).toBe('friendly temperament');
+  });
+
+  it('end-to-end: NLParser → Classifier for "A dog has fur"', () => {
+    const pr = parse('A dog has fur');
+    expect(pr['fandaws:error']).toBeFalsy();
+    const action = classify(pr);
+    expect(action['fandaws:error']).toBeFalsy();
+    expect(action['fandaws:workflow']).toBe('property');
+    expect(action['fandaws:subject']).toBe('dog');
+    expect(action['fandaws:object']).toBe('fur');
   });
 });
 

@@ -443,12 +443,14 @@ function runPropertyDemo() {
 
   // Stage 3: Scope narrowing
   if (result.prompts && result.prompts.length > 0 && !result.success) {
-    addStage(stages, '3. Scope Narrowing', `${result.prompts.length} prompt(s) — answer below`, false);
+    const leapNote = result.prompts.length === 2 ? ' (Leap Check: probing parent + root boundaries)' : '';
+    addStage(stages, '3. Scope Narrowing', `${result.prompts.length} prompt(s)${leapNote} — answer below`, false);
 
     // Render scope prompts as interactive buttons
     for (const prompt of result.prompts) {
       const text = prompt['fandaws:text'] || 'Scope question';
-      const conceptIri = prompt['fandaws:conceptIri'] || '';
+      const ctx = prompt['fandaws:context'] || {};
+      const conceptIri = ctx.conceptIri || '';
       const div = document.createElement('div');
       div.className = 'card';
       div.style.cssText = 'margin-bottom: 8px; padding: 12px;';
@@ -474,12 +476,17 @@ function runPropertyDemo() {
     return;
   }
 
-  // Stage 3 resolved or skipped
+  // Stage 3 resolved or skipped — show definitive result
   if (result.success && result.mutation) {
     const additions = result.mutation['fandaws:additions'] || [];
     const attachment = additions[0];
+    const attachedTo = attachment?.['fandaws:attachedTo'] || 'N/A';
+    const attachedLabel = DEMO_HIERARCHY.find((c) => c.id === attachedTo)?.label || attachedTo;
+    const promptCount = scopeDecisions.size;
+    const scopeNote = promptCount > 0 ? ` (resolved in ${promptCount} prompt${promptCount > 1 ? 's' : ''})` : ' (root concept — no scope narrowing needed)';
+
     addStage(stages, '3. Scope Resolved',
-      `Attached to: ${attachment?.['fandaws:attachedTo'] || 'N/A'}, scope: ${attachment?.['fandaws:scope'] || 'N/A'}`,
+      `Attached to: ${attachedLabel} (${attachedTo}), scope: ${attachment?.['fandaws:scope'] || 'N/A'}${scopeNote}`,
       false);
 
     // Stage 4: Mutation

@@ -95,7 +95,7 @@ describe('classify — error handling', () => {
   });
 
   it('rejects non-ParseResult input (wrong @type)', () => {
-    const action = classify({ '@type': 'fandaws:Concept' });
+    const action = classify({ '@type': ['owl:Class', 'skos:Concept'] });
     expect(action['fandaws:error']).toBe(true);
     expect(action['fandaws:errorReason']).toBe('invalid-input');
   });

@@ -12,10 +12,11 @@ describe('createGraphMutation', () => {
       additions: [
         {
           '@id': 'fandaws:property/animal-has-eyes',
-          '@type': 'fandaws:Property',
-          'fandaws:displayLabel': 'has eyes',
+          '@type': 'owl:Restriction',
+          'owl:onProperty': 'has eyes',
           'fandaws:attachedTo': 'fandaws:concept/animal',
           'fandaws:scope': 'inherited',
+          'fandaws:restrictionKind': 'property',
         },
       ],
       modifications: [],
@@ -26,7 +27,7 @@ describe('createGraphMutation', () => {
     });
 
     expect(mutation['fandaws:additions']).toHaveLength(1);
-    expect(mutation['fandaws:additions'][0]['@type']).toBe('fandaws:Property');
+    expect(mutation['fandaws:additions'][0]['@type']).toBe('owl:Restriction');
     expect(mutation['fandaws:modifications']).toEqual([]);
     expect(mutation['fandaws:deletions']).toEqual([]);
     expect(mutation['fandaws:merges']).toEqual([]);

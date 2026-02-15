@@ -13,10 +13,10 @@ describe('createScopeResolution', () => {
   it('matches spec Appendix A.10 shape (resolved)', () => {
     const resolvedConcept = {
       '@id': 'fandaws:concept/autonomy',
-      '@type': 'fandaws:Concept',
-      'fandaws:displayLabel': 'Autonomy',
-      'fandaws:canonicalLabel': 'autonomy',
-      'fandaws:parent': 'fandaws:concept/capacity',
+      '@type': ['owl:Class', 'skos:Concept'],
+      'rdfs:label': 'Autonomy',
+      'skos:prefLabel': 'autonomy',
+      'skos:broader': 'fandaws:concept/capacity',
     };
     const sourceScope = {
       'fandaws:scopeType': 'global',

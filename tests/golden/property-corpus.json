@@ -1,0 +1,271 @@
+[
+  {
+    "id": "prop-classify-first",
+    "utterance": "A unicorn has a horn",
+    "setup": [],
+    "expect": {
+      "success": false,
+      "promptCount": 1,
+      "promptContains": "classify"
+    },
+    "note": "Unknown subject → prompt: classify first"
+  },
+  {
+    "id": "prop-root-attach",
+    "utterance": "An animal has cells",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+    ],
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/animal",
+      "propertyLabel": "cells",
+      "scope": "concept-specific"
+    },
+    "note": "Root concept → attach directly, no scope narrowing"
+  },
+  {
+    "id": "prop-parent-no",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+    ],
+    "scopeDecisions": { "fandaws:concept/animal": false },
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/dog",
+      "propertyLabel": "fur",
+      "scope": "concept-specific"
+    },
+    "note": "Parent=no → attach to dog"
+  },
+  {
+    "id": "prop-parent-yes",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+    ],
+    "scopeDecisions": { "fandaws:concept/animal": true },
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/animal",
+      "propertyLabel": "fur",
+      "scope": "inherited"
+    },
+    "note": "Parent=yes → attach to animal"
+  },
+  {
+    "id": "prop-leap-both-yes",
+    "utterance": "A dog has cells",
+    "setup": [
+      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+    ],
+    "scopeDecisions": {
+      "fandaws:concept/canine": true,
+      "fandaws:concept/entity": true
+    },
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/entity",
+      "propertyLabel": "cells",
+      "scope": "inherited"
+    },
+    "note": "Leap Check: parent=yes, root=yes → attach to root"
+  },
+  {
+    "id": "prop-leap-parent-no",
+    "utterance": "A dog has a collar",
+    "setup": [
+      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+    ],
+    "scopeDecisions": {
+      "fandaws:concept/canine": false,
+      "fandaws:concept/entity": false
+    },
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/dog",
+      "propertyLabel": "collar",
+      "scope": "concept-specific"
+    },
+    "note": "Leap Check: parent=no → attach to subject"
+  },
+  {
+    "id": "prop-leap-diverge",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+    ],
+    "scopeDecisions": {
+      "fandaws:concept/canine": true,
+      "fandaws:concept/entity": false
+    },
+    "expect": {
+      "success": false,
+      "promptCount": 1
+    },
+    "note": "Leap Check: parent=yes, root=no → binary search prompt"
+  },
+  {
+    "id": "prop-leap-binary-converge",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+    ],
+    "scopeDecisions": {
+      "fandaws:concept/canine": true,
+      "fandaws:concept/entity": false,
+      "fandaws:concept/animal": true,
+      "fandaws:concept/living-thing": false
+    },
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/animal",
+      "propertyLabel": "fur",
+      "scope": "inherited"
+    },
+    "note": "Binary search converges: canine=yes, entity=no, animal=yes, living-thing=no → animal"
+  },
+  {
+    "id": "prop-duplicate",
+    "utterance": "An animal has cells",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+    ],
+    "preAttach": [
+      { "concept": "fandaws:concept/animal", "propertyLabel": "cells" }
+    ],
+    "expect": {
+      "success": true,
+      "noMutation": true
+    },
+    "note": "Re-assertion of existing property → no-op (idempotent)"
+  },
+  {
+    "id": "prop-ancestor-overlap",
+    "utterance": "A dog has cells",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+    ],
+    "preAttach": [
+      { "concept": "fandaws:concept/animal", "propertyLabel": "cells" }
+    ],
+    "scopeDecisions": { "fandaws:concept/animal": false },
+    "expect": {
+      "success": false,
+      "errorContains": "engine-error"
+    },
+    "note": "Ancestor already has property → redundancy violation"
+  },
+  {
+    "id": "prop-descendant-overlap",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+    ],
+    "preAttach": [
+      { "concept": "fandaws:concept/dog", "propertyLabel": "fur" }
+    ],
+    "scopeDecisions": { "fandaws:concept/animal": true },
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/animal",
+      "propertyLabel": "fur"
+    },
+    "note": "Descendant has property → accepted with removal"
+  },
+  {
+    "id": "prop-idempotent",
+    "utterance": "An animal has cells",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+    ],
+    "preAttach": [
+      { "concept": "fandaws:concept/animal", "propertyLabel": "cells" }
+    ],
+    "expect": {
+      "success": true,
+      "noMutation": true
+    },
+    "note": "Re-assertion → no-op"
+  },
+  {
+    "id": "prop-multiword",
+    "utterance": "A golden retriever has soft fur",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/golden-retriever", "displayLabel": "Golden Retriever", "canonicalLabel": "golden retriever", "parent": "fandaws:concept/animal" }
+    ],
+    "expect": {
+      "success": false,
+      "promptCount": 1
+    },
+    "note": "Multi-word subject → scope narrowing prompt"
+  },
+  {
+    "id": "prop-have-plural",
+    "utterance": "Dogs have four legs",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dogs", "displayLabel": "Dogs", "canonicalLabel": "dogs", "parent": "fandaws:concept/animal" }
+    ],
+    "expect": {
+      "success": false,
+      "promptCount": 1
+    },
+    "note": "Plural 'have' form → scope narrowing prompt (no depluralization in simplify)"
+  },
+  {
+    "id": "prop-disambiguation",
+    "utterance": "A bat has wings",
+    "setup": [
+      { "id": "fandaws:concept/bat-animal", "displayLabel": "Bat (animal)", "canonicalLabel": "bat" },
+      { "id": "fandaws:concept/bat-equipment", "displayLabel": "Bat (equipment)", "canonicalLabel": "bat" }
+    ],
+    "expect": {
+      "success": false,
+      "promptCount": 1,
+      "promptType": "disambiguation"
+    },
+    "note": "Subject has 2 meanings → disambiguation prompt"
+  },
+  {
+    "id": "prop-value-concept",
+    "utterance": "An animal has fur",
+    "setup": [
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
+    ],
+    "expect": {
+      "success": true,
+      "propertyOn": "fandaws:concept/animal",
+      "propertyLabel": "fur",
+      "hasValue": "fandaws:concept/fur"
+    },
+    "note": "Property term is a known concept → owl:hasValue = concept IRI"
+  }
+]

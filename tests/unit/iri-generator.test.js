@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { generateConceptIri } from '../../src/core/knowledge-engine/iri-generator.js';
+import { generateConceptIri, generatePropertyIri } from '../../src/core/knowledge-engine/iri-generator.js';
 
 describe('generateConceptIri', () => {
   it('converts single-word canonical label to IRI', () => {
@@ -55,5 +55,28 @@ describe('generateConceptIri', () => {
     expect(generateConceptIri('north american beaver')).toBe(
       'fandaws:concept/north-american-beaver',
     );
+  });
+});
+
+describe('generatePropertyIri', () => {
+  it('converts single-word label to property IRI', () => {
+    expect(generatePropertyIri('fur')).toBe('fandaws:property/fur');
+  });
+
+  it('converts multi-word label with hyphens', () => {
+    expect(generatePropertyIri('four legs')).toBe('fandaws:property/four-legs');
+  });
+
+  it('supports custom namespace', () => {
+    expect(generatePropertyIri('fur', 'myns:attr')).toBe('myns:attr/fur');
+  });
+
+  it('throws on empty string', () => {
+    expect(() => generatePropertyIri('')).toThrow();
+  });
+
+  it('throws on null/undefined', () => {
+    expect(() => generatePropertyIri(null)).toThrow();
+    expect(() => generatePropertyIri(undefined)).toThrow();
   });
 });

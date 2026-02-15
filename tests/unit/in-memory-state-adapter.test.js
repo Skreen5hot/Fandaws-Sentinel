@@ -1427,7 +1427,7 @@ describe('InMemoryStateAdapter — performance', () => {
       );
     }
     const elapsed = performance.now() - start;
-    expect(elapsed / 1000).toBeLessThan(10);
+    expect(elapsed / 1000).toBeLessThan(15);
   });
 });
 

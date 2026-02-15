@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "5",
+  "currentPhase": "6",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -89,11 +89,11 @@
     {
       "id": 6,
       "name": "Property Workflow",
-      "status": "not-started",
+      "status": "complete",
       "track": "B",
       "depends": [5],
-      "description": "Property assignment workflow: full 'X has Y' pipeline reusing KnowledgeEngine orchestration pattern, routed through Classifier property verb detection. Scope Narrowing (Section 6.3.2) — prompt path for redundant inherited properties (complements Phase 4 rejection path). Leap Check (Section 6.3.3) — optimization skipping redundancy checks when property is clearly novel in deep hierarchies. Property value types: string values ('A dog has fur') vs concept-reference values ('A dog has a tail'). Integration tests: classify → attach property → verify property list + StateAdapter property index + inherited property chain traversal.",
-      "deliverables": ["property-workflow.js", "scope-narrowing.js", "Leap Check algorithm", "property value type routing", "golden corpus for property patterns"]
+      "description": "Property assignment workflow: full 'X has Y' pipeline with scope narrowing and Leap Check optimization. O(log d) prompt reduction for deep hierarchies via binary search. Property value type routing (string vs concept-reference). Descendant removal on property promotion. DescriptionEngine enhanced with property listing. 16-entry golden corpus, 71 new tests across 4 suites.",
+      "deliverables": ["property-workflow.js", "scope-narrowing.js", "property-pipeline.js", "generatePropertyIri", "Leap Check algorithm", "property value type routing", "16 golden corpus cases", "71 new tests"]
     },
     {
       "id": 7,

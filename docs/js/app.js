@@ -206,21 +206,21 @@ function runPipeline() {
 const FACTORY_PARAMS = {
   createConcept: [
     { name: 'id', default: 'concept-1' },
-    { name: 'displayLabel', default: 'Golden Retriever' },
-    { name: 'canonicalLabel', default: 'golden retriever' },
-    { name: 'parent', default: '' },
-    { name: 'description', default: 'A friendly dog breed' },
+    { name: 'label', default: 'Golden Retriever' },
+    { name: 'prefLabel', default: 'golden retriever' },
+    { name: 'broader', default: '' },
+    { name: 'definition', default: 'A friendly dog breed' },
   ],
   createProperty: [
     { name: 'id', default: 'prop-1' },
-    { name: 'label', default: 'has fur' },
+    { name: 'propertyIri', default: 'has fur' },
     { name: 'attachedTo', default: 'concept-1' },
     { name: 'scope', default: 'concept-specific' },
     { name: 'value', default: '' },
   ],
   createRelationship: [
     { name: 'id', default: 'rel-1' },
-    { name: 'verb', default: 'chases' },
+    { name: 'verbIri', default: 'chases' },
     { name: 'subject', default: 'concept-dog' },
     { name: 'object', default: 'concept-cat' },
   ],

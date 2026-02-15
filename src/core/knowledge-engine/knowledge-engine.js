@@ -5,12 +5,14 @@
  * and returns a GraphMutation (or prompts/errors). Never touches the StateAdapter.
  *
  * Four mutation cases:
- *   A: Both concepts exist, not linked → modification (set subject.parent)
- *   B: Object exists, subject new → addition (create subject with parent)
+ *   A: Both concepts exist, not linked → modification (set subject.broader)
+ *   B: Object exists, subject new → addition (create subject with broader)
  *   C: Both new → additions (create both, object as root with allowRoot)
  *   D: Object new, subject exists → auto-create or negotiate
  *
- * @see Fandaws_v3.3_Specification.md Section 3.3
+ * v2.1: Uses standard OWL/SKOS/PROV vocabulary for concept fields.
+ *
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 import { simplify } from '../identity/identity-simplification.js';
@@ -29,7 +31,7 @@ import { createConversationPrompt } from '../../types/conversation-prompt.js';
 function findConceptsByCanonical(canonicalLabel, graph) {
   const concepts = graph['fandaws:concepts'] || [];
   return concepts.filter(
-    (c) => c['fandaws:canonicalLabel'] === canonicalLabel,
+    (c) => c['skos:prefLabel'] === canonicalLabel,
   );
 }
 
@@ -114,7 +116,7 @@ export function processClassification(action, graph, indices, options = {}) {
     const prompt = createConversationPrompt({
       promptType: 'disambiguation',
       text: `Multiple meanings found for "${rawObject}". Which did you mean?`,
-      options: objectMatches.map((c) => c['fandaws:displayLabel']),
+      options: objectMatches.map((c) => c['rdfs:label']),
       context: {
         action: 'classification',
         subject: rawSubject,
@@ -129,7 +131,7 @@ export function processClassification(action, graph, indices, options = {}) {
     const prompt = createConversationPrompt({
       promptType: 'disambiguation',
       text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
-      options: subjectMatches.map((c) => c['fandaws:displayLabel']),
+      options: subjectMatches.map((c) => c['rdfs:label']),
       context: {
         action: 'classification',
         subject: rawSubject,
@@ -151,7 +153,7 @@ export function processClassification(action, graph, indices, options = {}) {
     : generateConceptIri(objectCanonical);
 
   // ── 6. Re-assertion idempotency ──
-  if (existingSubject && existingSubject['fandaws:parent'] === objectIri) {
+  if (existingSubject && existingSubject['skos:broader'] === objectIri) {
     return noOp; // already classified — no-op
   }
 
@@ -163,10 +165,6 @@ export function processClassification(action, graph, indices, options = {}) {
   }
 
   // ── 8. Build mutation ──
-  const objectDepth = existingObject
-    ? (existingObject['fandaws:depth'] ?? 0)
-    : 0;
-  const subjectDepth = objectDepth + 1;
 
   // Case A: Both exist, not linked
   if (existingSubject && existingObject) {
@@ -174,9 +172,9 @@ export function processClassification(action, graph, indices, options = {}) {
       modifications: [
         {
           '@id': subjectIri,
-          'fandaws:field': 'fandaws:parent',
+          'fandaws:field': 'skos:broader',
           'fandaws:value': objectIri,
-          'fandaws:parent': objectIri, // dual format for validator cycle check
+          'skos:broader': objectIri, // dual format for validator cycle check
         },
       ],
       reason: `Classify "${rawSubject}" as "${rawObject}"`,
@@ -188,10 +186,9 @@ export function processClassification(action, graph, indices, options = {}) {
   if (!existingSubject && existingObject) {
     const newSubject = createConcept({
       id: subjectIri,
-      displayLabel: rawSubject,
-      canonicalLabel: subjectCanonical,
-      parent: objectIri,
-      depth: subjectDepth,
+      label: rawSubject,
+      prefLabel: subjectCanonical,
+      broader: objectIri,
     });
 
     const mutation = createGraphMutation({
@@ -206,19 +203,17 @@ export function processClassification(action, graph, indices, options = {}) {
     const newObject = {
       ...createConcept({
         id: objectIri,
-        displayLabel: rawObject,
-        canonicalLabel: objectCanonical,
-        depth: 0,
+        label: rawObject,
+        prefLabel: objectCanonical,
       }),
       'fandaws:allowRoot': true,
     };
 
     const newSubject = createConcept({
       id: subjectIri,
-      displayLabel: rawSubject,
-      canonicalLabel: subjectCanonical,
-      parent: objectIri,
-      depth: 1,
+      label: rawSubject,
+      prefLabel: subjectCanonical,
+      broader: objectIri,
     });
 
     const mutation = createGraphMutation({
@@ -261,9 +256,8 @@ export function processClassification(action, graph, indices, options = {}) {
     const newObject = {
       ...createConcept({
         id: objectIri,
-        displayLabel: rawObject,
-        canonicalLabel: objectCanonical,
-        depth: 0,
+        label: rawObject,
+        prefLabel: objectCanonical,
       }),
       'fandaws:allowRoot': true,
     };
@@ -273,9 +267,9 @@ export function processClassification(action, graph, indices, options = {}) {
       modifications: [
         {
           '@id': subjectIri,
-          'fandaws:field': 'fandaws:parent',
+          'fandaws:field': 'skos:broader',
           'fandaws:value': objectIri,
-          'fandaws:parent': objectIri,
+          'skos:broader': objectIri,
         },
       ],
       reason: `Create "${rawObject}" and classify "${rawSubject}" under it`,

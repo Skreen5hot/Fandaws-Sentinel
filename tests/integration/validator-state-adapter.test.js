@@ -4,6 +4,9 @@
  * Tests the validate → apply pipeline: validate a mutation,
  * then apply it via InMemoryStateAdapter if valid, or verify
  * the graph remains unchanged if invalid.
+ *
+ * v2.1: Uses standard OWL/SKOS/PROV vocabulary.
+ *        Properties and relationships are owl:Restriction in rdfs:subClassOf.
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
@@ -21,12 +24,8 @@ import { createGraphMutation } from '../../src/types/graph-mutation.js';
 
 const GRAPH_ID = 'fandaws:graph/test';
 
-function makeGraph(concepts = [], relationships = []) {
-  return createKnowledgeGraph({
-    id: GRAPH_ID,
-    concepts,
-    relationships,
-  });
+function makeGraph(concepts = []) {
+  return createKnowledgeGraph({ id: GRAPH_ID, concepts });
 }
 
 function makeMutation({
@@ -44,21 +43,21 @@ function makeMutation({
   });
 }
 
-function makeConcept(id, label, parent = null) {
+function makeConcept(id, label, broader = null) {
   return createConcept({
     id,
-    displayLabel: label,
-    canonicalLabel: label.toLowerCase(),
-    parent,
+    label,
+    prefLabel: label.toLowerCase(),
+    broader,
   });
 }
 
-function makeProperty(id, label, attachedTo) {
-  return createProperty({ id, label, attachedTo });
+function makeProperty(id, propertyIri, attachedTo) {
+  return createProperty({ id, propertyIri, attachedTo });
 }
 
-function makeRelationship(id, verb, subject, object) {
-  return createRelationship({ id, verb, subject, object });
+function makeRelationship(id, verbIri, subject, object) {
+  return createRelationship({ id, verbIri, subject, object });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -100,12 +99,12 @@ describe('Validator + StateAdapter pipeline', () => {
     ]);
     adapter.saveGraph(GRAPH_ID, graph);
 
-    // Create a cycle: mammal.parent = dog
+    // Create a cycle: mammal.broader = dog
     const mutation = makeMutation({
       modifications: [
         {
           '@id': 'fandaws:concept/mammal',
-          'fandaws:parent': 'fandaws:concept/dog',
+          'skos:broader': 'fandaws:concept/dog',
         },
       ],
     });
@@ -119,7 +118,7 @@ describe('Validator + StateAdapter pipeline', () => {
     const mammal = unchanged['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:concept/mammal',
     );
-    expect(mammal['fandaws:parent']).toBeNull();
+    expect(mammal['skos:broader']).toBeNull();
   });
 
   it('validates then applies a concept + property addition', () => {
@@ -144,7 +143,11 @@ describe('Validator + StateAdapter pipeline', () => {
       (c) => c['@id'] === 'fandaws:concept/dog',
     );
     expect(dog).toBeDefined();
-    expect(dog['fandaws:properties']).toContain('fandaws:prop/fur');
+    // Property is embedded as restriction in rdfs:subClassOf
+    const propRestrictions = dog['rdfs:subClassOf'].filter(
+      (e) => e['fandaws:restrictionKind'] === 'property',
+    );
+    expect(propRestrictions.some((r) => r['@id'] === 'fandaws:prop/fur')).toBe(true);
   });
 
   it('validates then applies a relationship addition', () => {
@@ -170,7 +173,14 @@ describe('Validator + StateAdapter pipeline', () => {
     expect(result['fandaws:valid']).toBe(true);
 
     const updated = adapter.applyMutation(GRAPH_ID, mutation);
-    expect(updated['fandaws:relationships']).toHaveLength(1);
+    // Relationship is embedded in dog's rdfs:subClassOf
+    const dog = updated['fandaws:concepts'].find(
+      (c) => c['@id'] === 'fandaws:concept/dog',
+    );
+    const relRestrictions = dog['rdfs:subClassOf'].filter(
+      (e) => e['fandaws:restrictionKind'] === 'relationship',
+    );
+    expect(relRestrictions).toHaveLength(1);
   });
 
   it('rejects compound statement and does not apply', () => {
@@ -272,7 +282,7 @@ describe('Validator + StateAdapter pipeline', () => {
     expect(result['fandaws:valid']).toBe(true);
 
     const updated = adapter.applyMutation(GRAPH_ID, mutation);
-    // After merge: canine is gone, dog has mergedFrom
+    // After merge: canine is gone, dog has wasDerivedFrom
     const canine = updated['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:concept/canine',
     );
@@ -280,7 +290,7 @@ describe('Validator + StateAdapter pipeline', () => {
     const dog = updated['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:concept/dog',
     );
-    expect(dog['fandaws:mergedFrom']).toContain('fandaws:concept/canine');
+    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:concept/canine');
   });
 
   it('rejects self-merge and does not apply', () => {

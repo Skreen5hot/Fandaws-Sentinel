@@ -1,10 +1,11 @@
 /**
  * Concept — the fundamental unit of knowledge in Fandaws.
  *
- * Represents a named entity with a position in a classification hierarchy,
- * a set of properties, and relationships to other concepts.
+ * v2.1: Dual-typed as owl:Class + skos:Concept using standard vocabulary.
+ * Depth and children are computed (not stored). Properties are embedded
+ * as owl:Restriction entries in rdfs:subClassOf.
  *
- * @see Fandaws_v3.3_Specification.md Section 4.2.1, Appendix A.2
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 /**
@@ -12,42 +13,37 @@
  *
  * @param {object} params
  * @param {string} params.id - Unique concept IRI (e.g., "fandaws:concept/dog")
- * @param {string} params.displayLabel - Original display name
- * @param {string} params.canonicalLabel - Normalized form for matching
- * @param {string|null} [params.parent] - Parent concept IRI (null for roots)
- * @param {string[]} [params.children] - Child concept IRIs
- * @param {string[]} [params.properties] - Property IRIs
- * @param {object[]} [params.relationships] - Relationship objects
- * @param {string} [params.description] - Auto-generated definition
- * @param {string|null} [params.bfoMapping] - BFO category IRI
- * @param {number} [params.depth] - Depth in hierarchy (root = 0)
+ * @param {string} params.label - Display name (rdfs:label)
+ * @param {string} params.prefLabel - Normalized form for matching (skos:prefLabel)
+ * @param {string|null} [params.broader] - Parent concept IRI (skos:broader, null for roots)
+ * @param {string} [params.definition] - Auto-generated definition (skos:definition)
+ * @param {string|null} [params.bfoMapping] - BFO category IRI (entry in rdfs:subClassOf)
+ * @param {string[]} [params.altLabel] - Alternative labels (skos:altLabel)
+ * @param {string|null} [params.inScheme] - Graph/scheme IRI (skos:inScheme)
  * @returns {object} JSON-LD Concept node
  */
 export function createConcept({
   id,
-  displayLabel,
-  canonicalLabel,
-  parent = null,
-  children = [],
-  properties = [],
-  relationships = [],
-  description = '',
+  label,
+  prefLabel,
+  broader = null,
+  definition = '',
   bfoMapping = null,
-  depth = 0,
+  altLabel = [],
+  inScheme = null,
 }) {
   return {
     '@id': id,
-    '@type': 'fandaws:Concept',
-    'fandaws:displayLabel': displayLabel,
-    'fandaws:canonicalLabel': canonicalLabel,
-    'fandaws:parent': parent,
-    'fandaws:children': children,
-    'fandaws:properties': properties,
-    'fandaws:relationships': relationships,
-    'fandaws:description': description,
-    'fandaws:bfoMapping': bfoMapping,
-    'fandaws:createdAt': new Date().toISOString(),
-    'fandaws:depth': depth,
-    'fandaws:mergedFrom': [],
+    '@type': ['owl:Class', 'skos:Concept'],
+    'rdfs:label': label,
+    'skos:prefLabel': prefLabel,
+    'skos:broader': broader,
+    'skos:definition': definition,
+    'dcterms:created': new Date().toISOString(),
+    'dcterms:modified': null,
+    'prov:wasDerivedFrom': [],
+    'skos:altLabel': altLabel,
+    'skos:inScheme': inScheme,
+    'rdfs:subClassOf': bfoMapping ? [bfoMapping] : [],
   };
 }

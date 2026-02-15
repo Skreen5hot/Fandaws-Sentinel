@@ -1,27 +1,39 @@
 /**
- * Fandaws JSON-LD Context
+ * Fandaws JSON-LD Context — v2.1
  *
- * Defines the vocabulary for all system data types.
+ * Standard OWL/SKOS/PROV vocabulary for concept storage.
+ * Fandaws-specific terms retained for mutations, sessions, and governance.
  * Self-contained — does not require network access to resolve.
  *
- * @see Fandaws_v3.3_Specification.md Section 4.1, Appendix A.1
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 export const FANDAWS_CONTEXT = {
   '@context': {
+    // ── Namespace prefixes ──
     fandaws: 'https://fandaws.org/schema/',
-    skos: 'http://www.w3.org/2004/02/skos/core#',
     owl: 'http://www.w3.org/2002/07/owl#',
+    skos: 'http://www.w3.org/2004/02/skos/core#',
+    rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+    dcterms: 'http://purl.org/dc/terms/',
+    prov: 'http://www.w3.org/ns/prov#',
+    xsd: 'http://www.w3.org/2001/XMLSchema#',
     bfo: 'http://purl.obolibrary.org/obo/',
     schema: 'https://schema.org/',
-    'fandaws:displayLabel': { '@type': 'xsd:string' },
-    'fandaws:canonicalLabel': { '@type': 'xsd:string' },
-    'fandaws:parent': { '@type': '@id' },
-    'fandaws:children': { '@container': '@set', '@type': '@id' },
-    'fandaws:properties': { '@container': '@set' },
-    'fandaws:mergedFrom': { '@container': '@set', '@type': '@id' },
-    'fandaws:createdAt': { '@type': 'xsd:dateTime' },
-    'fandaws:bfoMapping': { '@type': '@id' },
+
+    // ── Concept field aliases ──
+    label: 'rdfs:label',
+    prefLabel: { '@id': 'skos:prefLabel', '@type': 'xsd:string' },
+    altLabel: { '@id': 'skos:altLabel', '@container': '@set' },
+    broader: { '@id': 'skos:broader', '@type': '@id' },
+    definition: 'skos:definition',
+    inScheme: { '@id': 'skos:inScheme', '@type': '@id' },
+    subClassOf: { '@id': 'rdfs:subClassOf', '@container': '@set' },
+    created: { '@id': 'dcterms:created', '@type': 'xsd:dateTime' },
+    modified: { '@id': 'dcterms:modified', '@type': 'xsd:dateTime' },
+    wasDerivedFrom: { '@id': 'prov:wasDerivedFrom', '@container': '@set', '@type': '@id' },
+
+    // ── Fandaws-specific terms (scope resolution, governance) ──
     'fandaws:resolvedFrom': { '@type': '@id' },
     'fandaws:shadows': { '@container': '@set' },
     'fandaws:disambiguatedFrom': { '@type': '@id' },

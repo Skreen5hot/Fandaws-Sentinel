@@ -1,35 +1,38 @@
 /**
  * Property — a characteristic or attribute attached to a concept.
  *
- * Properties are inherited down the classification hierarchy unless overridden.
+ * v2.1: Properties are owl:Restriction nodes embedded in a concept's
+ * rdfs:subClassOf array. Inherited down the classification hierarchy
+ * unless overridden.
  *
- * @see Fandaws_v3.3_Specification.md Section 4.2.2
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 /**
- * Create a new Property node.
+ * Create a new Property restriction node.
  *
  * @param {object} params
- * @param {string} params.id - Unique property IRI
- * @param {string} params.label - Property name
- * @param {string} params.attachedTo - Concept IRI this property is attached to
+ * @param {string} params.id - Unique restriction IRI
+ * @param {string} params.propertyIri - Property IRI (owl:onProperty)
+ * @param {string} params.attachedTo - Concept IRI this property belongs to
  * @param {string} [params.scope] - "concept-specific" or "inherited"
- * @param {*} [params.value] - Optional property value
- * @returns {object} JSON-LD Property node
+ * @param {*} [params.value] - Property value (owl:hasValue)
+ * @returns {object} JSON-LD owl:Restriction node
  */
 export function createProperty({
   id,
-  label,
+  propertyIri,
   attachedTo,
   scope = 'concept-specific',
   value = null,
 }) {
   return {
     '@id': id,
-    '@type': 'fandaws:Property',
-    'fandaws:label': label,
-    'fandaws:attachedTo': attachedTo,
+    '@type': 'owl:Restriction',
+    'owl:onProperty': propertyIri,
+    'owl:hasValue': value,
     'fandaws:scope': scope,
-    'fandaws:value': value,
+    'fandaws:attachedTo': attachedTo,
+    'fandaws:restrictionKind': 'property',
   };
 }

@@ -7,39 +7,37 @@ describe('createConcept', () => {
   beforeEach(() => {
     concept = createConcept({
       id: 'fandaws:concept/dog',
-      displayLabel: 'Dog',
-      canonicalLabel: 'dog',
-      parent: 'fandaws:concept/animal',
-      children: [],
-      properties: ['fandaws:property/dog-has-fur'],
+      label: 'Dog',
+      prefLabel: 'dog',
+      broader: 'fandaws:concept/animal',
       bfoMapping: 'bfo:0000040',
-      depth: 3,
     });
   });
 
-  it('produces a node with @type fandaws:Concept', () => {
-    expect(concept['@type']).toBe('fandaws:Concept');
+  it('produces a node with dual @type [owl:Class, skos:Concept]', () => {
+    expect(concept['@type']).toEqual(['owl:Class', 'skos:Concept']);
   });
 
   it('sets @id from the id parameter', () => {
     expect(concept['@id']).toBe('fandaws:concept/dog');
   });
 
-  it('matches spec Appendix A.2 shape', () => {
-    // All fields from A.2 must be present
-    expect(concept).toHaveProperty('fandaws:displayLabel', 'Dog');
-    expect(concept).toHaveProperty('fandaws:canonicalLabel', 'dog');
-    expect(concept).toHaveProperty('fandaws:parent', 'fandaws:concept/animal');
-    expect(concept).toHaveProperty('fandaws:children', []);
-    expect(concept).toHaveProperty('fandaws:properties', ['fandaws:property/dog-has-fur']);
-    expect(concept).toHaveProperty('fandaws:bfoMapping', 'bfo:0000040');
-    expect(concept).toHaveProperty('fandaws:depth', 3);
-    expect(concept).toHaveProperty('fandaws:createdAt');
-    expect(concept).toHaveProperty('fandaws:mergedFrom', []);
+  it('matches v2.1 concept shape', () => {
+    expect(concept).toHaveProperty('rdfs:label', 'Dog');
+    expect(concept).toHaveProperty('skos:prefLabel', 'dog');
+    expect(concept).toHaveProperty('skos:broader', 'fandaws:concept/animal');
+    expect(concept).toHaveProperty('skos:definition', '');
+    expect(concept).toHaveProperty('dcterms:created');
+    expect(concept).toHaveProperty('dcterms:modified', null);
+    expect(concept).toHaveProperty('prov:wasDerivedFrom', []);
+    expect(concept).toHaveProperty('skos:altLabel', []);
+    expect(concept).toHaveProperty('skos:inScheme', null);
+    expect(concept).toHaveProperty('rdfs:subClassOf');
+    expect(concept['rdfs:subClassOf']).toEqual(['bfo:0000040']);
   });
 
-  it('generates a valid ISO 8601 createdAt timestamp', () => {
-    const ts = concept['fandaws:createdAt'];
+  it('generates a valid ISO 8601 created timestamp', () => {
+    const ts = concept['dcterms:created'];
     expect(typeof ts).toBe('string');
     expect(new Date(ts).toISOString()).toBe(ts);
   });
@@ -47,34 +45,35 @@ describe('createConcept', () => {
   it('defaults optional fields when not provided', () => {
     const minimal = createConcept({
       id: 'fandaws:concept/thing',
-      displayLabel: 'Thing',
-      canonicalLabel: 'thing',
+      label: 'Thing',
+      prefLabel: 'thing',
     });
-    expect(minimal['fandaws:parent']).toBeNull();
-    expect(minimal['fandaws:children']).toEqual([]);
-    expect(minimal['fandaws:properties']).toEqual([]);
-    expect(minimal['fandaws:relationships']).toEqual([]);
-    expect(minimal['fandaws:description']).toBe('');
-    expect(minimal['fandaws:bfoMapping']).toBeNull();
-    expect(minimal['fandaws:depth']).toBe(0);
-    expect(minimal['fandaws:mergedFrom']).toEqual([]);
+    expect(minimal['skos:broader']).toBeNull();
+    expect(minimal['skos:definition']).toBe('');
+    expect(minimal['rdfs:subClassOf']).toEqual([]);
+    expect(minimal['prov:wasDerivedFrom']).toEqual([]);
+    expect(minimal['skos:altLabel']).toEqual([]);
+    expect(minimal['skos:inScheme']).toBeNull();
+    expect(minimal['dcterms:modified']).toBeNull();
   });
 
-  it('includes relationships and description fields beyond A.2 example', () => {
+  it('accepts altLabel and inScheme fields', () => {
     const rich = createConcept({
       id: 'fandaws:concept/dog',
-      displayLabel: 'Dog',
-      canonicalLabel: 'dog',
-      relationships: [{ verb: 'chases', object: 'cat' }],
-      description: 'Dog is an animal.',
+      label: 'Dog',
+      prefLabel: 'dog',
+      definition: 'Dog is an animal.',
+      altLabel: ['canine', 'hound'],
+      inScheme: 'fandaws:scheme/animals',
     });
-    expect(rich['fandaws:relationships']).toEqual([{ verb: 'chases', object: 'cat' }]);
-    expect(rich['fandaws:description']).toBe('Dog is an animal.');
+    expect(rich['skos:altLabel']).toEqual(['canine', 'hound']);
+    expect(rich['skos:inScheme']).toBe('fandaws:scheme/animals');
+    expect(rich['skos:definition']).toBe('Dog is an animal.');
   });
 
   it('returns a fresh object each invocation (no shared state)', () => {
-    const a = createConcept({ id: 'a', displayLabel: 'A', canonicalLabel: 'a' });
-    const b = createConcept({ id: 'b', displayLabel: 'B', canonicalLabel: 'b' });
+    const a = createConcept({ id: 'a', label: 'A', prefLabel: 'a' });
+    const b = createConcept({ id: 'b', label: 'B', prefLabel: 'b' });
     expect(a).not.toBe(b);
     expect(a['@id']).not.toBe(b['@id']);
   });

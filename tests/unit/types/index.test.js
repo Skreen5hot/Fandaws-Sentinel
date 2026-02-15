@@ -35,7 +35,12 @@ describe('types/index barrel export', () => {
     }
   });
 
-  it('exports exactly 21 members (1 context + 20 factories)', () => {
-    expect(Object.keys(types)).toHaveLength(21);
+  it('exports type check helpers', () => {
+    expect(typeof types.isConceptNode).toBe('function');
+    expect(typeof types.isRestrictionNode).toBe('function');
+  });
+
+  it('exports exactly 23 members (1 context + 20 factories + 2 type checks)', () => {
+    expect(Object.keys(types)).toHaveLength(23);
   });
 });

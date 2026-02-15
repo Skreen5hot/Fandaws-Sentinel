@@ -92,8 +92,8 @@
       "status": "not-started",
       "track": "B",
       "depends": [5],
-      "description": "Property assignment workflow with Scope Narrowing and Leap Check optimization.",
-      "deliverables": ["property-workflow.js", "scope-narrowing.js", "Leap Check algorithm"]
+      "description": "Property assignment workflow: full 'X has Y' pipeline reusing KnowledgeEngine orchestration pattern, routed through Classifier property verb detection. Scope Narrowing (Section 6.3.2) — prompt path for redundant inherited properties (complements Phase 4 rejection path). Leap Check (Section 6.3.3) — optimization skipping redundancy checks when property is clearly novel in deep hierarchies. Property value types: string values ('A dog has fur') vs concept-reference values ('A dog has a tail'). Integration tests: classify → attach property → verify property list + StateAdapter property index + inherited property chain traversal.",
+      "deliverables": ["property-workflow.js", "scope-narrowing.js", "Leap Check algorithm", "property value type routing", "golden corpus for property patterns"]
     },
     {
       "id": 7,

@@ -6,8 +6,12 @@
  *
  * Pure functions — no side effects, no StateAdapter calls.
  *
+ * v2.1: Uses isConceptNode/isRestrictionNode, skos:broader, rdfs:subClassOf.
+ *
  * @see Fandaws_v3.3_Specification.md Section 6.1
  */
+
+import { isConceptNode, isRestrictionNode } from '../../types/type-checks.js';
 
 /**
  * Check whether a mutation attempts to add multiple unrelated concepts
@@ -19,9 +23,7 @@
  */
 export function checkCompoundStatement(mutation) {
   const additions = mutation['fandaws:additions'] || [];
-  const concepts = additions.filter(
-    (node) => node['@type'] === 'fandaws:Concept',
-  );
+  const concepts = additions.filter((node) => isConceptNode(node));
 
   if (concepts.length <= 1) return null;
 
@@ -34,7 +36,7 @@ export function checkCompoundStatement(mutation) {
   // parent in the batch, and every concept except one (the leaf) is a parent.
   const childToParent = new Map();
   for (const concept of concepts) {
-    const parent = concept['fandaws:parent'];
+    const parent = concept['skos:broader'];
     if (parent && iriSet.has(parent)) {
       childToParent.set(concept['@id'], parent);
     }
@@ -67,10 +69,10 @@ export function checkCompoundStatement(mutation) {
  * Check whether a concept is structurally grounded.
  *
  * A concept is grounded if ANY of:
- *   (a) fandaws:parent points to a concept in the graph or mutation additions
+ *   (a) skos:broader points to a concept in the graph or mutation additions
  *   (b) Concept already exists in the graph with a parent
  *   (c) fandaws:allowRoot === true on the concept
- *   (d) Concept has properties (in graph or mutation additions)
+ *   (d) Concept has properties (in graph rdfs:subClassOf restrictions or mutation additions)
  *
  * @param {object} concept - Concept JSON-LD node being added
  * @param {object} graph - Current KnowledgeGraph JSON-LD
@@ -86,29 +88,28 @@ export function checkStructuralGrounding(concept, graph, mutation) {
   if (concept['fandaws:allowRoot'] === true) return null;
 
   // (a) Parent points to a concept in graph or mutation additions
-  const parentIri = concept['fandaws:parent'];
+  const parentIri = concept['skos:broader'];
   if (parentIri) {
     const inGraph = graphConcepts.some((c) => c['@id'] === parentIri);
     const inAdditions = additions.some(
-      (node) =>
-        node['@type'] === 'fandaws:Concept' && node['@id'] === parentIri,
+      (node) => isConceptNode(node) && node['@id'] === parentIri,
     );
     if (inGraph || inAdditions) return null;
   }
 
   // (b) Concept already exists in graph with a parent
   const existing = graphConcepts.find((c) => c['@id'] === conceptIri);
-  if (existing && existing['fandaws:parent']) return null;
+  if (existing && existing['skos:broader']) return null;
 
-  // (d) Concept has properties in graph or mutation additions
-  const graphProperties = existing
-    ? existing['fandaws:properties'] || []
+  // (d) Concept has properties in graph (owl:Restriction entries in rdfs:subClassOf) or mutation additions
+  const graphRestrictions = existing
+    ? (existing['rdfs:subClassOf'] || []).filter((n) => isRestrictionNode(n))
     : [];
-  if (graphProperties.length > 0) return null;
+  if (graphRestrictions.length > 0) return null;
 
   const addedProperties = additions.filter(
     (node) =>
-      node['@type'] === 'fandaws:Property' &&
+      isRestrictionNode(node) &&
       node['fandaws:attachedTo'] === conceptIri,
   );
   if (addedProperties.length > 0) return null;

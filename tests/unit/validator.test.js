@@ -1,10 +1,8 @@
 /**
  * Validator Orchestrator — unit tests.
  *
- * Covers: validate() orchestration, all violation types,
- * multi-violation collection, pure function behavior,
- * relationship basics, modifications, deletions, merges,
- * governance integration.
+ * v2.1: Uses v2.1 concept factories (label/prefLabel/broader),
+ *        owl:Restriction for properties and relationships.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -19,11 +17,10 @@ import { createGraphMutation } from '../../src/types/graph-mutation.js';
 // Helpers
 // ─────────────────────────────────────────────────────────
 
-function makeGraph(concepts = [], relationships = []) {
+function makeGraph(concepts = []) {
   return createKnowledgeGraph({
     id: 'fandaws:graph/test',
     concepts,
-    relationships,
   });
 }
 
@@ -42,21 +39,21 @@ function makeMutation({
   });
 }
 
-function makeConcept(id, label, parent = null) {
+function makeConcept(id, label, broader = null) {
   return createConcept({
     id,
-    displayLabel: label,
-    canonicalLabel: label.toLowerCase(),
-    parent,
+    label,
+    prefLabel: label.toLowerCase(),
+    broader,
   });
 }
 
-function makeProperty(id, label, attachedTo) {
-  return createProperty({ id, label, attachedTo });
+function makeProperty(id, propertyIri, attachedTo) {
+  return createProperty({ id, propertyIri, attachedTo });
 }
 
-function makeRelationship(id, verb, subject, object) {
-  return createRelationship({ id, verb, subject, object });
+function makeRelationship(id, verbIri, subject, object) {
+  return createRelationship({ id, verbIri, subject, object });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -133,7 +130,6 @@ describe('validate — compound statement', () => {
       ],
     });
     const result = validate(mutation, graph);
-    // Should not have compoundStatement violation
     expect(
       result['fandaws:violations'].some((v) => v.reason === 'compoundStatement'),
     ).toBe(false);
@@ -189,7 +185,7 @@ describe('validate — cycle detection', () => {
       modifications: [
         {
           '@id': 'fandaws:concept/mammal',
-          'fandaws:parent': 'fandaws:concept/dog',
+          'skos:broader': 'fandaws:concept/dog',
         },
       ],
     });
@@ -246,19 +242,17 @@ describe('validate — relationship checks', () => {
   });
 
   it('rejects duplicate relationship tuple', () => {
+    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const cat = makeConcept('fandaws:concept/cat', 'Cat');
     const existingRel = makeRelationship(
       'fandaws:rel/1',
       'chases',
       'fandaws:concept/dog',
       'fandaws:concept/cat',
     );
-    const graph = makeGraph(
-      [
-        makeConcept('fandaws:concept/dog', 'Dog'),
-        makeConcept('fandaws:concept/cat', 'Cat'),
-      ],
-      [existingRel],
-    );
+    dog['rdfs:subClassOf'].push(existingRel);
+    const graph = makeGraph([dog, cat]);
+
     const mutation = makeMutation({
       additions: [
         makeRelationship(
@@ -328,8 +322,9 @@ describe('validate — relationship checks', () => {
     const graph = makeGraph([]);
     const rel = {
       '@id': 'fandaws:rel/1',
-      '@type': 'fandaws:Relationship',
-      'fandaws:verb': 'chases',
+      '@type': 'owl:Restriction',
+      'owl:onProperty': 'chases',
+      'fandaws:restrictionKind': 'relationship',
     };
     const mutation = makeMutation({ additions: [rel] });
     const result = validate(mutation, graph);
@@ -353,7 +348,7 @@ describe('validate — modification checks', () => {
       modifications: [
         {
           '@id': 'fandaws:concept/nonexistent',
-          'fandaws:displayLabel': 'New Label',
+          'rdfs:label': 'New Label',
         },
       ],
     });
@@ -372,7 +367,7 @@ describe('validate — modification checks', () => {
       modifications: [
         {
           '@id': 'fandaws:concept/dog',
-          'fandaws:displayLabel': 'Domestic Dog',
+          'rdfs:label': 'Domestic Dog',
         },
       ],
     });
@@ -399,7 +394,6 @@ describe('validate — deletion checks', () => {
       deletions: ['fandaws:concept/animal'],
     });
     const result = validate(mutation, graph);
-    // orphanRisk is a warning, so it counts as a violation
     expect(
       result['fandaws:violations'].some((v) => v.reason === 'orphanRisk'),
     ).toBe(true);
@@ -538,7 +532,7 @@ describe('validate — governance block', () => {
     const graph = makeGraph([existing]);
     const mutation = makeMutation({
       modifications: [
-        { '@id': 'fandaws:concept/dog', 'fandaws:displayLabel': 'Hound' },
+        { '@id': 'fandaws:concept/dog', 'rdfs:label': 'Hound' },
       ],
     });
     const result = validate(mutation, graph);
@@ -561,19 +555,16 @@ describe('validate — multi-violation collection', () => {
       makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
     ]);
     const mutation = makeMutation({
-      // Compound: two unrelated concepts
       additions: [
         makeConcept('fandaws:concept/planet', 'Planet'),
         makeConcept('fandaws:concept/star', 'Star'),
       ],
-      // Cycle: mammal.parent = dog
       modifications: [
         {
           '@id': 'fandaws:concept/mammal',
-          'fandaws:parent': 'fandaws:concept/dog',
+          'skos:broader': 'fandaws:concept/dog',
         },
       ],
-      // Self-merge
       merges: [
         {
           'fandaws:source': 'fandaws:concept/dog',
@@ -583,7 +574,6 @@ describe('validate — multi-violation collection', () => {
     });
     const result = validate(mutation, graph);
     expect(result['fandaws:valid']).toBe(false);
-    // Should have at least 3 distinct violation reasons
     const reasons = new Set(result['fandaws:violations'].map((v) => v.reason));
     expect(reasons.has('compoundStatement')).toBe(true);
     expect(reasons.has('circularHierarchy')).toBe(true);

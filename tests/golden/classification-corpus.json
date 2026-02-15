@@ -31,16 +31,15 @@
     "id": "cls-chain-extend",
     "utterance": "A poodle is a dog",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal", "depth": 1 }
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
     ],
     "expect": {
       "success": true,
       "conceptCount": 3,
       "subjectCanonical": "poodle",
       "objectCanonical": "dog",
-      "parentLink": true,
-      "subjectDepth": 2
+      "parentLink": true
     },
     "note": "Extends chain: poodle → dog → animal"
   },
@@ -89,8 +88,8 @@
     "id": "cls-re-assertion",
     "utterance": "A dog is an animal",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal", "depth": 1 }
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
     ],
     "expect": {
       "success": true,
@@ -103,8 +102,8 @@
     "id": "cls-circular-reject",
     "utterance": "An animal is a dog",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal", "depth": 1 }
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
     ],
     "expect": {
       "success": false,
@@ -126,16 +125,15 @@
     "id": "cls-deep-chain",
     "utterance": "A chihuahua is a dog",
     "setup": [
-      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "depth": 0 },
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing", "depth": 1 },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal", "depth": 2 },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/mammal", "depth": 3 }
+      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing" },
+      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
+      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/mammal" }
     ],
     "expect": {
       "success": true,
       "conceptCount": 5,
       "subjectCanonical": "chihuahua",
-      "subjectDepth": 4,
       "parentLink": true
     },
     "note": "Deep chain: chihuahua → dog → mammal → animal → living thing"
@@ -234,22 +232,6 @@
       "promptCount": 1
     },
     "note": "Object not in graph with negotiation → prompt"
-  },
-  {
-    "id": "cls-depth-chain",
-    "utterance": "A poodle is a dog",
-    "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "depth": 0 },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal", "depth": 1 },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/mammal", "depth": 2 }
-    ],
-    "expect": {
-      "success": true,
-      "subjectCanonical": "poodle",
-      "subjectDepth": 3,
-      "parentLink": true
-    },
-    "note": "Depth is parent+1: poodle depth = dog depth (2) + 1 = 3"
   },
   {
     "id": "cls-scope-disabled",

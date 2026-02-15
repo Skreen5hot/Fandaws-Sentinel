@@ -3,6 +3,8 @@
  *
  * Covers: checkCompoundStatement, checkStructuralGrounding,
  * validateConfirmationResponse.
+ *
+ * v2.1: Uses isConceptNode, skos:broader, rdfs:subClassOf, owl:Restriction.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -28,17 +30,17 @@ function makeMutation(additions = []) {
   return createGraphMutation({ additions, reason: 'test' });
 }
 
-function makeConcept(id, label, parent = null) {
+function makeConcept(id, label, broader = null) {
   return createConcept({
     id,
-    displayLabel: label,
-    canonicalLabel: label.toLowerCase(),
-    parent,
+    label,
+    prefLabel: label.toLowerCase(),
+    broader,
   });
 }
 
-function makeProperty(id, label, attachedTo) {
-  return createProperty({ id, label, attachedTo });
+function makeProperty(id, propertyIri, attachedTo) {
+  return createProperty({ id, propertyIri, attachedTo });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -168,7 +170,6 @@ describe('checkStructuralGrounding', () => {
       'fandaws:concept/animal',
     );
     const graph = makeGraph([existing]);
-    // Re-adding concept (e.g., modification scenario) — it already has a parent
     const concept = makeConcept('fandaws:concept/dog', 'Dog');
     const mutation = makeMutation([concept]);
     expect(checkStructuralGrounding(concept, graph, mutation)).toBeNull();
@@ -184,10 +185,18 @@ describe('checkStructuralGrounding', () => {
     expect(checkStructuralGrounding(concept, graph, mutation)).toBeNull();
   });
 
-  it('returns null when concept has properties in graph', () => {
+  it('returns null when concept has restrictions in graph rdfs:subClassOf', () => {
     const existing = {
       ...makeConcept('fandaws:concept/dog', 'Dog'),
-      'fandaws:properties': ['fandaws:prop/color'],
+      'rdfs:subClassOf': [
+        {
+          '@id': 'fandaws:prop/color',
+          '@type': 'owl:Restriction',
+          'owl:onProperty': 'color',
+          'fandaws:restrictionKind': 'property',
+          'fandaws:attachedTo': 'fandaws:concept/dog',
+        },
+      ],
     };
     const graph = makeGraph([existing]);
     const concept = makeConcept('fandaws:concept/dog', 'Dog');
@@ -246,72 +255,42 @@ describe('checkStructuralGrounding', () => {
 
 describe('validateConfirmationResponse', () => {
   it('accepts "yes"', () => {
-    expect(validateConfirmationResponse('yes')).toEqual({
-      accepted: true,
-      value: 'yes',
-    });
+    expect(validateConfirmationResponse('yes')).toEqual({ accepted: true, value: 'yes' });
   });
 
   it('accepts "y"', () => {
-    expect(validateConfirmationResponse('y')).toEqual({
-      accepted: true,
-      value: 'yes',
-    });
+    expect(validateConfirmationResponse('y')).toEqual({ accepted: true, value: 'yes' });
   });
 
   it('accepts "YES" (case insensitive)', () => {
-    expect(validateConfirmationResponse('YES')).toEqual({
-      accepted: true,
-      value: 'yes',
-    });
+    expect(validateConfirmationResponse('YES')).toEqual({ accepted: true, value: 'yes' });
   });
 
   it('accepts "no"', () => {
-    expect(validateConfirmationResponse('no')).toEqual({
-      accepted: true,
-      value: 'no',
-    });
+    expect(validateConfirmationResponse('no')).toEqual({ accepted: true, value: 'no' });
   });
 
   it('accepts "n"', () => {
-    expect(validateConfirmationResponse('n')).toEqual({
-      accepted: true,
-      value: 'no',
-    });
+    expect(validateConfirmationResponse('n')).toEqual({ accepted: true, value: 'no' });
   });
 
   it('accepts "N" (case insensitive)', () => {
-    expect(validateConfirmationResponse('N')).toEqual({
-      accepted: true,
-      value: 'no',
-    });
+    expect(validateConfirmationResponse('N')).toEqual({ accepted: true, value: 'no' });
   });
 
   it('rejects empty string', () => {
-    expect(validateConfirmationResponse('')).toEqual({
-      accepted: false,
-      value: null,
-    });
+    expect(validateConfirmationResponse('')).toEqual({ accepted: false, value: null });
   });
 
   it('rejects arbitrary text', () => {
-    expect(validateConfirmationResponse('maybe')).toEqual({
-      accepted: false,
-      value: null,
-    });
+    expect(validateConfirmationResponse('maybe')).toEqual({ accepted: false, value: null });
   });
 
   it('rejects non-string input', () => {
-    expect(validateConfirmationResponse(42)).toEqual({
-      accepted: false,
-      value: null,
-    });
+    expect(validateConfirmationResponse(42)).toEqual({ accepted: false, value: null });
   });
 
   it('trims whitespace before normalizing', () => {
-    expect(validateConfirmationResponse('  Yes  ')).toEqual({
-      accepted: true,
-      value: 'yes',
-    });
+    expect(validateConfirmationResponse('  Yes  ')).toEqual({ accepted: true, value: 'yes' });
   });
 });

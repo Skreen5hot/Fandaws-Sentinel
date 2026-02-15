@@ -4,6 +4,9 @@
  * Each entry in classification-corpus.json specifies an utterance,
  * optional graph setup, and expected outcomes. This runner executes
  * the full classification pipeline for each entry.
+ *
+ * v2.1: Uses standard OWL/SKOS/PROV vocabulary.
+ *        Depth is computed, not stored — depth assertions removed.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -23,10 +26,9 @@ function setupGraph(adapter, setupEntries) {
   const concepts = setupEntries.map((entry) =>
     createConcept({
       id: entry.id,
-      displayLabel: entry.displayLabel,
-      canonicalLabel: entry.canonicalLabel,
-      parent: entry.parent || null,
-      depth: entry.depth || 0,
+      label: entry.displayLabel,
+      prefLabel: entry.canonicalLabel,
+      broader: entry.parent || null,
     }),
   );
   adapter.saveGraph(GRAPH_ID, createKnowledgeGraph({ id: GRAPH_ID, concepts }));
@@ -79,14 +81,14 @@ describe('Classification Golden Corpus', () => {
 
         if (subjectCanonical && objectCanonical) {
           const subject = concepts.find(
-            (c) => c['fandaws:canonicalLabel'] === subjectCanonical,
+            (c) => c['skos:prefLabel'] === subjectCanonical,
           );
           const object = concepts.find(
-            (c) => c['fandaws:canonicalLabel'] === objectCanonical,
+            (c) => c['skos:prefLabel'] === objectCanonical,
           );
           expect(subject).toBeDefined();
           expect(object).toBeDefined();
-          expect(subject['fandaws:parent']).toBe(object['@id']);
+          expect(subject['skos:broader']).toBe(object['@id']);
         }
       }
 
@@ -97,15 +99,6 @@ describe('Classification Golden Corpus', () => {
           (c) => c['@id'] === exp.subjectIri,
         );
         expect(subject).toBeDefined();
-      }
-
-      // ── Depth ──
-      if (exp.subjectDepth !== undefined) {
-        const graph = result.graph || adapter.loadGraph(GRAPH_ID);
-        const subject = graph['fandaws:concepts'].find(
-          (c) => c['fandaws:canonicalLabel'] === exp.subjectCanonical,
-        );
-        expect(subject['fandaws:depth']).toBe(exp.subjectDepth);
       }
 
       // ── Mutation null (no-op) ──

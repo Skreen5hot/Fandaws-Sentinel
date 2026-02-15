@@ -5,10 +5,14 @@
  * Maintains five indices for O(1) lookups on every graph mutation.
  * All operations are browser-compatible (no Node.js APIs).
  *
- * @see Fandaws_v3.3_Specification.md Section 3.3.1, Section 12.1
+ * v2.1: Concept fields use standard OWL/SKOS/PROV vocabulary.
+ * Properties and relationships are owl:Restriction entries in concept rdfs:subClassOf.
+ *
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 import { StateAdapter } from './state-adapter.js';
+import { isConceptNode, isRestrictionNode } from '../../types/type-checks.js';
 
 // ─────────────────────────────────────────────────────────
 // InMemoryStateAdapter
@@ -32,12 +36,6 @@ export class InMemoryStateAdapter extends StateAdapter {
      * @type {Map<string, object>}
      */
     this._indices = new Map();
-
-    /**
-     * Per-graph property object store.
-     * @type {Map<string, Map<string, object>>} graphId → Map<propertyIri, Property JSON-LD>
-     */
-    this._propertyStore = new Map();
   }
 
   // ─────────────────────────────────────────────────────────
@@ -178,7 +176,7 @@ export class InMemoryStateAdapter extends StateAdapter {
     const draft = JSON.parse(JSON.stringify(original));
 
     try {
-      this._applyAdditions(draft, id, mutation['fandaws:additions'] || []);
+      this._applyAdditions(draft, mutation['fandaws:additions'] || []);
       this._applyModifications(draft, mutation['fandaws:modifications'] || []);
       this._applyDeletions(draft, mutation['fandaws:deletions'] || []);
       this._applyMerges(draft, mutation['fandaws:merges'] || []);
@@ -201,36 +199,25 @@ export class InMemoryStateAdapter extends StateAdapter {
    * Process addition operations on a draft graph.
    *
    * @param {object} draft - Mutable graph clone
-   * @param {string} graphId - Graph IRI (for property store)
    * @param {object[]} additions - Nodes to add
    */
-  _applyAdditions(draft, graphId, additions) {
+  _applyAdditions(draft, additions) {
     for (const node of additions) {
-      const type = node['@type'];
-
-      if (type === 'fandaws:Concept') {
+      if (isConceptNode(node)) {
         draft['fandaws:concepts'].push(node);
-      } else if (type === 'fandaws:Relationship') {
-        draft['fandaws:relationships'].push(node);
-      } else if (type === 'fandaws:Property') {
-        // Add property IRI to owning concept's property list
+      } else if (isRestrictionNode(node)) {
+        // Embed restriction in owning concept's rdfs:subClassOf
         const attachedTo = node['fandaws:attachedTo'];
         const concept = draft['fandaws:concepts'].find(
           (c) => c['@id'] === attachedTo,
         );
         if (concept) {
-          const props = concept['fandaws:properties'] || [];
-          if (!props.includes(node['@id'])) {
-            props.push(node['@id']);
+          const subClassOf = concept['rdfs:subClassOf'] || [];
+          if (!subClassOf.some((e) => e['@id'] === node['@id'])) {
+            subClassOf.push(node);
           }
-          concept['fandaws:properties'] = props;
+          concept['rdfs:subClassOf'] = subClassOf;
         }
-
-        // Store the full property object
-        if (!this._propertyStore.has(graphId)) {
-          this._propertyStore.set(graphId, new Map());
-        }
-        this._propertyStore.get(graphId).set(node['@id'], node);
       }
     }
   }
@@ -256,7 +243,7 @@ export class InMemoryStateAdapter extends StateAdapter {
         continue;
       }
 
-      // Search relationships
+      // Search relationships (vestigial)
       const rel = draft['fandaws:relationships'].find(
         (r) => r['@id'] === targetIri,
       );
@@ -285,30 +272,18 @@ export class InMemoryStateAdapter extends StateAdapter {
       );
       if (conceptIdx !== -1) {
         const removed = draft['fandaws:concepts'].splice(conceptIdx, 1)[0];
-        const parentIri = removed['fandaws:parent'];
-
-        // Clean up parent's children reference
-        if (parentIri) {
-          const parent = draft['fandaws:concepts'].find(
-            (c) => c['@id'] === parentIri,
-          );
-          if (parent && Array.isArray(parent['fandaws:children'])) {
-            parent['fandaws:children'] = parent['fandaws:children'].filter(
-              (c) => c !== iri,
-            );
-          }
-        }
+        const parentIri = removed['skos:broader'];
 
         // Reparent orphaned children to deleted concept's parent
         for (const child of draft['fandaws:concepts']) {
-          if (child['fandaws:parent'] === iri) {
-            child['fandaws:parent'] = parentIri;
+          if (child['skos:broader'] === iri) {
+            child['skos:broader'] = parentIri;
           }
         }
         continue;
       }
 
-      // Try removing from relationships
+      // Try removing from relationships (vestigial)
       const relIdx = draft['fandaws:relationships'].findIndex(
         (r) => r['@id'] === iri,
       );
@@ -348,32 +323,45 @@ export class InMemoryStateAdapter extends StateAdapter {
 
       // Transfer children: reparent source's children to target
       for (const child of draft['fandaws:concepts']) {
-        if (child['fandaws:parent'] === sourceIri) {
-          child['fandaws:parent'] = targetIri;
+        if (child['skos:broader'] === sourceIri) {
+          child['skos:broader'] = targetIri;
         }
       }
 
-      // Transfer properties (union of property IRIs)
-      const sourceProps = source['fandaws:properties'] || [];
-      const targetProps = target['fandaws:properties'] || [];
-      target['fandaws:properties'] = [
-        ...new Set([...targetProps, ...sourceProps]),
-      ];
-
-      // Rewrite relationships referencing source → target
-      for (const rel of draft['fandaws:relationships']) {
-        if (rel['fandaws:subject'] === sourceIri) {
-          rel['fandaws:subject'] = targetIri;
+      // Transfer restrictions (union of rdfs:subClassOf entries)
+      const sourceRestrictions = (source['rdfs:subClassOf'] || []).filter(
+        (e) => isRestrictionNode(e),
+      );
+      const targetSubClassOf = target['rdfs:subClassOf'] || [];
+      const existingIds = new Set(
+        targetSubClassOf.filter((e) => e['@id']).map((e) => e['@id']),
+      );
+      for (const restriction of sourceRestrictions) {
+        if (!restriction['@id'] || !existingIds.has(restriction['@id'])) {
+          targetSubClassOf.push(restriction);
         }
-        if (rel['fandaws:object'] === sourceIri) {
-          rel['fandaws:object'] = targetIri;
+      }
+      target['rdfs:subClassOf'] = targetSubClassOf;
+
+      // Rewrite relationship restrictions referencing source → target
+      for (const concept of draft['fandaws:concepts']) {
+        const subClassOf = concept['rdfs:subClassOf'] || [];
+        for (const entry of subClassOf) {
+          if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'relationship') {
+            if (entry['fandaws:attachedTo'] === sourceIri) {
+              entry['fandaws:attachedTo'] = targetIri;
+            }
+            if (entry['owl:someValuesFrom'] === sourceIri) {
+              entry['owl:someValuesFrom'] = targetIri;
+            }
+          }
         }
       }
 
       // Record merge provenance
-      const mergedFrom = target['fandaws:mergedFrom'] || [];
-      mergedFrom.push(sourceIri);
-      target['fandaws:mergedFrom'] = mergedFrom;
+      const wasDerivedFrom = target['prov:wasDerivedFrom'] || [];
+      wasDerivedFrom.push(sourceIri);
+      target['prov:wasDerivedFrom'] = wasDerivedFrom;
 
       // Delete source concept
       draft['fandaws:concepts'].splice(sourceIdx, 1);
@@ -409,13 +397,12 @@ export class InMemoryStateAdapter extends StateAdapter {
     const idx = this._createEmptyIndices();
 
     const concepts = graph['fandaws:concepts'] || [];
-    const relationships = graph['fandaws:relationships'] || [];
 
     for (const concept of concepts) {
       const iri = concept['@id'];
-      const canonicalLabel = concept['fandaws:canonicalLabel'];
-      const parent = concept['fandaws:parent'];
-      const properties = concept['fandaws:properties'] || [];
+      const canonicalLabel = concept['skos:prefLabel'];
+      const parent = concept['skos:broader'];
+      const subClassOf = concept['rdfs:subClassOf'] || [];
 
       // Index 1: canonicalLabel → IRI
       if (canonicalLabel != null) {
@@ -436,18 +423,26 @@ export class InMemoryStateAdapter extends StateAdapter {
         idx.iriToChildren.get(parent).add(iri);
       }
 
-      // Index 4: IRI → property IRIs
-      idx.iriToProperties.set(iri, new Set(properties));
-    }
+      // Index 4: IRI → property restriction IRIs
+      const propertyIris = subClassOf
+        .filter((e) => isRestrictionNode(e) && e['fandaws:restrictionKind'] === 'property')
+        .map((e) => e['@id'])
+        .filter(Boolean);
+      idx.iriToProperties.set(iri, new Set(propertyIris));
 
-    // Index 5: concept IRI (as object) → relationship IRIs
-    for (const rel of relationships) {
-      const objectIri = rel['fandaws:object'];
-      const relIri = rel['@id'];
-      if (!idx.iriToReverseRelationships.has(objectIri)) {
-        idx.iriToReverseRelationships.set(objectIri, new Set());
+      // Index 5: relationship restrictions (object → restriction IRI)
+      for (const entry of subClassOf) {
+        if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'relationship') {
+          const objectIri = entry['owl:someValuesFrom'];
+          const relIri = entry['@id'];
+          if (objectIri && relIri) {
+            if (!idx.iriToReverseRelationships.has(objectIri)) {
+              idx.iriToReverseRelationships.set(objectIri, new Set());
+            }
+            idx.iriToReverseRelationships.get(objectIri).add(relIri);
+          }
+        }
       }
-      idx.iriToReverseRelationships.get(objectIri).add(relIri);
     }
 
     this._indices.set(id, idx);
@@ -485,9 +480,16 @@ export class InMemoryStateAdapter extends StateAdapter {
     const conceptIris = new Set(
       (graph['fandaws:concepts'] || []).map((c) => c['@id']),
     );
-    const relationshipIris = new Set(
-      (graph['fandaws:relationships'] || []).map((r) => r['@id']),
-    );
+
+    // Collect all restriction IRIs from concepts' subClassOf
+    const restrictionIris = new Set();
+    for (const concept of graph['fandaws:concepts'] || []) {
+      for (const entry of concept['rdfs:subClassOf'] || []) {
+        if (isRestrictionNode(entry) && entry['@id']) {
+          restrictionIris.add(entry['@id']);
+        }
+      }
+    }
 
     // Check Index 1: canonicalLabel → IRI
     for (const [label, iri] of idx.canonicalLabelToIri) {
@@ -558,12 +560,12 @@ export class InMemoryStateAdapter extends StateAdapter {
     // Check Index 5: IRI → reverse relationships
     for (const [iri, relIris] of idx.iriToReverseRelationships) {
       for (const relIri of relIris) {
-        if (!relationshipIris.has(relIri)) {
+        if (!restrictionIris.has(relIri)) {
           ghosts.push({
             index: 'iriToReverseRelationships',
             key: iri,
             ghostIri: relIri,
-            reason: 'Relationship IRI not present in graph',
+            reason: 'Relationship restriction IRI not present in graph',
           });
         }
       }

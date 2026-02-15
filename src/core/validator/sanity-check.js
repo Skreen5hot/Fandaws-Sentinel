@@ -4,8 +4,12 @@
  * Implements CVS-005: prevents circular IS_A relationships.
  * Pure functions — builds its own parent index from the graph.
  *
+ * v2.1: Uses skos:broader instead of fandaws:parent.
+ *
  * @see Fandaws_v3.3_Specification.md Section 6.2 (CVS-005)
  */
+
+import { isConceptNode } from '../../types/type-checks.js';
 
 /**
  * Build a parent index from a KnowledgeGraph.
@@ -18,7 +22,7 @@ export function buildParentIndex(graph) {
   const index = new Map();
   const concepts = graph['fandaws:concepts'] || [];
   for (const concept of concepts) {
-    index.set(concept['@id'], concept['fandaws:parent'] || null);
+    index.set(concept['@id'], concept['skos:broader'] || null);
   }
   return index;
 }
@@ -95,8 +99,8 @@ export function checkMutationForCycles(mutation, graph) {
 
   // Apply additions to the composite index
   for (const node of additions) {
-    if (node['@type'] === 'fandaws:Concept') {
-      const parent = node['fandaws:parent'] || null;
+    if (isConceptNode(node)) {
+      const parent = node['skos:broader'] || null;
       compositeIndex.set(node['@id'], parent);
       if (parent) {
         edgesToCheck.push({ child: node['@id'], parent });
@@ -107,7 +111,7 @@ export function checkMutationForCycles(mutation, graph) {
   // Apply parent modifications to the composite index
   for (const mod of modifications) {
     const targetIri = mod['@id'] || mod['fandaws:target'];
-    const newParent = mod['fandaws:parent'];
+    const newParent = mod['skos:broader'];
     if (targetIri && newParent !== undefined) {
       compositeIndex.set(targetIri, newParent);
       if (newParent) {

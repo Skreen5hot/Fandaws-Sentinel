@@ -8,7 +8,9 @@
  * Pipeline: parse → (scopeResolve) → classify → processClassification →
  *           validate → applyMutation → describeConcept
  *
- * @see Fandaws_v3.3_Specification.md Section 3
+ * v2.1: Uses isConceptNode() for type checks on v2.1 dual-typed concepts.
+ *
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 import { parse } from '../nl-parser/nl-parser.js';
@@ -17,6 +19,7 @@ import { processClassification } from '../knowledge-engine/knowledge-engine.js';
 import { validate } from '../validator/validator.js';
 import { resolveScope } from '../scope-resolver/scope-resolver.js';
 import { describeConcept } from '../description-engine/description-engine.js';
+import { isConceptNode } from '../../types/type-checks.js';
 
 /**
  * Run the full classification pipeline from raw utterance to graph mutation.
@@ -167,7 +170,7 @@ export function runClassificationPipeline(utterance, context, options = {}) {
   const descriptions = [];
   const additions = engineResult.mutation['fandaws:additions'] || [];
   for (const node of additions) {
-    if (node['@type'] === 'fandaws:Concept') {
+    if (isConceptNode(node)) {
       // Find the concept in the updated graph for full context
       const updatedConcept = (updatedGraph['fandaws:concepts'] || []).find(
         (c) => c['@id'] === node['@id'],

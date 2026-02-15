@@ -3,6 +3,9 @@
  *
  * Tests the full pipeline: utterance → parse → classify → engine →
  * validate → apply → describe.
+ *
+ * v2.1: Uses standard OWL/SKOS/PROV vocabulary.
+ *        No depth stored on concepts; broader replaces parent.
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
@@ -21,8 +24,8 @@ function makeGraph(concepts = []) {
   return createKnowledgeGraph({ id: GRAPH_ID, concepts });
 }
 
-function makeConcept(id, displayLabel, canonicalLabel, parent = null, depth = 0) {
-  return createConcept({ id, displayLabel, canonicalLabel, parent, depth });
+function makeConcept(id, label, prefLabel, broader = null) {
+  return createConcept({ id, label, prefLabel, broader });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -49,11 +52,11 @@ describe('Classification Pipeline', () => {
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(2);
 
-    const animal = concepts.find((c) => c['fandaws:canonicalLabel'] === 'animal');
-    const dog = concepts.find((c) => c['fandaws:canonicalLabel'] === 'dog');
+    const animal = concepts.find((c) => c['skos:prefLabel'] === 'animal');
+    const dog = concepts.find((c) => c['skos:prefLabel'] === 'dog');
     expect(animal).toBeDefined();
     expect(dog).toBeDefined();
-    expect(dog['fandaws:parent']).toBe(animal['@id']);
+    expect(dog['skos:broader']).toBe(animal['@id']);
   });
 
   it('creates child when parent exists', () => {
@@ -65,13 +68,13 @@ describe('Classification Pipeline', () => {
 
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(2);
-    const dog = concepts.find((c) => c['fandaws:canonicalLabel'] === 'dog');
-    expect(dog['fandaws:parent']).toBe('fandaws:concept/animal');
+    const dog = concepts.find((c) => c['skos:prefLabel'] === 'dog');
+    expect(dog['skos:broader']).toBe('fandaws:concept/animal');
   });
 
   it('extends a chain: poodle → dog → animal', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal', null, 0);
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal', 1);
+    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('A poodle is a dog', context);
@@ -79,9 +82,8 @@ describe('Classification Pipeline', () => {
 
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(3);
-    const poodle = concepts.find((c) => c['fandaws:canonicalLabel'] === 'poodle');
-    expect(poodle['fandaws:parent']).toBe('fandaws:concept/dog');
-    expect(poodle['fandaws:depth']).toBe(2);
+    const poodle = concepts.find((c) => c['skos:prefLabel'] === 'poodle');
+    expect(poodle['skos:broader']).toBe('fandaws:concept/dog');
   });
 
   it('links two existing unlinked concepts', () => {
@@ -96,14 +98,14 @@ describe('Classification Pipeline', () => {
     const updatedDog = updated['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:concept/dog',
     );
-    expect(updatedDog['fandaws:parent']).toBe('fandaws:concept/animal');
+    expect(updatedDog['skos:broader']).toBe('fandaws:concept/animal');
   });
 
   // ── Idempotency ──
 
   it('is idempotent: same classification repeated returns success with no mutation', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal', null, 0);
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal', 1);
+    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('A dog is an animal', context);
@@ -128,8 +130,8 @@ describe('Classification Pipeline', () => {
   });
 
   it('rejects circular classification', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal', null, 0);
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal', 1);
+    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('An animal is a dog', context);
@@ -185,8 +187,6 @@ describe('Classification Pipeline', () => {
     const animalDesc = result.descriptions.find(
       (d) => d.conceptIri === 'fandaws:concept/animal',
     );
-    // Animal is the root, so description should say root concept
-    // But wait — after apply, animal has no parent, so describeConcept returns "Animal is a root concept."
     expect(animalDesc.description).toContain('root concept');
   });
 
@@ -209,8 +209,8 @@ describe('Classification Pipeline', () => {
     expect(result.success).toBe(true);
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(2);
-    const dog = concepts.find((c) => c['fandaws:canonicalLabel'] === 'dog');
-    expect(dog['fandaws:parent']).toBe('fandaws:concept/animal');
+    const dog = concepts.find((c) => c['skos:prefLabel'] === 'dog');
+    expect(dog['skos:broader']).toBe('fandaws:concept/animal');
   });
 
   // ── Article handling ──
@@ -219,7 +219,7 @@ describe('Classification Pipeline', () => {
     const result = runClassificationPipeline('The cat is an animal', context);
     expect(result.success).toBe(true);
     const concepts = result.graph['fandaws:concepts'];
-    const cat = concepts.find((c) => c['fandaws:canonicalLabel'] === 'cat');
+    const cat = concepts.find((c) => c['skos:prefLabel'] === 'cat');
     expect(cat).toBeDefined();
   });
 
@@ -233,7 +233,7 @@ describe('Classification Pipeline', () => {
     expect(result.success).toBe(true);
     const concepts = result.graph['fandaws:concepts'];
     const gr = concepts.find(
-      (c) => c['fandaws:canonicalLabel'] === 'golden retriever',
+      (c) => c['skos:prefLabel'] === 'golden retriever',
     );
     expect(gr).toBeDefined();
     expect(gr['@id']).toBe('fandaws:concept/golden-retriever');
@@ -274,7 +274,7 @@ describe('Classification Pipeline', () => {
     });
     expect(result.success).toBe(true);
     const concepts = result.graph['fandaws:concepts'];
-    const animal = concepts.find((c) => c['fandaws:canonicalLabel'] === 'animal');
+    const animal = concepts.find((c) => c['skos:prefLabel'] === 'animal');
     expect(animal).toBeDefined();
   });
 
@@ -301,11 +301,11 @@ describe('Classification Pipeline', () => {
     const result = runClassificationPipeline('Water is liquid', context);
     expect(result.success).toBe(true);
     const concepts = result.graph['fandaws:concepts'];
-    const water = concepts.find((c) => c['fandaws:canonicalLabel'] === 'water');
-    const liquid = concepts.find((c) => c['fandaws:canonicalLabel'] === 'liquid');
+    const water = concepts.find((c) => c['skos:prefLabel'] === 'water');
+    const liquid = concepts.find((c) => c['skos:prefLabel'] === 'liquid');
     expect(water).toBeDefined();
     expect(liquid).toBeDefined();
-    expect(water['fandaws:parent']).toBe(liquid['@id']);
+    expect(water['skos:broader']).toBe(liquid['@id']);
   });
 
   // ── Validation result included ──

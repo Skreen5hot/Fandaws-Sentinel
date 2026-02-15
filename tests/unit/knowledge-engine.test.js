@@ -1,9 +1,8 @@
 /**
  * KnowledgeEngine — unit tests.
  *
- * Covers: four mutation cases (A/B/C/D), disambiguation, self-classification,
- * circular detection, re-assertion idempotency, depth calculation,
- * allowRoot flag, negotiate mode, error handling.
+ * v2.1: Uses v2.1 concept factories (label/prefLabel/broader).
+ *        Depth is no longer stored on concepts.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -20,13 +19,12 @@ function makeGraph(concepts = []) {
   return createKnowledgeGraph({ id: 'fandaws:graph/test', concepts });
 }
 
-function makeConcept(id, displayLabel, canonicalLabel, parent = null, depth = 0) {
+function makeConcept(id, label, prefLabel, broader = null) {
   return createConcept({
     id,
-    displayLabel,
-    canonicalLabel,
-    parent,
-    depth,
+    label,
+    prefLabel,
+    broader,
   });
 }
 
@@ -48,11 +46,11 @@ function buildIndices(concepts) {
 
   for (const c of concepts) {
     const iri = c['@id'];
-    canonicalLabelToIri.set(c['fandaws:canonicalLabel'], iri);
-    iriToParent.set(iri, c['fandaws:parent']);
+    canonicalLabelToIri.set(c['skos:prefLabel'], iri);
+    iriToParent.set(iri, c['skos:broader']);
 
     if (!iriToChildren.has(iri)) iriToChildren.set(iri, new Set());
-    const parent = c['fandaws:parent'];
+    const parent = c['skos:broader'];
     if (parent != null) {
       if (!iriToChildren.has(parent)) iriToChildren.set(parent, new Set());
       iriToChildren.get(parent).add(iri);
@@ -154,18 +152,15 @@ describe('Case C: Both concepts are new', () => {
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(2);
 
-    // Object is first (root), subject second
     const [objectNode, subjectNode] = additions;
     expect(objectNode['@id']).toBe('fandaws:concept/animal');
-    expect(objectNode['fandaws:canonicalLabel']).toBe('animal');
+    expect(objectNode['skos:prefLabel']).toBe('animal');
     expect(objectNode['fandaws:allowRoot']).toBe(true);
-    expect(objectNode['fandaws:parent']).toBeNull();
-    expect(objectNode['fandaws:depth']).toBe(0);
+    expect(objectNode['skos:broader']).toBeNull();
 
     expect(subjectNode['@id']).toBe('fandaws:concept/dog');
-    expect(subjectNode['fandaws:canonicalLabel']).toBe('dog');
-    expect(subjectNode['fandaws:parent']).toBe('fandaws:concept/animal');
-    expect(subjectNode['fandaws:depth']).toBe(1);
+    expect(subjectNode['skos:prefLabel']).toBe('dog');
+    expect(subjectNode['skos:broader']).toBe('fandaws:concept/animal');
   });
 
   it('handles multi-word terms', () => {
@@ -176,7 +171,7 @@ describe('Case C: Both concepts are new', () => {
     );
     const additions = result.mutation['fandaws:additions'];
     expect(additions[1]['@id']).toBe('fandaws:concept/golden-retriever');
-    expect(additions[1]['fandaws:displayLabel']).toBe('golden retriever');
+    expect(additions[1]['rdfs:label']).toBe('golden retriever');
   });
 
   it('preserves display labels from action', () => {
@@ -186,8 +181,8 @@ describe('Case C: Both concepts are new', () => {
       EMPTY_INDICES,
     );
     const additions = result.mutation['fandaws:additions'];
-    expect(additions[0]['fandaws:displayLabel']).toBe('Animal');
-    expect(additions[1]['fandaws:displayLabel']).toBe('Dog');
+    expect(additions[0]['rdfs:label']).toBe('Animal');
+    expect(additions[1]['rdfs:label']).toBe('Dog');
   });
 });
 
@@ -196,9 +191,9 @@ describe('Case C: Both concepts are new', () => {
 // ─────────────────────────────────────────────────────────
 
 describe('Case B: Object exists, subject is new', () => {
-  it('creates subject with parent pointing to existing object', () => {
+  it('creates subject with broader pointing to existing object', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
+      'fandaws:concept/animal', 'Animal', 'animal', null,
     );
     const graph = makeGraph([animal]);
     const indices = buildIndices([animal]);
@@ -213,27 +208,7 @@ describe('Case B: Object exists, subject is new', () => {
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(1);
     expect(additions[0]['@id']).toBe('fandaws:concept/dog');
-    expect(additions[0]['fandaws:parent']).toBe('fandaws:concept/animal');
-    expect(additions[0]['fandaws:depth']).toBe(1);
-  });
-
-  it('calculates depth from existing parent', () => {
-    const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
-    );
-    const mammal = makeConcept(
-      'fandaws:concept/mammal', 'Mammal', 'mammal', 'fandaws:concept/animal', 1,
-    );
-    const graph = makeGraph([animal, mammal]);
-    const indices = buildIndices([animal, mammal]);
-
-    const result = processClassification(
-      makeAction('dog', 'mammal'),
-      graph,
-      indices,
-    );
-    const additions = result.mutation['fandaws:additions'];
-    expect(additions[0]['fandaws:depth']).toBe(2);
+    expect(additions[0]['skos:broader']).toBe('fandaws:concept/animal');
   });
 });
 
@@ -242,12 +217,12 @@ describe('Case B: Object exists, subject is new', () => {
 // ─────────────────────────────────────────────────────────
 
 describe('Case A: Both exist, not linked', () => {
-  it('emits modification to set subject parent', () => {
+  it('emits modification to set subject broader', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
+      'fandaws:concept/animal', 'Animal', 'animal', null,
     );
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null, 0,
+      'fandaws:concept/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([animal, dog]);
     const indices = buildIndices([animal, dog]);
@@ -262,10 +237,9 @@ describe('Case A: Both exist, not linked', () => {
     const mods = result.mutation['fandaws:modifications'];
     expect(mods).toHaveLength(1);
     expect(mods[0]['@id']).toBe('fandaws:concept/dog');
-    // Dual format: field/value for StateAdapter + direct for Validator
-    expect(mods[0]['fandaws:field']).toBe('fandaws:parent');
+    expect(mods[0]['fandaws:field']).toBe('skos:broader');
     expect(mods[0]['fandaws:value']).toBe('fandaws:concept/animal');
-    expect(mods[0]['fandaws:parent']).toBe('fandaws:concept/animal');
+    expect(mods[0]['skos:broader']).toBe('fandaws:concept/animal');
   });
 });
 
@@ -274,9 +248,9 @@ describe('Case A: Both exist, not linked', () => {
 // ─────────────────────────────────────────────────────────
 
 describe('Case D: Object new, subject exists', () => {
-  it('auto-creates object as root and modifies subject parent', () => {
+  it('auto-creates object as root and modifies subject broader', () => {
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null, 0,
+      'fandaws:concept/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([dog]);
     const indices = buildIndices([dog]);
@@ -301,7 +275,7 @@ describe('Case D: Object new, subject exists', () => {
 
   it('negotiates when negotiateUnknownParent is true', () => {
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null, 0,
+      'fandaws:concept/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([dog]);
     const indices = buildIndices([dog]);
@@ -328,10 +302,10 @@ describe('Case D: Object new, subject exists', () => {
 describe('Re-assertion idempotency', () => {
   it('returns no-op when classification already exists', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
+      'fandaws:concept/animal', 'Animal', 'animal', null,
     );
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal', 1,
+      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal',
     );
     const graph = makeGraph([animal, dog]);
     const indices = buildIndices([animal, dog]);
@@ -354,10 +328,10 @@ describe('Re-assertion idempotency', () => {
 describe('Circular classification', () => {
   it('rejects "animal is a dog" when dog → animal exists', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
+      'fandaws:concept/animal', 'Animal', 'animal', null,
     );
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal', 1,
+      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal',
     );
     const graph = makeGraph([animal, dog]);
     const indices = buildIndices([animal, dog]);
@@ -372,9 +346,9 @@ describe('Circular classification', () => {
   });
 
   it('rejects transitive cycle: A → B → C, try C is A', () => {
-    const a = makeConcept('fandaws:concept/a', 'A', 'a', null, 0);
-    const b = makeConcept('fandaws:concept/b', 'B', 'b', 'fandaws:concept/a', 1);
-    const c = makeConcept('fandaws:concept/c', 'C', 'c', 'fandaws:concept/b', 2);
+    const a = makeConcept('fandaws:concept/a', 'A', 'a', null);
+    const b = makeConcept('fandaws:concept/b', 'B', 'b', 'fandaws:concept/a');
+    const c = makeConcept('fandaws:concept/c', 'C', 'c', 'fandaws:concept/b');
     const graph = makeGraph([a, b, c]);
     const indices = buildIndices([a, b, c]);
 
@@ -395,14 +369,12 @@ describe('Circular classification', () => {
 describe('Disambiguation', () => {
   it('emits disambiguation prompt when object has multiple matches', () => {
     const bank1 = makeConcept(
-      'fandaws:concept/bank-1', 'Bank (financial)', 'bank', null, 0,
+      'fandaws:concept/bank-1', 'Bank (financial)', 'bank', null,
     );
     const bank2 = makeConcept(
-      'fandaws:concept/bank-2', 'Bank (river)', 'bank', null, 0,
+      'fandaws:concept/bank-2', 'Bank (river)', 'bank', null,
     );
     const graph = makeGraph([bank1, bank2]);
-    // Build indices — note: canonicalLabelToIri will only have the last,
-    // but disambiguation checks graph directly
     const indices = buildIndices([bank1, bank2]);
 
     const result = processClassification(
@@ -419,13 +391,13 @@ describe('Disambiguation', () => {
 
   it('emits disambiguation prompt when subject has multiple matches', () => {
     const bass1 = makeConcept(
-      'fandaws:concept/bass-1', 'Bass (fish)', 'bass', null, 0,
+      'fandaws:concept/bass-1', 'Bass (fish)', 'bass', null,
     );
     const bass2 = makeConcept(
-      'fandaws:concept/bass-2', 'Bass (instrument)', 'bass', null, 0,
+      'fandaws:concept/bass-2', 'Bass (instrument)', 'bass', null,
     );
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
+      'fandaws:concept/animal', 'Animal', 'animal', null,
     );
     const graph = makeGraph([bass1, bass2, animal]);
     const indices = buildIndices([bass1, bass2, animal]);
@@ -439,42 +411,6 @@ describe('Disambiguation', () => {
     expect(result.mutation).toBeNull();
     expect(result.prompts).toHaveLength(1);
     expect(result.prompts[0]['fandaws:promptType']).toBe('disambiguation');
-  });
-});
-
-// ─────────────────────────────────────────────────────────
-// Depth calculation
-// ─────────────────────────────────────────────────────────
-
-describe('Depth calculation', () => {
-  it('sets depth = parent depth + 1 for new subject', () => {
-    const mammal = makeConcept(
-      'fandaws:concept/mammal', 'Mammal', 'mammal', 'fandaws:concept/animal', 2,
-    );
-    const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
-    );
-    const graph = makeGraph([animal, mammal]);
-    const indices = buildIndices([animal, mammal]);
-
-    const result = processClassification(
-      makeAction('dog', 'mammal'),
-      graph,
-      indices,
-    );
-    const additions = result.mutation['fandaws:additions'];
-    expect(additions[0]['fandaws:depth']).toBe(3); // mammal depth 2 + 1
-  });
-
-  it('sets depth 1 when both new (parent depth 0)', () => {
-    const result = processClassification(
-      makeAction('dog', 'animal'),
-      makeGraph(),
-      EMPTY_INDICES,
-    );
-    const additions = result.mutation['fandaws:additions'];
-    expect(additions[0]['fandaws:depth']).toBe(0); // object (root)
-    expect(additions[1]['fandaws:depth']).toBe(1); // subject
   });
 });
 
@@ -495,7 +431,7 @@ describe('allowRoot flag', () => {
 
   it('sets allowRoot on new object in Case D', () => {
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null, 0,
+      'fandaws:concept/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([dog]);
     const indices = buildIndices([dog]);
@@ -511,7 +447,7 @@ describe('allowRoot flag', () => {
 
   it('does not set allowRoot on new subject (Case B)', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null, 0,
+      'fandaws:concept/animal', 'Animal', 'animal', null,
     );
     const graph = makeGraph([animal]);
     const indices = buildIndices([animal]);

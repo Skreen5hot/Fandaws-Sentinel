@@ -28,3 +28,4 @@ export {
 } from './shadows-annotation.js';
 export { createParseResult } from './parse-result.js';
 export { createClassificationAction } from './classification-action.js';
+export { isConceptNode, isRestrictionNode } from './type-checks.js';

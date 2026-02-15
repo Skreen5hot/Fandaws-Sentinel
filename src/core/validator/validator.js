@@ -4,10 +4,13 @@
  * Pure function: accepts mutation + graph, returns ValidationResult.
  * Never calls StateAdapter. Collects ALL violations (not fail-fast).
  *
+ * v2.1: Uses isConceptNode/isRestrictionNode, skos:broader, owl:onProperty.
+ *
  * @see Fandaws_v3.3_Specification.md Section 6
  */
 
 import { createValidationResult } from '../../types/validation-result.js';
+import { isConceptNode, isRestrictionNode } from '../../types/type-checks.js';
 import { checkCompoundStatement, checkStructuralGrounding } from './input-sanitizer.js';
 import { checkMutationForCycles } from './sanity-check.js';
 import { checkPropertyRedundancy } from './property-redundancy.js';
@@ -39,9 +42,7 @@ export function validate(mutation, graph, options = {}) {
   }
 
   // ─── 2. Structural Grounding Check ────────────────────
-  const conceptAdditions = additions.filter(
-    (node) => node['@type'] === 'fandaws:Concept',
-  );
+  const conceptAdditions = additions.filter((node) => isConceptNode(node));
   for (const concept of conceptAdditions) {
     const groundingViolation = checkStructuralGrounding(
       concept,
@@ -59,7 +60,7 @@ export function validate(mutation, graph, options = {}) {
 
   // ─── 4. Property Redundancy ───────────────────────────
   const propertyAdditions = additions.filter(
-    (node) => node['@type'] === 'fandaws:Property',
+    (node) => isRestrictionNode(node) && node['fandaws:restrictionKind'] === 'property',
   );
   for (const property of propertyAdditions) {
     const { violations: propViolations } = checkPropertyRedundancy(
@@ -72,7 +73,7 @@ export function validate(mutation, graph, options = {}) {
 
   // ─── 5. Relationship Basics ───────────────────────────
   const relationshipAdditions = additions.filter(
-    (node) => node['@type'] === 'fandaws:Relationship',
+    (node) => isRestrictionNode(node) && node['fandaws:restrictionKind'] === 'relationship',
   );
   for (const rel of relationshipAdditions) {
     const relViolation = checkRelationshipBasics(rel, graph, mutation);
@@ -146,13 +147,29 @@ export function validate(mutation, graph, options = {}) {
 // ─────────────────────────────────────────────────────────
 
 /**
+ * Collect all restriction IRIs from concepts' rdfs:subClassOf arrays.
+ */
+function collectRestrictionIris(graph) {
+  const concepts = graph['fandaws:concepts'] || [];
+  const iris = new Set();
+  for (const concept of concepts) {
+    for (const entry of concept['rdfs:subClassOf'] || []) {
+      if (isRestrictionNode(entry) && entry['@id']) {
+        iris.add(entry['@id']);
+      }
+    }
+  }
+  return iris;
+}
+
+/**
  * Check basic relationship validity: subject and object must exist,
  * no exact duplicate tuple.
  */
 function checkRelationshipBasics(rel, graph, mutation) {
-  const subject = rel['fandaws:subject'];
-  const object = rel['fandaws:object'];
-  const verb = rel['fandaws:verb'];
+  const subject = rel['fandaws:attachedTo'];
+  const object = rel['owl:someValuesFrom'];
+  const verb = rel['owl:onProperty'];
 
   if (!subject || !object) {
     return {
@@ -168,7 +185,7 @@ function checkRelationshipBasics(rel, graph, mutation) {
   const allConceptIris = new Set([
     ...graphConcepts.map((c) => c['@id']),
     ...additions
-      .filter((n) => n['@type'] === 'fandaws:Concept')
+      .filter((n) => isConceptNode(n))
       .map((c) => c['@id']),
   ]);
 
@@ -190,21 +207,23 @@ function checkRelationshipBasics(rel, graph, mutation) {
     };
   }
 
-  // Check for exact duplicate tuple
-  const graphRels = graph['fandaws:relationships'] || [];
-  const isDuplicate = graphRels.some(
-    (existing) =>
-      existing['fandaws:subject'] === subject &&
-      existing['fandaws:object'] === object &&
-      existing['fandaws:verb'] === verb,
-  );
-
-  if (isDuplicate) {
-    return {
-      reason: 'duplicateRelationship',
-      message: `Relationship "${subject} ${verb} ${object}" already exists.`,
-      relationshipId: rel['@id'],
-    };
+  // Check for exact duplicate tuple (scan concept rdfs:subClassOf for matching restrictions)
+  for (const concept of graphConcepts) {
+    for (const entry of concept['rdfs:subClassOf'] || []) {
+      if (
+        isRestrictionNode(entry) &&
+        entry['fandaws:restrictionKind'] === 'relationship' &&
+        entry['fandaws:attachedTo'] === subject &&
+        entry['owl:someValuesFrom'] === object &&
+        entry['owl:onProperty'] === verb
+      ) {
+        return {
+          reason: 'duplicateRelationship',
+          message: `Relationship "${subject} ${verb} ${object}" already exists.`,
+          relationshipId: rel['@id'],
+        };
+      }
+    }
   }
 
   return null;
@@ -225,10 +244,10 @@ function checkModification(mod, graph) {
   }
 
   const graphConcepts = graph['fandaws:concepts'] || [];
-  const graphRels = graph['fandaws:relationships'] || [];
+  const restrictionIris = collectRestrictionIris(graph);
   const allIris = new Set([
     ...graphConcepts.map((c) => c['@id']),
-    ...graphRels.map((r) => r['@id']),
+    ...restrictionIris,
   ]);
 
   if (!allIris.has(targetIri)) {
@@ -249,7 +268,7 @@ function checkModification(mod, graph) {
 function checkDeletion(iri, graph) {
   const graphConcepts = graph['fandaws:concepts'] || [];
   const hasChildren = graphConcepts.some(
-    (c) => c['fandaws:parent'] === iri,
+    (c) => c['skos:broader'] === iri,
   );
 
   if (hasChildren) {

@@ -30,6 +30,8 @@ export {
   createDisambiguatedFromAnnotation,
   createParseResult,
   createClassificationAction,
+  isConceptNode,
+  isRestrictionNode,
 } from './types/index.js';
 
 // Core modules
@@ -86,6 +88,14 @@ export { resolveScope } from './core/scope-resolver/scope-resolver.js';
 
 // DescriptionEngine stub (Phase 5)
 export { describeConcept } from './core/description-engine/description-engine.js';
+
+// ConceptHydrator (v2.1)
+export {
+  hydrate,
+  dehydrate,
+  computeDepth,
+  computeChildren,
+} from './core/hydrator/concept-hydrator.js';
 
 // Classification Pipeline (Phase 5)
 export { runClassificationPipeline } from './core/pipeline/classification-pipeline.js';

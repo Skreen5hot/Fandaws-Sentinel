@@ -1,8 +1,8 @@
 /**
  * Property Redundancy — unit tests.
  *
- * Covers: duplicate detection, ancestor overlap, descendant overlap,
- * inherited redundancy stub (check 4), edge cases.
+ * v2.1: Properties are owl:Restriction entries in rdfs:subClassOf.
+ *        Uses owl:onProperty instead of fandaws:label.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -19,20 +19,30 @@ function makeGraph(concepts = []) {
   return createKnowledgeGraph({ id: 'fandaws:graph/test', concepts });
 }
 
-function makeConcept(id, label, parent = null, properties = []) {
+function makeConcept(id, label, broader = null, restrictions = []) {
+  const concept = createConcept({
+    id,
+    label,
+    prefLabel: label.toLowerCase(),
+    broader,
+  });
+  if (restrictions.length > 0) {
+    concept['rdfs:subClassOf'] = [...concept['rdfs:subClassOf'], ...restrictions];
+  }
+  return concept;
+}
+
+function makePropertyRestriction(id, propertyIri) {
   return {
-    ...createConcept({
-      id,
-      displayLabel: label,
-      canonicalLabel: label.toLowerCase(),
-      parent,
-    }),
-    'fandaws:properties': properties,
+    '@id': id,
+    '@type': 'owl:Restriction',
+    'owl:onProperty': propertyIri,
+    'fandaws:restrictionKind': 'property',
   };
 }
 
-function makeProperty(id, label, attachedTo) {
-  return createProperty({ id, label, attachedTo });
+function makeProperty(id, propertyIri, attachedTo) {
+  return createProperty({ id, propertyIri, attachedTo });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -53,17 +63,16 @@ describe('Check 1: No Duplicates', () => {
 
   it('detects duplicate property label on same concept', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/dog', 'Dog', null, ['fandaws:prop/fur']),
+      makeConcept('fandaws:concept/dog', 'Dog', null, [
+        makePropertyRestriction('fandaws:prop/fur', 'fur'),
+      ]),
     ]);
     const prop = makeProperty(
       'fandaws:prop/fur2',
       'fur',
       'fandaws:concept/dog',
     );
-    const labels = new Map([['fandaws:prop/fur', 'fur']]);
-    const { violations } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { violations } = checkPropertyRedundancy(prop, graph);
     expect(violations.length).toBeGreaterThan(0);
     expect(violations[0].reason).toBe('duplicateProperty');
     expect(violations[0].propertyLabel).toBe('fur');
@@ -71,17 +80,16 @@ describe('Check 1: No Duplicates', () => {
 
   it('allows different property labels on same concept', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/dog', 'Dog', null, ['fandaws:prop/fur']),
+      makeConcept('fandaws:concept/dog', 'Dog', null, [
+        makePropertyRestriction('fandaws:prop/fur', 'fur'),
+      ]),
     ]);
     const prop = makeProperty(
       'fandaws:prop/legs',
       'legs',
       'fandaws:concept/dog',
     );
-    const labels = new Map([['fandaws:prop/fur', 'fur']]);
-    const { violations } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { violations } = checkPropertyRedundancy(prop, graph);
     expect(violations).toEqual([]);
   });
 });
@@ -94,7 +102,7 @@ describe('Check 2: No Ancestor Overlap', () => {
   it('detects property overlap with direct parent', () => {
     const graph = makeGraph([
       makeConcept('fandaws:concept/mammal', 'Mammal', null, [
-        'fandaws:prop/fur',
+        makePropertyRestriction('fandaws:prop/fur', 'fur'),
       ]),
       makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
     ]);
@@ -103,10 +111,7 @@ describe('Check 2: No Ancestor Overlap', () => {
       'fur',
       'fandaws:concept/dog',
     );
-    const labels = new Map([['fandaws:prop/fur', 'fur']]);
-    const { violations } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { violations } = checkPropertyRedundancy(prop, graph);
     expect(violations.length).toBe(1);
     expect(violations[0].reason).toBe('ancestorPropertyOverlap');
     expect(violations[0].ancestorIri).toBe('fandaws:concept/mammal');
@@ -115,7 +120,7 @@ describe('Check 2: No Ancestor Overlap', () => {
   it('detects property overlap with grandparent', () => {
     const graph = makeGraph([
       makeConcept('fandaws:concept/animal', 'Animal', null, [
-        'fandaws:prop/alive',
+        makePropertyRestriction('fandaws:prop/alive', 'alive'),
       ]),
       makeConcept(
         'fandaws:concept/mammal',
@@ -129,10 +134,7 @@ describe('Check 2: No Ancestor Overlap', () => {
       'alive',
       'fandaws:concept/dog',
     );
-    const labels = new Map([['fandaws:prop/alive', 'alive']]);
-    const { violations } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { violations } = checkPropertyRedundancy(prop, graph);
     expect(violations.length).toBe(1);
     expect(violations[0].reason).toBe('ancestorPropertyOverlap');
     expect(violations[0].ancestorIri).toBe('fandaws:concept/animal');
@@ -141,7 +143,7 @@ describe('Check 2: No Ancestor Overlap', () => {
   it('returns no violation when ancestor has different property', () => {
     const graph = makeGraph([
       makeConcept('fandaws:concept/mammal', 'Mammal', null, [
-        'fandaws:prop/warm-blooded',
+        makePropertyRestriction('fandaws:prop/warm-blooded', 'warm-blooded'),
       ]),
       makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
     ]);
@@ -150,17 +152,14 @@ describe('Check 2: No Ancestor Overlap', () => {
       'bark',
       'fandaws:concept/dog',
     );
-    const labels = new Map([['fandaws:prop/warm-blooded', 'warm-blooded']]);
-    const { violations } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { violations } = checkPropertyRedundancy(prop, graph);
     expect(violations).toEqual([]);
   });
 
   it('handles stakeholder scenario: dog has fur when mammal already has fur', () => {
     const graph = makeGraph([
       makeConcept('fandaws:concept/mammal', 'Mammal', null, [
-        'fandaws:prop/fur',
+        makePropertyRestriction('fandaws:prop/fur', 'fur'),
       ]),
       makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
     ]);
@@ -169,10 +168,7 @@ describe('Check 2: No Ancestor Overlap', () => {
       'fur',
       'fandaws:concept/dog',
     );
-    const labels = new Map([['fandaws:prop/fur', 'fur']]);
-    const { violations } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { violations } = checkPropertyRedundancy(prop, graph);
     expect(violations[0].reason).toBe('ancestorPropertyOverlap');
     expect(violations[0].propertyLabel).toBe('fur');
   });
@@ -187,7 +183,7 @@ describe('Check 3: Descendant Overlap', () => {
     const graph = makeGraph([
       makeConcept('fandaws:concept/mammal', 'Mammal'),
       makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal', [
-        'fandaws:prop/fur',
+        makePropertyRestriction('fandaws:prop/fur', 'fur'),
       ]),
     ]);
     const prop = makeProperty(
@@ -195,10 +191,7 @@ describe('Check 3: Descendant Overlap', () => {
       'fur',
       'fandaws:concept/mammal',
     );
-    const labels = new Map([['fandaws:prop/fur', 'fur']]);
-    const { descendantRemovals } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { descendantRemovals } = checkPropertyRedundancy(prop, graph);
     expect(descendantRemovals.length).toBe(1);
     expect(descendantRemovals[0].conceptIri).toBe('fandaws:concept/dog');
     expect(descendantRemovals[0].propertyLabel).toBe('fur');
@@ -208,7 +201,7 @@ describe('Check 3: Descendant Overlap', () => {
     const graph = makeGraph([
       makeConcept('fandaws:concept/mammal', 'Mammal'),
       makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal', [
-        'fandaws:prop/bark',
+        makePropertyRestriction('fandaws:prop/bark', 'bark'),
       ]),
     ]);
     const prop = makeProperty(
@@ -216,10 +209,7 @@ describe('Check 3: Descendant Overlap', () => {
       'fur',
       'fandaws:concept/mammal',
     );
-    const labels = new Map([['fandaws:prop/bark', 'bark']]);
-    const { descendantRemovals } = checkPropertyRedundancy(prop, graph, {
-      propertyLabels: labels,
-    });
+    const { descendantRemovals } = checkPropertyRedundancy(prop, graph);
     expect(descendantRemovals).toEqual([]);
   });
 });
@@ -237,7 +227,6 @@ describe('Check 4: Inherited Redundancy (stub)', () => {
       'fandaws:concept/dog',
     );
     const { violations } = checkPropertyRedundancy(prop, graph);
-    // Only checks 1-3 should generate violations; check 4 is a stub.
     expect(
       violations.filter((v) => v.reason === 'inheritedRedundancy'),
     ).toEqual([]);
@@ -251,7 +240,7 @@ describe('Check 4: Inherited Redundancy (stub)', () => {
 describe('Edge cases', () => {
   it('handles property with missing label gracefully', () => {
     const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog')]);
-    const prop = { '@type': 'fandaws:Property', 'fandaws:attachedTo': 'fandaws:concept/dog' };
+    const prop = { '@type': 'owl:Restriction', 'fandaws:attachedTo': 'fandaws:concept/dog', 'fandaws:restrictionKind': 'property' };
     const { violations, descendantRemovals } = checkPropertyRedundancy(
       prop,
       graph,
@@ -262,7 +251,7 @@ describe('Edge cases', () => {
 
   it('handles property with missing attachedTo gracefully', () => {
     const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog')]);
-    const prop = { '@type': 'fandaws:Property', 'fandaws:label': 'fur' };
+    const prop = { '@type': 'owl:Restriction', 'owl:onProperty': 'fur', 'fandaws:restrictionKind': 'property' };
     const { violations, descendantRemovals } = checkPropertyRedundancy(
       prop,
       graph,

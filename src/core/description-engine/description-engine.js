@@ -4,7 +4,9 @@
  * Produces simple template-based descriptions from concept + graph context.
  * Real implementation with inherited properties and rich templates deferred to Phase 7.
  *
- * @see Fandaws_v3.3_Specification.md Section 3.5
+ * v2.1: Uses rdfs:label and skos:broader instead of fandaws: fields.
+ *
+ * @see v2.1 Concept JSON-LD Specification
  */
 
 /**
@@ -15,8 +17,8 @@
  * @returns {string} Generated description
  */
 export function describeConcept(concept, graph) {
-  const displayLabel = concept['fandaws:displayLabel'] || '?';
-  const parentIri = concept['fandaws:parent'];
+  const displayLabel = concept['rdfs:label'] || '?';
+  const parentIri = concept['skos:broader'];
 
   // Root concept (no parent)
   if (!parentIri) {
@@ -31,6 +33,6 @@ export function describeConcept(concept, graph) {
     return `${displayLabel} is a concept.`;
   }
 
-  const parentLabel = parent['fandaws:displayLabel'] || parentIri;
+  const parentLabel = parent['rdfs:label'] || parentIri;
   return `${displayLabel} is a ${parentLabel}.`;
 }

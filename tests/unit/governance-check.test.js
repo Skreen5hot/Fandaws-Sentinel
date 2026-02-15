@@ -1,8 +1,7 @@
 /**
  * Governance Check — unit tests.
  *
- * Covers: checkGovernanceBlock, createGovernanceEpistemicFailure,
- * nullOCECheck, nullIEECheck.
+ * v2.1: Uses v2.1 concept factories (label/prefLabel/broader).
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -23,12 +22,12 @@ function makeGraph(concepts = []) {
   return createKnowledgeGraph({ id: 'fandaws:graph/test', concepts });
 }
 
-function makeConcept(id, label, parent = null) {
+function makeConcept(id, label, broader = null) {
   return createConcept({
     id,
-    displayLabel: label,
-    canonicalLabel: label.toLowerCase(),
-    parent,
+    label,
+    prefLabel: label.toLowerCase(),
+    broader,
   });
 }
 
@@ -121,10 +120,7 @@ describe('checkGovernanceBlock', () => {
 describe('createGovernanceEpistemicFailure', () => {
   it('produces valid EpistemicFailure shape', () => {
     const concept = makeConcept('fandaws:concept/dog', 'Dog');
-    const flag = {
-      'fandaws:severity': 'blocking',
-      'fandaws:reason': 'Review needed.',
-    };
+    const flag = { 'fandaws:severity': 'blocking', 'fandaws:reason': 'Review needed.' };
     const ef = createGovernanceEpistemicFailure(concept, flag);
     expect(ef['@type']).toBe('fandaws:EpistemicFailure');
     expect(ef['fandaws:conceptId']).toBe('fandaws:concept/dog');
@@ -144,7 +140,7 @@ describe('createGovernanceEpistemicFailure', () => {
 });
 
 // ─────────────────────────────────────────────────────────
-// nullOCECheck
+// nullOCECheck / nullIEECheck
 // ─────────────────────────────────────────────────────────
 
 describe('nullOCECheck', () => {
@@ -155,10 +151,6 @@ describe('nullOCECheck', () => {
     expect(result.repairPaths).toEqual([]);
   });
 });
-
-// ─────────────────────────────────────────────────────────
-// nullIEECheck
-// ─────────────────────────────────────────────────────────
 
 describe('nullIEECheck', () => {
   it('always returns not contested', () => {

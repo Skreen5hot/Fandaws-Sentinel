@@ -2,20 +2,25 @@
  * Property Redundancy — prevents duplicate and overlapping properties.
  *
  * Checks:
- *   1. No exact duplicate (same label on same concept)
- *   2. No ancestor overlap (ancestor already has property with same label)
+ *   1. No exact duplicate (same property IRI on same concept)
+ *   2. No ancestor overlap (ancestor already has property with same IRI)
  *   3. Descendant overlap detection (informational, suggests removals)
  *   4. Inherited redundancy (stub — deferred to Phase 6)
+ *
+ * v2.1: Properties are owl:Restriction entries in rdfs:subClassOf.
+ *        Uses owl:onProperty instead of fandaws:label, skos:broader instead of fandaws:parent.
  *
  * Pure functions — builds internal indices from the provided graph.
  *
  * @see Fandaws_v3.3_Specification.md Section 6.3
  */
 
+import { isRestrictionNode } from '../../types/type-checks.js';
+
 /**
  * Check a property addition for redundancy.
  *
- * @param {object} property - Property JSON-LD node being added
+ * @param {object} property - owl:Restriction JSON-LD node being added
  * @param {object} graph - Current KnowledgeGraph JSON-LD
  * @param {object} [options] - Additional context
  * @param {Map<string, string>} [options.propertyLabels] - IRI → label map for property resolution
@@ -25,7 +30,7 @@ export function checkPropertyRedundancy(property, graph, options = {}) {
   const violations = [];
   const descendantRemovals = [];
 
-  const propLabel = property['fandaws:label'];
+  const propLabel = property['owl:onProperty'];
   const attachedTo = property['fandaws:attachedTo'];
 
   if (!propLabel || !attachedTo) {
@@ -38,7 +43,7 @@ export function checkPropertyRedundancy(property, graph, options = {}) {
   // Build parent index
   const parentIndex = new Map();
   for (const concept of concepts) {
-    parentIndex.set(concept['@id'], concept['fandaws:parent'] || null);
+    parentIndex.set(concept['@id'], concept['skos:broader'] || null);
   }
 
   // Build property label index: conceptIri → Set<label>
@@ -87,6 +92,7 @@ export function checkPropertyRedundancy(property, graph, options = {}) {
 
 /**
  * Build a map of concept IRI → Set<property label> from the graph.
+ * Extracts owl:onProperty from owl:Restriction entries in rdfs:subClassOf.
  *
  * @param {object[]} concepts - Array of concept nodes
  * @param {Map<string, string>} propertyLabels - External IRI → label map
@@ -97,12 +103,24 @@ function buildConceptPropertyLabels(concepts, propertyLabels) {
 
   for (const concept of concepts) {
     const labels = new Set();
-    const propIris = concept['fandaws:properties'] || [];
+    const subClassOf = concept['rdfs:subClassOf'] || [];
 
-    for (const iri of propIris) {
-      // Resolve label from external map
-      if (propertyLabels.has(iri)) {
-        labels.add(propertyLabels.get(iri));
+    for (const entry of subClassOf) {
+      if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'property') {
+        const propIri = entry['owl:onProperty'];
+        if (propIri) {
+          labels.add(propIri);
+        }
+      }
+    }
+
+    // Also resolve from external property label map (for IRI-based properties)
+    for (const entry of subClassOf) {
+      if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'property') {
+        const iri = entry['@id'];
+        if (iri && propertyLabels.has(iri)) {
+          labels.add(propertyLabels.get(iri));
+        }
       }
     }
 
@@ -161,7 +179,7 @@ function buildChildIndex(concepts) {
   const index = new Map();
 
   for (const concept of concepts) {
-    const parent = concept['fandaws:parent'];
+    const parent = concept['skos:broader'];
     if (parent) {
       if (!index.has(parent)) {
         index.set(parent, new Set());

@@ -18,22 +18,20 @@ describe('createKnowledgeGraph', () => {
     expect(graph['@id']).toBe('fandaws:graph/my-graph');
   });
 
-  it('defaults concepts and relationships to empty arrays', () => {
+  it('defaults concepts to empty array and relationships to vestigial empty array', () => {
     const graph = createKnowledgeGraph({ id: 'fandaws:graph/empty' });
     expect(graph['fandaws:concepts']).toEqual([]);
     expect(graph['fandaws:relationships']).toEqual([]);
   });
 
-  it('accepts concepts and relationships arrays', () => {
+  it('accepts concepts array', () => {
     const concepts = [{ '@id': 'fandaws:concept/dog' }];
-    const relationships = [{ '@id': 'fandaws:rel/chase' }];
     const graph = createKnowledgeGraph({
       id: 'fandaws:graph/populated',
       concepts,
-      relationships,
     });
     expect(graph['fandaws:concepts']).toBe(concepts);
-    expect(graph['fandaws:relationships']).toBe(relationships);
+    expect(graph['fandaws:relationships']).toEqual([]);
   });
 
   it('includes metadata with createdAt and version', () => {

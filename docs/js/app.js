@@ -346,6 +346,179 @@ async function loadTestResults() {
 }
 
 // ─────────────────────────────────────────────────────────
+// Property Workflow Demo
+// ─────────────────────────────────────────────────────────
+
+const DEMO_HIERARCHY = [
+  { id: 'fandaws:concept/entity', label: 'Entity', prefLabel: 'entity', broader: null },
+  { id: 'fandaws:concept/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:concept/entity' },
+  { id: 'fandaws:concept/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:concept/living-thing' },
+  { id: 'fandaws:concept/mammal', label: 'Mammal', prefLabel: 'mammal', broader: 'fandaws:concept/animal' },
+  { id: 'fandaws:concept/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:concept/mammal' },
+  { id: 'fandaws:concept/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:concept/mammal' },
+];
+
+let propertyAdapter = null;
+const PROP_GRAPH_ID = 'fandaws:graph/demo';
+
+function initPropertyDemo() {
+  // Render hierarchy tree
+  const container = document.getElementById('property-hierarchy');
+  if (!container) return;
+
+  const lines = [];
+  const indent = { 'entity': 0, 'living thing': 1, 'animal': 2, 'mammal': 3, 'dog': 4, 'cat': 4 };
+  for (const c of DEMO_HIERARCHY) {
+    const depth = indent[c.prefLabel] || 0;
+    const prefix = depth === 0 ? '' : '  '.repeat(depth - 1) + '└─ ';
+    lines.push(`${prefix}${c.label}`);
+  }
+  container.textContent = lines.join('\n');
+
+  // Build adapter + graph
+  resetPropertyAdapter();
+
+  // Wire events
+  document.getElementById('property-run')?.addEventListener('click', runPropertyDemo);
+  document.getElementById('property-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') runPropertyDemo();
+  });
+}
+
+function resetPropertyAdapter() {
+  propertyAdapter = new Fandaws.InMemoryStateAdapter();
+  const concepts = DEMO_HIERARCHY.map((c) => Fandaws.createConcept(c));
+  const graph = Fandaws.createKnowledgeGraph({ id: PROP_GRAPH_ID, concepts });
+  propertyAdapter.saveGraph(PROP_GRAPH_ID, graph);
+}
+
+let pendingScopeContext = null;
+let pendingUtterance = null;
+let scopeDecisions = new Map();
+
+function runPropertyDemo() {
+  const input = document.getElementById('property-input').value.trim();
+  if (!input) return;
+
+  const stages = document.getElementById('property-stages');
+  const promptArea = document.getElementById('property-scope-prompts');
+  stages.innerHTML = '';
+  promptArea.innerHTML = '';
+
+  // Reset state for new utterance
+  if (input !== pendingUtterance) {
+    pendingScopeContext = null;
+    pendingUtterance = input;
+    scopeDecisions = new Map();
+    resetPropertyAdapter();
+  }
+
+  const context = { stateAdapter: propertyAdapter, graphId: PROP_GRAPH_ID };
+
+  // Stage 1: Parse
+  let parseResult;
+  try {
+    parseResult = Fandaws.parse(input);
+    addStage(stages, '1. Parse', parseResult
+      ? `subject: "${parseResult['fandaws:subject']}", verb: "${parseResult['fandaws:predicate']}", object: "${parseResult['fandaws:object']}"`
+      : 'Parse failed', !parseResult);
+  } catch (e) {
+    addStage(stages, '1. Parse', `Error: ${e.message}`, true);
+    return;
+  }
+  if (!parseResult) return;
+
+  // Stage 2: Classify
+  const action = Fandaws.classify(parseResult);
+  const workflow = action['fandaws:workflow'];
+  addStage(stages, '2. Classify', `workflow: ${workflow}`, workflow !== 'property');
+  if (workflow !== 'property') {
+    addStage(stages, '', `This demo handles "has/have" property statements. Try "A dog has fur".`, true);
+    return;
+  }
+
+  // Stage 3: Run property pipeline with current decisions
+  const options = scopeDecisions.size > 0 ? { scopeDecisions } : {};
+  const result = Fandaws.runPropertyPipeline(input, context, options);
+
+  // Stage 3: Scope narrowing
+  if (result.prompts && result.prompts.length > 0 && !result.success) {
+    addStage(stages, '3. Scope Narrowing', `${result.prompts.length} prompt(s) — answer below`, false);
+
+    // Render scope prompts as interactive buttons
+    for (const prompt of result.prompts) {
+      const text = prompt['fandaws:text'] || 'Scope question';
+      const conceptIri = prompt['fandaws:conceptIri'] || '';
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.style.cssText = 'margin-bottom: 8px; padding: 12px;';
+      div.innerHTML = `
+        <p style="margin-bottom: 8px; color: var(--accent);">${escapeHtml(text)}</p>
+        <button class="btn btn--primary scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="true" style="margin-right: 8px;">Yes</button>
+        <button class="btn scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="false" style="background: var(--surface-alt); border: 1px solid var(--border);">No</button>
+      `;
+      promptArea.appendChild(div);
+    }
+
+    // Wire scope buttons
+    promptArea.querySelectorAll('.scope-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const iri = btn.dataset.iri;
+        const answer = btn.dataset.answer === 'true';
+        scopeDecisions.set(iri, answer);
+        runPropertyDemo(); // re-run with updated decisions
+      });
+    });
+
+    pendingScopeContext = result.scopeContext;
+    return;
+  }
+
+  // Stage 3 resolved or skipped
+  if (result.success && result.mutation) {
+    const additions = result.mutation['fandaws:additions'] || [];
+    const attachment = additions[0];
+    addStage(stages, '3. Scope Resolved',
+      `Attached to: ${attachment?.['fandaws:attachedTo'] || 'N/A'}, scope: ${attachment?.['fandaws:scope'] || 'N/A'}`,
+      false);
+
+    // Stage 4: Mutation
+    addStage(stages, '4. Mutation Applied',
+      `Property "${attachment?.['owl:onProperty']}" added as ${attachment?.['@id']}`,
+      false);
+
+    // Stage 5: Description
+    if (result.descriptions && result.descriptions.length > 0) {
+      const descText = result.descriptions.map((d) => `${d.conceptIri}: "${d.description}"`).join('\n');
+      addStage(stages, '5. Descriptions', descText, false);
+    }
+
+    // Show JSON-LD output
+    addStage(stages, 'Mutation JSON-LD', JSON.stringify(result.mutation, null, 2), false, true);
+  } else if (result.success && !result.mutation) {
+    addStage(stages, '3. Result', 'No-op — property already exists (idempotent)', false);
+  } else if (result.error) {
+    addStage(stages, '3. Error', `${result.errorReason}: ${JSON.stringify(result.prompts?.[0]?.['fandaws:text'] || '')}`, true);
+  }
+}
+
+function addStage(container, label, content, isError, isPre) {
+  const div = document.createElement('div');
+  div.className = 'pipeline-step';
+  const labelHtml = label ? `<span class="step-label" style="min-width: 140px;">${escapeHtml(label)}</span>` : '';
+  if (isPre) {
+    div.innerHTML = `${labelHtml}<pre class="step-result" style="white-space: pre-wrap; font-size: 0.7rem; max-height: 200px; overflow-y: auto;">${escapeHtml(content)}</pre>`;
+  } else {
+    div.innerHTML = `${labelHtml}<span class="step-result ${isError ? '' : 'step-result--changed'}" style="white-space: pre-wrap;">${escapeHtml(content)}</span>`;
+  }
+  container.appendChild(div);
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -354,3 +527,4 @@ loadTestResults();
 buildCorpusTable();
 renderFactoryParams();
 runPipeline();
+initPropertyDemo();

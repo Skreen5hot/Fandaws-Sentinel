@@ -92,7 +92,7 @@
       "status": "complete",
       "track": "B",
       "depends": [5],
-      "description": "Property assignment workflow: full 'X has Y' pipeline with scope narrowing and Leap Check optimization. O(log d) prompt reduction for deep hierarchies via binary search. Property value type routing (string vs concept-reference). Descendant removal on property promotion. DescriptionEngine enhanced with property listing. 16-entry golden corpus, 71 new tests across 4 suites.",
+      "description": "Property assignment workflow: full 'X has Y' pipeline with scope narrowing and Leap Check optimization. O(log d) prompt reduction for deep hierarchies via binary search. Property value type routing (string vs concept-reference). Descendant removal on property promotion. DescriptionEngine enhanced with property listing. 16-entry golden corpus, 71 new tests across 5 suites (4 new + 1 extended).",
       "deliverables": ["property-workflow.js", "scope-narrowing.js", "property-pipeline.js", "generatePropertyIri", "Leap Check algorithm", "property value type routing", "16 golden corpus cases", "71 new tests"]
     },
     {

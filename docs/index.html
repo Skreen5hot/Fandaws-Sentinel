@@ -18,8 +18,8 @@
       <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
-        <span class="badge badge--green" id="badge-phase">Phase 5 Complete</span>
-        <span class="badge badge--green" id="badge-tests">571/571 Tests Pass</span>
+        <span class="badge badge--green" id="badge-phase">Phase 6 Complete</span>
+        <span class="badge badge--green" id="badge-tests">679/679 Tests Pass</span>
       </div>
     </header>
 
@@ -28,6 +28,7 @@
       <button class="nav-tab active" data-tab="roadmap">Roadmap</button>
       <button class="nav-tab" data-tab="playground">Identity Playground</button>
       <button class="nav-tab" data-tab="types">Type Explorer</button>
+      <button class="nav-tab" data-tab="property">Property Demo</button>
       <button class="nav-tab" data-tab="tests">Test Results</button>
     </nav>
 
@@ -55,7 +56,7 @@
   P3 --> P4["Phase 4 — Validator (B) ✓"]
   P4 --> P4b["Phase 4b — OCE/IEE Stubs (B) ✓"]
   P4b --> P5["Phase 5 — Classification (B) ✓"]
-  P5 --> P6["Phase 6 — Properties (B)"]
+  P5 --> P6["Phase 6 — Properties (B) ✓"]
   P5 --> P9["Phase 9 — Relationships (B)"]
 
   P3 --> P11["Phase 11 — Sessions (C)"]
@@ -76,6 +77,7 @@
   style P4 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P4b fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P5 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P6 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f</pre>
       </div>
 
@@ -193,6 +195,40 @@
           <label>JSON-LD Output</label>
           <div class="factory-output" id="factory-output">
             Select a factory and click Generate.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Property Demo -->
+    <section class="section" id="section-property">
+      <h2 class="section-title">Property Workflow Demo</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Phase 6 property attachment with scope narrowing. Type a "has" statement,
+        then answer scope narrowing prompts to see where the property attaches.
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <div class="card" style="margin-bottom: 16px;">
+            <h3 class="card-title">Concept Hierarchy</h3>
+            <pre id="property-hierarchy" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); line-height: 1.8;"></pre>
+          </div>
+
+          <div class="field-group">
+            <label for="property-input">Property Statement</label>
+            <input type="text" id="property-input" placeholder='Try "A dog has fur"' value="A dog has fur">
+          </div>
+
+          <button class="btn btn--primary" id="property-run" style="margin-top: 8px;">Run Pipeline</button>
+
+          <div id="property-scope-prompts" style="margin-top: 16px;"></div>
+        </div>
+
+        <div class="playground-output">
+          <label>Pipeline Stages</label>
+          <div id="property-stages" class="pipeline-steps">
+            <div style="color: var(--text-muted);">Click "Run Pipeline" to see results.</div>
           </div>
         </div>
       </div>

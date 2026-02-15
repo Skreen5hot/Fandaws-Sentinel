@@ -233,6 +233,160 @@ describe('hydrate', () => {
 // dehydrate
 // ─────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────
+// SUP-05: Mixed restriction types in subClassOf
+// ─────────────────────────────────────────────────────────
+
+describe('hydrate — mixed restriction types (SUP-05)', () => {
+  it('correctly separates property restrictions, relationship restrictions, and BFO entries', () => {
+    const concept = makeConcept('fandaws:concept/golden-retriever', 'Golden Retriever');
+    concept['rdfs:subClassOf'] = [
+      'cco:Organism', // BFO/CCO class — bare string
+      {
+        '@id': 'fandaws:restriction/gr--friendly',
+        '@type': 'owl:Restriction',
+        'owl:onProperty': 'cco:is_bearer_of',
+        'owl:someValuesFrom': 'fandaws:disposition/friendly',
+        'fandaws:restrictionKind': 'property',
+        'fandaws:attachedTo': 'fandaws:concept/golden-retriever',
+        'fandaws:scope': 'concept-specific',
+      },
+      {
+        '@id': 'fandaws:restriction/gr--golden-coat',
+        '@type': 'owl:Restriction',
+        'owl:onProperty': 'cco:has_quality',
+        'owl:hasValue': 'fandaws:quality/golden-coat',
+        'fandaws:restrictionKind': 'property',
+        'fandaws:attachedTo': 'fandaws:concept/golden-retriever',
+        'fandaws:scope': 'concept-specific',
+      },
+      {
+        '@id': 'fandaws:rel/gr-chases-cat',
+        '@type': 'owl:Restriction',
+        'owl:onProperty': 'chases',
+        'owl:someValuesFrom': 'fandaws:concept/cat',
+        'fandaws:restrictionKind': 'relationship',
+        'fandaws:attachedTo': 'fandaws:concept/golden-retriever',
+      },
+    ];
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    // 2 property restrictions
+    expect(view.properties).toHaveLength(2);
+    expect(view.properties[0]['owl:onProperty']).toBe('cco:is_bearer_of');
+    expect(view.properties[1]['owl:hasValue']).toBe('fandaws:quality/golden-coat');
+
+    // 1 relationship restriction
+    expect(view.relationships).toHaveLength(1);
+    expect(view.relationships[0]['owl:onProperty']).toBe('chases');
+
+    // All 4 entries preserved in raw subClassOf
+    expect(view.subClassOf).toHaveLength(4);
+
+    // BFO class is in subClassOf but not in properties or relationships
+    expect(view.subClassOf[0]).toBe('cco:Organism');
+  });
+
+  it('handles empty subClassOf array', () => {
+    const concept = makeConcept('fandaws:concept/thing', 'Thing');
+    concept['rdfs:subClassOf'] = [];
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    expect(view.properties).toHaveLength(0);
+    expect(view.relationships).toHaveLength(0);
+    expect(view.subClassOf).toHaveLength(0);
+  });
+
+  it('handles subClassOf with only BFO entries (no restrictions)', () => {
+    const concept = makeConcept('fandaws:concept/organism', 'Organism');
+    concept['rdfs:subClassOf'] = ['bfo:Entity', 'cco:Organism'];
+    const graph = makeGraph([concept]);
+    const view = hydrate(concept, graph);
+
+    expect(view.properties).toHaveLength(0);
+    expect(view.relationships).toHaveLength(0);
+    expect(view.subClassOf).toHaveLength(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// SUP-06: Round-trip fidelity with restrictions
+// ─────────────────────────────────────────────────────────
+
+describe('hydrate/dehydrate — round-trip fidelity with restrictions (SUP-06)', () => {
+  it('restrictions survive hydrate → dehydrate → hydrate', () => {
+    const concept = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    concept['skos:altLabel'] = ['pupper', 'doggo'];
+    concept['skos:definition'] = 'A domesticated canine';
+    concept['rdfs:subClassOf'] = [
+      'cco:Organism',
+      {
+        '@id': 'fandaws:restriction/dog--fur',
+        '@type': 'owl:Restriction',
+        'owl:onProperty': 'fur',
+        'fandaws:restrictionKind': 'property',
+        'fandaws:attachedTo': 'fandaws:concept/dog',
+        'fandaws:scope': 'concept-specific',
+      },
+      {
+        '@id': 'fandaws:rel/dog-chases-cat',
+        '@type': 'owl:Restriction',
+        'owl:onProperty': 'chases',
+        'owl:someValuesFrom': 'fandaws:concept/cat',
+        'fandaws:restrictionKind': 'relationship',
+        'fandaws:attachedTo': 'fandaws:concept/dog',
+      },
+    ];
+
+    const graph = makeGraph([
+      makeConcept('fandaws:concept/animal', 'Animal'),
+      concept,
+    ]);
+
+    const view1 = hydrate(concept, graph);
+    const canonical = dehydrate(view1);
+    const view2 = hydrate(canonical, graph);
+
+    // All fields match after round-trip
+    expect(view2.id).toBe(view1.id);
+    expect(view2.label).toBe(view1.label);
+    expect(view2.prefLabel).toBe(view1.prefLabel);
+    expect(view2.broader).toBe(view1.broader);
+    expect(view2.definition).toBe(view1.definition);
+    expect(view2.altLabel).toEqual(view1.altLabel);
+    expect(view2.wasDerivedFrom).toEqual(view1.wasDerivedFrom);
+
+    // Restrictions preserved
+    expect(view2.properties).toHaveLength(1);
+    expect(view2.properties[0]['@id']).toBe('fandaws:restriction/dog--fur');
+    expect(view2.relationships).toHaveLength(1);
+    expect(view2.relationships[0]['@id']).toBe('fandaws:rel/dog-chases-cat');
+
+    // BFO entry preserved
+    expect(view2.subClassOf[0]).toBe('cco:Organism');
+  });
+
+  it('computed fields are not duplicated on round-trip', () => {
+    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const graph = makeGraph([concept]);
+
+    const view = hydrate(concept, graph);
+    const canonical = dehydrate(view);
+
+    // Computed fields must not leak into canonical form
+    expect(canonical.depth).toBeUndefined();
+    expect(canonical.children).toBeUndefined();
+    expect(canonical.properties).toBeUndefined();
+    expect(canonical.relationships).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// dehydrate
+// ─────────────────────────────────────────────────────────
+
 describe('dehydrate', () => {
   it('produces canonical output from view', () => {
     const view = {

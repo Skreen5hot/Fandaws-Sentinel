@@ -1471,3 +1471,151 @@ describe('InMemoryStateAdapter — edge cases', () => {
     expect(result['fandaws:concepts']).toHaveLength(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────
+// SUP-11: Index consistency after mutation sequences
+// ─────────────────────────────────────────────────────────
+
+describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', () => {
+  let adapter;
+
+  beforeEach(() => {
+    adapter = new InMemoryStateAdapter();
+    adapter.saveGraph(GRAPH_ID, makeGraph());
+  });
+
+  it('SUP-11a: create → reparent → verify all indices', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const mammal = makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal');
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+
+    // Create all three
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [mammal] }));
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
+
+    // Verify initial state: dog is child of animal
+    let idx = adapter.getIndices(GRAPH_ID);
+    expect(idx.iriToParent.get('fandaws:concept/dog')).toBe('fandaws:concept/animal');
+    expect(idx.iriToChildren.get('fandaws:concept/animal').has('fandaws:concept/dog')).toBe(true);
+
+    // Reparent dog → mammal
+    adapter.applyMutation(GRAPH_ID, makeMutation({
+      modifications: [{
+        '@id': 'fandaws:concept/dog',
+        'fandaws:field': 'skos:broader',
+        'fandaws:value': 'fandaws:concept/mammal',
+      }],
+    }));
+
+    // Rebuild indices (happens automatically in applyMutation)
+    idx = adapter.getIndices(GRAPH_ID);
+
+    // canonicalLabel index still works
+    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:concept/dog');
+
+    // parent index: dog's parent is now mammal
+    expect(idx.iriToParent.get('fandaws:concept/dog')).toBe('fandaws:concept/mammal');
+
+    // children index: animal has 1 child (mammal), NOT 2
+    const animalChildren = idx.iriToChildren.get('fandaws:concept/animal');
+    expect(animalChildren.has('fandaws:concept/mammal')).toBe(true);
+    expect(animalChildren.has('fandaws:concept/dog')).toBe(false);
+
+    // children index: mammal has 1 child (dog)
+    const mammalChildren = idx.iriToChildren.get('fandaws:concept/mammal');
+    expect(mammalChildren.has('fandaws:concept/dog')).toBe(true);
+
+    // No ghost pointers
+    expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
+  });
+
+  it('SUP-11b: create → delete leaf → verify index cleanup', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
+
+    // Delete dog (leaf)
+    adapter.applyMutation(GRAPH_ID, makeMutation({
+      deletions: ['fandaws:concept/dog'],
+    }));
+
+    const idx = adapter.getIndices(GRAPH_ID);
+
+    // canonicalLabel: "dog" should be gone
+    expect(idx.canonicalLabelToIri.has('dog')).toBe(false);
+
+    // parent index: no entry for dog
+    expect(idx.iriToParent.has('fandaws:concept/dog')).toBe(false);
+
+    // children index: animal should have no children
+    const animalChildren = idx.iriToChildren.get('fandaws:concept/animal');
+    expect(animalChildren.size).toBe(0);
+
+    // No ghost pointers
+    expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
+  });
+
+  it('SUP-11c: property addition updates iriToProperties index', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
+
+    // Add a property restriction
+    const furRestriction = {
+      '@id': 'fandaws:restriction/animal--fur',
+      '@type': 'owl:Restriction',
+      'owl:onProperty': 'fur',
+      'fandaws:restrictionKind': 'property',
+      'fandaws:attachedTo': 'fandaws:concept/animal',
+      'fandaws:scope': 'concept-specific',
+    };
+    adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [furRestriction] }));
+
+    const idx = adapter.getIndices(GRAPH_ID);
+
+    // iriToProperties should list the restriction
+    const animalProps = idx.iriToProperties.get('fandaws:concept/animal');
+    expect(animalProps).toBeDefined();
+    expect(animalProps.has('fandaws:restriction/animal--fur')).toBe(true);
+
+    // No ghost pointers
+    expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
+  });
+
+  it('SUP-11d: property removal via modification updates indices', () => {
+    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    animal['rdfs:subClassOf'] = [
+      {
+        '@id': 'fandaws:restriction/animal--fur',
+        '@type': 'owl:Restriction',
+        'owl:onProperty': 'fur',
+        'fandaws:restrictionKind': 'property',
+        'fandaws:attachedTo': 'fandaws:concept/animal',
+        'fandaws:scope': 'concept-specific',
+      },
+    ];
+    adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [animal] }));
+
+    // Verify property indexed
+    let idx = adapter.getIndices(GRAPH_ID);
+    expect(idx.iriToProperties.get('fandaws:concept/animal').size).toBe(1);
+
+    // Remove property by modifying rdfs:subClassOf to empty
+    adapter.applyMutation(GRAPH_ID, makeMutation({
+      modifications: [{
+        '@id': 'fandaws:concept/animal',
+        'fandaws:field': 'rdfs:subClassOf',
+        'fandaws:value': [],
+      }],
+    }));
+
+    idx = adapter.getIndices(GRAPH_ID);
+    const animalProps = idx.iriToProperties.get('fandaws:concept/animal');
+    expect(animalProps.size).toBe(0);
+
+    // No ghost pointers
+    expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
+  });
+});

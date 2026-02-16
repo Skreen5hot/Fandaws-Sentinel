@@ -1,9 +1,9 @@
 /**
  * SynchronousOrchestrationAdapter — single-threaded conversation orchestrator.
  *
- * Routes utterances to the correct pipeline (classification or property)
- * based on Classifier output. Manages conversation output for prompt/response
- * cycles in a synchronous, call-and-return model.
+ * Routes utterances to the correct pipeline (classification, property, or
+ * relationship) based on Classifier output. Manages conversation output for
+ * prompt/response cycles in a synchronous, call-and-return model.
  *
  * @see Fandaws_v3.3_Specification.md Section 12.4
  */
@@ -13,6 +13,7 @@ import { parse } from '../../core/nl-parser/nl-parser.js';
 import { classify } from '../../core/classifier/classifier.js';
 import { runClassificationPipeline } from '../../core/pipeline/classification-pipeline.js';
 import { runPropertyPipeline } from '../../core/pipeline/property-pipeline.js';
+import { runRelationshipPipeline } from '../../core/pipeline/relationship-pipeline.js';
 
 export class SynchronousOrchestrationAdapter extends OrchestrationAdapter {
   constructor() {
@@ -25,8 +26,8 @@ export class SynchronousOrchestrationAdapter extends OrchestrationAdapter {
   /**
    * Execute the full pipeline for a single utterance.
    *
-   * Routes to classification or property pipeline based on Classifier output.
-   * Custom relationships return unsupported-workflow (Phase 9).
+   * Routes to classification, property, or relationship pipeline based on
+   * Classifier output.
    *
    * @param {string} utterance - Raw user input
    * @param {object} context - { stateAdapter, graphId }
@@ -84,18 +85,7 @@ export class SynchronousOrchestrationAdapter extends OrchestrationAdapter {
         break;
 
       case 'customRelationship':
-        result = {
-          success: false,
-          graph: null,
-          mutation: null,
-          validation: null,
-          prompts: [],
-          descriptions: [],
-          parseResult,
-          classificationAction: action,
-          error: true,
-          errorReason: 'unsupported-workflow: customRelationship',
-        };
+        result = runRelationshipPipeline(utterance, context, options);
         break;
 
       default:

@@ -16,7 +16,8 @@ import { isConceptNode, isRestrictionNode } from '../../types/type-checks.js';
 /**
  * Check whether a mutation attempts to add multiple unrelated concepts
  * (a compound statement). A mutation is allowed to add multiple concepts
- * only if they form a single IS_A chain (parent→child).
+ * only if they form a single IS_A chain (parent→child) OR are connected
+ * through a relationship restriction in the same mutation.
  *
  * @param {object} mutation - GraphMutation JSON-LD node
  * @returns {object|null} Violation object or null if acceptable
@@ -27,13 +28,9 @@ export function checkCompoundStatement(mutation) {
 
   if (concepts.length <= 1) return null;
 
-  // Check if concepts form a single IS_A chain.
-  // Build a set of concept IRIs in this mutation.
   const iriSet = new Set(concepts.map((c) => c['@id']));
 
-  // For each concept, check if its parent is another concept in the same batch.
-  // A valid chain: every concept except one (the root of the chain) has its
-  // parent in the batch, and every concept except one (the leaf) is a parent.
+  // Check if concepts form a single IS_A chain.
   const childToParent = new Map();
   for (const concept of concepts) {
     const parent = concept['skos:broader'];
@@ -42,20 +39,31 @@ export function checkCompoundStatement(mutation) {
     }
   }
 
-  // In a single chain of N concepts, there are N-1 parent links within the batch.
   if (childToParent.size === concepts.length - 1) {
-    // Verify it's a single connected chain (not a forest with matching count).
-    const parentSet = new Set(childToParent.values());
     const childSet = new Set(childToParent.keys());
-    // The root is the concept that is a parent but not a child within the batch.
-    const roots = [...parentSet].filter((p) => !childSet.has(p));
-    // Also include concepts that are neither parent nor child within batch links.
-    const chainRoots = concepts.filter(
-      (c) => !childSet.has(c['@id']) && !parentSet.has(c['@id']),
-    );
-    // If there's exactly one concept that has no in-batch parent, it's a single chain.
     const topNodes = concepts.filter((c) => !childSet.has(c['@id']));
     if (topNodes.length === 1) return null;
+  }
+
+  // Check if concepts are connected through relationship restrictions
+  // in the same mutation (e.g., "Dogs chase cats" creates both + restriction).
+  const relationships = additions.filter(
+    (node) => isRestrictionNode(node) && node['fandaws:restrictionKind'] === 'relationship',
+  );
+
+  if (relationships.length > 0) {
+    const connected = new Set();
+    for (const rel of relationships) {
+      const subj = rel['fandaws:attachedTo'];
+      const obj = rel['owl:someValuesFrom'];
+      if (iriSet.has(subj)) connected.add(subj);
+      if (iriSet.has(obj)) connected.add(obj);
+    }
+    for (const [child, parent] of childToParent) {
+      connected.add(child);
+      connected.add(parent);
+    }
+    if (connected.size === concepts.length) return null;
   }
 
   return {

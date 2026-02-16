@@ -155,12 +155,11 @@ describe('SynchronousOrchestrationAdapter', () => {
   // ── Custom relationship ──
 
   describe('custom relationship handling', () => {
-    it('returns unsupported-workflow for custom relationships', () => {
+    it('routes custom relationships to relationship pipeline', () => {
       const result = orchestrator.runPipeline('Dogs chase cats', context);
-      expect(result.success).toBe(false);
-      expect(result.error).toBe(true);
-      expect(result.errorReason).toContain('unsupported-workflow');
-      expect(result.errorReason).toContain('customRelationship');
+      expect(result.success).toBe(true);
+      expect(result.error).toBe(false);
+      expect(result.normalizedVerb).toBe('chase');
     });
   });
 

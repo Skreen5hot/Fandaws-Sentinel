@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "8",
+  "currentPhase": "9",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -110,17 +110,17 @@
       "status": "complete",
       "track": null,
       "depends": [2, 5, 7],
-      "description": "Convergence gate. SynchronousOrchestrationAdapter routes utterances to classification/property pipelines. NullIntegrationAdapter for offline mode. 18-entry conversation simulation corpus (12 core + 6 adversarial). TagTeam Decision Gate: regex NLParser at 100%, ADR-003 accepted. 53 new tests across 3 new suites, 15 additional in 3 extended suites (68 total delta).",
-      "deliverables": ["SynchronousOrchestrationAdapter", "NullIntegrationAdapter", "conversation-simulation corpus (18 entries)", "ADR-003 TagTeam Decision Gate", "68 new tests (53 in 3 new suites + 15 in 3 extended)"]
+      "description": "Convergence gate. SynchronousOrchestrationAdapter routes utterances to classification/property/relationship pipelines. NullIntegrationAdapter for offline mode. 22-entry conversation simulation corpus (14 core + 8 adversarial). TagTeam Decision Gate: regex NLParser at 100%, ADR-003 accepted.",
+      "deliverables": ["SynchronousOrchestrationAdapter", "NullIntegrationAdapter", "conversation-simulation corpus (22 entries)", "ADR-003 TagTeam Decision Gate"]
     },
     {
       "id": 9,
       "name": "Relationships & Termidium",
-      "status": "not-started",
+      "status": "complete",
       "track": "B",
       "depends": [5],
-      "description": "Custom relationship workflow and Termidium 8-level deduplication engine with merge governance.",
-      "deliverables": ["relationship-workflow.js", "termidium.js", "15+ merge test cases"]
+      "description": "Custom relationship workflow ('X verb Y'), verb normalization (deterministic suffix-stripping lemmatizer), 7 validation checks (duplicate, inverse, hierarchy, reuse, promotion, refactoring, same-subtree), sub-relationship detection, Termidium 8-level bounded deduplication with 3-tier merge policy. 15-entry golden corpus, 88 new tests across 5 new suites.",
+      "deliverables": ["relationship-validation.js", "relationship-workflow.js", "relationship-pipeline.js", "termidium.js", "generateRelationshipIri", "normalizeVerb", "15 golden corpus cases", "88 new tests"]
     },
     {
       "id": 10,

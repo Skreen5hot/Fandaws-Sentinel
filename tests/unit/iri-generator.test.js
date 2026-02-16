@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { generateConceptIri, generatePropertyIri } from '../../src/core/knowledge-engine/iri-generator.js';
+import { generateConceptIri, generatePropertyIri, generateRelationshipIri } from '../../src/core/knowledge-engine/iri-generator.js';
 
 describe('generateConceptIri', () => {
   it('converts single-word canonical label to IRI', () => {
@@ -78,5 +78,43 @@ describe('generatePropertyIri', () => {
   it('throws on null/undefined', () => {
     expect(() => generatePropertyIri(null)).toThrow();
     expect(() => generatePropertyIri(undefined)).toThrow();
+  });
+});
+
+describe('generateRelationshipIri', () => {
+  it('generates triple-slug IRI from subject, verb, object', () => {
+    expect(generateRelationshipIri('dog', 'chase', 'cat')).toBe(
+      'fandaws:rel/dog--chase--cat',
+    );
+  });
+
+  it('handles multi-word canonical labels', () => {
+    expect(generateRelationshipIri('golden retriever', 'guard', 'small child')).toBe(
+      'fandaws:rel/golden-retriever--guard--small-child',
+    );
+  });
+
+  it('supports custom namespace', () => {
+    expect(generateRelationshipIri('dog', 'chase', 'cat', 'myns:rel')).toBe(
+      'myns:rel/dog--chase--cat',
+    );
+  });
+
+  it('throws on empty subject', () => {
+    expect(() => generateRelationshipIri('', 'chase', 'cat')).toThrow();
+  });
+
+  it('throws on empty verb', () => {
+    expect(() => generateRelationshipIri('dog', '', 'cat')).toThrow();
+  });
+
+  it('throws on empty object', () => {
+    expect(() => generateRelationshipIri('dog', 'chase', '')).toThrow();
+  });
+
+  it('throws on null arguments', () => {
+    expect(() => generateRelationshipIri(null, 'chase', 'cat')).toThrow();
+    expect(() => generateRelationshipIri('dog', null, 'cat')).toThrow();
+    expect(() => generateRelationshipIri('dog', 'chase', null)).toThrow();
   });
 });

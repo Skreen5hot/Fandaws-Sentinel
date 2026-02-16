@@ -1,0 +1,181 @@
+[
+  {
+    "id": "rel-both-new",
+    "note": "Both subject and object are new — creates 2 concepts + 1 relationship",
+    "utterance": "Dogs chase cats",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "relationshipCount": 1,
+      "normalizedVerb": "chase"
+    }
+  },
+  {
+    "id": "rel-subject-exists",
+    "note": "Subject exists, object is new — creates object concept + relationship",
+    "utterance": "A dog chases cats",
+    "setup": [
+      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "relationshipCount": 1
+    }
+  },
+  {
+    "id": "rel-both-exist",
+    "note": "Both exist — adds relationship restriction only",
+    "utterance": "A dog chases a cat",
+    "setup": [
+      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "relationshipCount": 1
+    }
+  },
+  {
+    "id": "rel-object-exists",
+    "note": "Object exists, subject is new — creates subject concept + relationship",
+    "utterance": "Dogs chase a cat",
+    "setup": [
+      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "relationshipCount": 1
+    }
+  },
+  {
+    "id": "rel-verb-normalization",
+    "note": "Verb is normalized (chases → chase)",
+    "utterance": "Dogs chases cats",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "chase"
+    }
+  },
+  {
+    "id": "rel-verb-past-tense",
+    "note": "Past tense verb normalized (chased → chase)",
+    "utterance": "Dogs chased cats",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "chase"
+    }
+  },
+  {
+    "id": "rel-verb-progressive",
+    "note": "Progressive verb normalized (chasing → chase)",
+    "utterance": "Dogs chasing cats",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "chase"
+    }
+  },
+  {
+    "id": "rel-verb-irregular",
+    "note": "Irregular verb normalized (ate → eat)",
+    "utterance": "Dogs ate food",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "eat"
+    }
+  },
+  {
+    "id": "rel-multiple-relationships",
+    "note": "Same subject with two different relationships — second relationship succeeds",
+    "utterance": "A dog guards a home",
+    "setup": [
+      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:concept/home", "canonicalLabel": "home", "displayLabel": "home", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "relationshipCount": 1
+    }
+  },
+  {
+    "id": "rel-with-property",
+    "note": "Relationship coexists with existing concept hierarchy",
+    "utterance": "A dog chases a cat",
+    "setup": [
+      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
+      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "relationshipCount": 1,
+      "conceptCount": 3
+    }
+  },
+  {
+    "id": "rel-description-generated",
+    "note": "Description is generated for subject concept",
+    "utterance": "A dog chases a cat",
+    "setup": [
+      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
+      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "hasDescriptions": true
+    }
+  },
+  {
+    "id": "rel-likes-verb",
+    "note": "Non-standard verb works (likes → like)",
+    "utterance": "A dog likes bones",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "like"
+    }
+  },
+  {
+    "id": "rel-teaches-verb",
+    "note": "Sibilant verb (teaches → teach)",
+    "utterance": "Dogs teaches tricks",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "teach"
+    }
+  },
+  {
+    "id": "rel-carries-verb",
+    "note": "IES suffix verb (carries → carry)",
+    "utterance": "Dogs carries toys",
+    "setup": [],
+    "expect": {
+      "success": true,
+      "normalizedVerb": "carry"
+    }
+  },
+  {
+    "id": "rel-sub-relationship",
+    "note": "Sub-relationship detected when ancestor has same verb",
+    "utterance": "A dog eats meat",
+    "setup": [
+      { "id": "fandaws:concept/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null, "relationships": [{ "id": "fandaws:rel/animal--eat--food", "verb": "eat", "object": "fandaws:concept/food" }] },
+      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:concept/animal" },
+      { "id": "fandaws:concept/food", "canonicalLabel": "food", "displayLabel": "food", "parent": null },
+      { "id": "fandaws:concept/meat", "canonicalLabel": "meat", "displayLabel": "meat", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "hasSubRestrictionOf": true
+    }
+  }
+]

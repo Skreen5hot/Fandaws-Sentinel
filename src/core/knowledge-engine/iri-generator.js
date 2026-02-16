@@ -59,3 +59,48 @@ export function generatePropertyIri(canonicalLabel, namespace = 'fandaws:propert
 
   return `${namespace}/${slug}`;
 }
+
+/**
+ * Slugify a string using the shared IRI slug algorithm.
+ *
+ * @param {string} input
+ * @returns {string}
+ */
+function slugify(input) {
+  return input
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Generate a deterministic relationship restriction IRI from subject, verb, and object slugs.
+ *
+ * @param {string} subjectCanonical - Canonical label of the subject
+ * @param {string} verb - Normalized verb
+ * @param {string} objectCanonical - Canonical label of the object
+ * @param {string} [namespace='fandaws:rel'] - IRI namespace prefix
+ * @returns {string} Relationship IRI (e.g., "fandaws:rel/dog--chase--cat")
+ */
+export function generateRelationshipIri(subjectCanonical, verb, objectCanonical, namespace = 'fandaws:rel') {
+  if (!subjectCanonical || typeof subjectCanonical !== 'string') {
+    throw new Error('generateRelationshipIri requires a non-empty subject');
+  }
+  if (!verb || typeof verb !== 'string') {
+    throw new Error('generateRelationshipIri requires a non-empty verb');
+  }
+  if (!objectCanonical || typeof objectCanonical !== 'string') {
+    throw new Error('generateRelationshipIri requires a non-empty object');
+  }
+
+  const subjectSlug = slugify(subjectCanonical);
+  const verbSlug = slugify(verb);
+  const objectSlug = slugify(objectCanonical);
+
+  if (!subjectSlug || !verbSlug || !objectSlug) {
+    throw new Error(`generateRelationshipIri produced empty slug from: "${subjectCanonical}", "${verb}", "${objectCanonical}"`);
+  }
+
+  return `${namespace}/${subjectSlug}--${verbSlug}--${objectSlug}`;
+}

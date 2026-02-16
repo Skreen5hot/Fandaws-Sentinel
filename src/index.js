@@ -81,11 +81,16 @@ export {
 
 // KnowledgeEngine (Phase 5)
 export { processClassification } from './core/knowledge-engine/knowledge-engine.js';
-export { generateConceptIri, generatePropertyIri } from './core/knowledge-engine/iri-generator.js';
+export { generateConceptIri, generatePropertyIri, generateRelationshipIri } from './core/knowledge-engine/iri-generator.js';
 
 // Property Workflow (Phase 6)
 export { processProperty } from './core/knowledge-engine/property-workflow.js';
 export { buildAncestorChain, narrowScope } from './core/knowledge-engine/scope-narrowing.js';
+
+// Relationship Workflow (Phase 9)
+export { processRelationship } from './core/knowledge-engine/relationship-workflow.js';
+export { normalizeVerb, validateRelationship } from './core/validator/relationship-validation.js';
+export { findDuplicates, computeDepth as computeMergeDepth, countAssertions, decideMergeWinner } from './core/validator/termidium.js';
 
 // ScopeResolver stub (Phase 5)
 export { resolveScope } from './core/scope-resolver/scope-resolver.js';
@@ -106,6 +111,9 @@ export { runClassificationPipeline } from './core/pipeline/classification-pipeli
 
 // Property Pipeline (Phase 6)
 export { runPropertyPipeline } from './core/pipeline/property-pipeline.js';
+
+// Relationship Pipeline (Phase 9)
+export { runRelationshipPipeline } from './core/pipeline/relationship-pipeline.js';
 
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';

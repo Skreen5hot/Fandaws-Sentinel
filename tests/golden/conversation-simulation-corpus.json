@@ -164,15 +164,73 @@
     ]
   },
   {
-    "id": "conv-custom-relationship-unsupported",
-    "note": "Custom relationship returns unsupported-workflow",
+    "id": "conv-relationship-basic",
+    "note": "Custom relationship creates concepts + relationship",
     "turns": [
       {
         "utterance": "Dogs chase cats",
         "options": {},
         "expect": {
+          "success": true,
+          "conceptCount": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-relationship-after-classification",
+    "note": "Relationship on classified concept: taxonomy + relationship coexist",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "A cat is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 3 }
+      },
+      {
+        "utterance": "A dog chases a cat",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-relationship-duplicate",
+    "note": "Duplicate relationship rejected on second attempt",
+    "turns": [
+      {
+        "utterance": "Dogs chase cats",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "Dogs chase cats",
+        "options": {},
+        "expect": {
           "success": false,
-          "errorContains": "unsupported-workflow"
+          "errorContains": "duplicate-relationship",
+          "conceptCount": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-relationship-verb-normalization",
+    "note": "Verb normalized: 'chases' stored as 'chase'",
+    "turns": [
+      {
+        "utterance": "Dogs chases cats",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 2
         }
       }
     ]
@@ -243,15 +301,15 @@
     ]
   },
   {
-    "id": "conv-adversarial-unrecognized-verb",
-    "note": "Unrecognized verb routes to customRelationship → unsupported-workflow",
+    "id": "conv-adversarial-custom-verb",
+    "note": "Non-standard verb routes to relationship pipeline (now succeeds)",
     "turns": [
       {
         "utterance": "A dog likes bones",
         "options": {},
         "expect": {
-          "success": false,
-          "errorContains": "unsupported-workflow"
+          "success": true,
+          "conceptCount": 2
         }
       }
     ]
@@ -296,21 +354,20 @@
   },
   {
     "id": "conv-adversarial-long-sentence",
-    "note": "Long non-matching sentence routes to customRelationship → unsupported",
+    "note": "Long sentence routes to relationship pipeline (now succeeds)",
     "turns": [
       {
         "utterance": "The quick brown fox jumped over the lazy dog",
         "options": {},
         "expect": {
-          "success": false,
-          "errorContains": "unsupported-workflow"
+          "success": true
         }
       }
     ]
   },
   {
     "id": "conv-full-scenario",
-    "note": "Full multi-turn: taxonomy + properties with integrity check",
+    "note": "Full multi-turn: taxonomy + properties + relationship with integrity check",
     "turns": [
       {
         "utterance": "A dog is an animal",
@@ -338,6 +395,11 @@
       },
       {
         "utterance": "An animal has cells",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A dog chases a cat",
         "options": {},
         "expect": { "success": true }
       }

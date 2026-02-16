@@ -8,19 +8,52 @@
 import * as Fandaws from '../dist/fandaws.js';
 
 // ─────────────────────────────────────────────────────────
-// Tab navigation
+// Tab navigation (ADR-004: dropdown sub-nav)
 // ─────────────────────────────────────────────────────────
 
-const tabs = document.querySelectorAll('.nav-tab');
+const navContainer = document.getElementById('nav-tabs');
 const sections = document.querySelectorAll('.section');
 
-tabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    tabs.forEach((t) => t.classList.remove('active'));
-    sections.forEach((s) => s.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(`section-${tab.dataset.tab}`).classList.add('active');
-  });
+function activateTab(tabId) {
+  navContainer.querySelectorAll('.nav-tab').forEach((t) => t.classList.remove('active'));
+  navContainer.querySelectorAll('.nav-dropdown-item').forEach((t) => t.classList.remove('active'));
+  sections.forEach((s) => s.classList.remove('active'));
+
+  const dropdown = document.querySelector('.nav-dropdown');
+  dropdown?.classList.remove('open');
+
+  const section = document.getElementById(`section-${tabId}`);
+  if (section) section.classList.add('active');
+
+  const topTab = navContainer.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+  const dropdownItem = navContainer.querySelector(`.nav-dropdown-item[data-tab="${tabId}"]`);
+
+  if (topTab) {
+    topTab.classList.add('active');
+  } else if (dropdownItem) {
+    dropdownItem.classList.add('active');
+    document.getElementById('demos-toggle')?.classList.add('active');
+  }
+}
+
+navContainer.querySelectorAll('.nav-tab[data-tab]').forEach((tab) => {
+  tab.addEventListener('click', () => activateTab(tab.dataset.tab));
+});
+
+const demosToggle = document.getElementById('demos-toggle');
+const demosDropdown = demosToggle?.closest('.nav-dropdown');
+
+demosToggle?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  demosDropdown?.classList.toggle('open');
+});
+
+navContainer.querySelectorAll('.nav-dropdown-item').forEach((item) => {
+  item.addEventListener('click', () => activateTab(item.dataset.tab));
+});
+
+document.addEventListener('click', () => {
+  demosDropdown?.classList.remove('open');
 });
 
 // ─────────────────────────────────────────────────────────
@@ -775,6 +808,212 @@ function updateDescription() {
 }
 
 // ─────────────────────────────────────────────────────────
+// Relationship Workflow Demo (Phase 9)
+// ─────────────────────────────────────────────────────────
+
+const REL_GRAPH_ID = 'fandaws:graph/rel-demo';
+let relAdapter = null;
+
+const REL_SCENARIOS = [
+  {
+    label: 'Basic: Dogs chase cats',
+    setup: ['A dog is an animal', 'A cat is an animal'],
+    utterance: 'A dog chases a cat',
+  },
+  {
+    label: 'Verb normalization: chasing → chase',
+    setup: [],
+    utterance: 'Dogs chasing cats',
+  },
+  {
+    label: 'Sub-relationship: dog eats meat (under animal eats food)',
+    setup: ['An animal is an entity', 'A dog is an animal', 'Food is an entity', 'Meat is a food', 'An animal eats food'],
+    utterance: 'A dog eats meat',
+  },
+  {
+    label: 'Multiple relationships on one concept',
+    setup: ['A dog is an animal', 'A cat is an animal', 'A home is an entity'],
+    utterance: 'A dog guards a home',
+    preRel: 'A dog chases a cat',
+  },
+];
+
+function initRelationshipDemo() {
+  const input = document.getElementById('rel-input');
+  const sendBtn = document.getElementById('rel-send');
+  const resetBtn = document.getElementById('rel-reset');
+  const examplesEl = document.getElementById('rel-examples');
+  if (!input) return;
+
+  resetRelDemo();
+
+  sendBtn.addEventListener('click', () => runRelDemo());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') runRelDemo();
+  });
+  resetBtn.addEventListener('click', () => {
+    resetRelDemo();
+    document.getElementById('rel-stages').innerHTML =
+      '<div style="color: var(--text-muted);">Graph reset. Type a relationship and click Run.</div>';
+    document.getElementById('rel-graph-state').textContent = 'Empty graph — no concepts yet.';
+  });
+
+  examplesEl.innerHTML = REL_SCENARIOS.map((sc, i) =>
+    `<button class="desc-example-btn" data-idx="${i}">${escapeHtml(sc.label)}</button>`,
+  ).join('');
+
+  examplesEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.desc-example-btn');
+    if (!btn) return;
+    const sc = REL_SCENARIOS[Number(btn.dataset.idx)];
+    if (!sc) return;
+
+    resetRelDemo();
+
+    // Run setup utterances through orchestrator
+    const orchestrator = new Fandaws.SynchronousOrchestrationAdapter();
+    const context = { stateAdapter: relAdapter, graphId: REL_GRAPH_ID };
+    for (const u of sc.setup) {
+      orchestrator.runPipeline(u, context);
+    }
+    if (sc.preRel) {
+      orchestrator.runPipeline(sc.preRel, context);
+    }
+
+    document.getElementById('rel-input').value = sc.utterance;
+    runRelDemo();
+  });
+}
+
+function resetRelDemo() {
+  relAdapter = new Fandaws.InMemoryStateAdapter();
+  relAdapter.saveGraph(REL_GRAPH_ID, Fandaws.createKnowledgeGraph({ id: REL_GRAPH_ID, concepts: [] }));
+}
+
+function runRelDemo() {
+  const input = document.getElementById('rel-input').value.trim();
+  if (!input) return;
+
+  const stages = document.getElementById('rel-stages');
+  stages.innerHTML = '';
+
+  const context = { stateAdapter: relAdapter, graphId: REL_GRAPH_ID };
+
+  // Stage 1: Parse
+  let parseResult;
+  try {
+    parseResult = Fandaws.parse(input);
+    addStage(stages, '1. Parse', parseResult
+      ? `subject: "${parseResult['fandaws:subject']}", verb: "${parseResult['fandaws:predicate']}", object: "${parseResult['fandaws:object']}"`
+      : 'Parse failed', !parseResult);
+  } catch (e) {
+    addStage(stages, '1. Parse', `Error: ${e.message}`, true);
+    return;
+  }
+  if (!parseResult) return;
+
+  // Stage 2: Classify
+  const action = Fandaws.classify(parseResult);
+  const workflow = action['fandaws:workflow'];
+  addStage(stages, '2. Classify', `workflow: ${workflow}`, workflow !== 'customRelationship');
+  if (workflow !== 'customRelationship') {
+    addStage(stages, '', `This demo handles relationship statements (e.g. "A dog chases a cat"). Try a verb other than "is/has".`, true);
+    return;
+  }
+
+  // Stage 3: Run relationship pipeline
+  const result = Fandaws.runRelationshipPipeline(input, context);
+
+  if (result.normalizedVerb) {
+    const rawVerb = action['fandaws:verb'] || parseResult['fandaws:predicate'] || '';
+    const note = rawVerb !== result.normalizedVerb ? ` (${rawVerb} → ${result.normalizedVerb})` : '';
+    addStage(stages, '3. Normalize Verb', `${result.normalizedVerb}${note}`, false);
+  }
+
+  if (result.success && result.mutation) {
+    const additions = result.mutation['fandaws:additions'] || [];
+    const newConcepts = additions.filter((n) => Array.isArray(n['@type']));
+    const relNodes = additions.filter((n) => n['fandaws:restrictionKind'] === 'relationship');
+    const relNode = relNodes[0];
+
+    addStage(stages, '4. Mutation', `${newConcepts.length} new concept(s), ${relNodes.length} relationship(s)`, false);
+
+    if (relNode) {
+      const attachedTo = relNode['fandaws:attachedTo'] || '?';
+      const objectIri = relNode['owl:someValuesFrom'] || '?';
+      const subRef = relNode['fandaws:subRestrictionOf'];
+      const subNote = subRef ? ` (sub-restriction of ${subRef})` : '';
+      addStage(stages, '5. Relationship', `${attachedTo.split('/').pop()} --[${relNode['owl:onProperty']}]--> ${objectIri.split('/').pop()}${subNote}`, false);
+    }
+
+    if (result.descriptions?.length > 0) {
+      const descText = result.descriptions.map((d) => `${d.conceptIri.split('/').pop()}: "${d.description}"`).join('\n');
+      addStage(stages, '6. Descriptions', descText, false);
+    }
+
+    addStage(stages, 'Mutation JSON-LD', JSON.stringify(result.mutation, null, 2), false, true);
+  } else if (result.error) {
+    addStage(stages, '4. Error', result.errorReason || 'unknown', true);
+  }
+
+  updateRelGraphState();
+}
+
+function updateRelGraphState() {
+  const graph = relAdapter.loadGraph(REL_GRAPH_ID);
+  const concepts = graph?.['fandaws:concepts'] || [];
+  const display = document.getElementById('rel-graph-state');
+
+  if (concepts.length === 0) {
+    display.textContent = 'Empty graph — no concepts yet.';
+    return;
+  }
+
+  const roots = concepts.filter((c) => !c['skos:broader']);
+  const byParent = new Map();
+  for (const c of concepts) {
+    const parent = c['skos:broader'] || '__root__';
+    if (!byParent.has(parent)) byParent.set(parent, []);
+    byParent.get(parent).push(c);
+  }
+
+  function annot(concept) {
+    const subs = concept['rdfs:subClassOf'] || [];
+    const rels = subs
+      .filter((r) => r['fandaws:restrictionKind'] === 'relationship')
+      .map((r) => {
+        const obj = r['owl:someValuesFrom'] || '?';
+        const objLabel = concepts.find((c) => c['@id'] === obj)?.['rdfs:label'] || obj.split('/').pop();
+        return `${r['owl:onProperty']} → ${objLabel}`;
+      });
+    const props = subs
+      .filter((r) => r['fandaws:restrictionKind'] === 'property')
+      .map((r) => r['owl:onProperty']);
+    const parts = [];
+    if (props.length > 0) parts.push(props.join(', '));
+    if (rels.length > 0) parts.push(rels.join(', '));
+    return parts.length > 0 ? `  [${parts.join(' | ')}]` : '';
+  }
+
+  const lines = [];
+  function renderTree(iri, depth) {
+    const children = byParent.get(iri) || [];
+    for (const child of children) {
+      const prefix = '  '.repeat(depth - 1) + '\u2514\u2500 ';
+      lines.push(`${prefix}${child['rdfs:label']}${annot(child)}`);
+      renderTree(child['@id'], depth + 1);
+    }
+  }
+
+  for (const root of roots) {
+    lines.push(`${root['rdfs:label']}${annot(root)}`);
+    renderTree(root['@id'], 1);
+  }
+
+  display.textContent = `${concepts.length} concept(s):\n\n${lines.join('\n')}`;
+}
+
+// ─────────────────────────────────────────────────────────
 // Conversation Demo (Phase 8)
 // ─────────────────────────────────────────────────────────
 
@@ -788,7 +1027,8 @@ let convScopeDecisions = new Map();
 const CONV_SCENARIOS = [
   { label: 'Build taxonomy: dog → animal', utterances: ['A dog is an animal', 'A cat is an animal', 'A poodle is a dog'] },
   { label: 'Add properties: dog has fur', utterances: ['A dog is an animal', 'A dog has fur'] },
-  { label: 'Full scenario: taxonomy + properties', utterances: ['A dog is an animal', 'A cat is an animal', 'A poodle is a dog', 'An animal has cells'] },
+  { label: 'Relationships: dog chases cat', utterances: ['A dog is an animal', 'A cat is an animal', 'A dog chases a cat'] },
+  { label: 'Full scenario: taxonomy + properties + relationships', utterances: ['A dog is an animal', 'A cat is an animal', 'A dog has fur', 'A dog chases a cat'] },
   { label: 'Error: circular classification', utterances: ['A dog is an animal', 'An animal is a dog'] },
 ];
 
@@ -956,27 +1196,37 @@ function updateConvGraphState() {
     byParent.get(parent).push(c);
   }
 
+  function conceptAnnotations(concept) {
+    const subs = concept['rdfs:subClassOf'] || [];
+    const props = subs
+      .filter((r) => r['fandaws:restrictionKind'] === 'property')
+      .map((r) => r['owl:onProperty']);
+    const rels = subs
+      .filter((r) => r['fandaws:restrictionKind'] === 'relationship')
+      .map((r) => {
+        const obj = r['owl:someValuesFrom'] || '?';
+        const objLabel = concepts.find((c) => c['@id'] === obj)?.['rdfs:label'] || obj.split('/').pop();
+        return `${r['owl:onProperty']} → ${objLabel}`;
+      });
+    const parts = [];
+    if (props.length > 0) parts.push(props.join(', '));
+    if (rels.length > 0) parts.push(rels.join(', '));
+    return parts.length > 0 ? `  [${parts.join(' | ')}]` : '';
+  }
+
   const lines = [];
   function renderTree(iri, depth) {
     const children = byParent.get(iri) || [];
     for (const child of children) {
       const prefix = depth === 0 ? '' : '  '.repeat(depth - 1) + '\u2514\u2500 ';
-      const props = (child['rdfs:subClassOf'] || [])
-        .filter((r) => r['fandaws:restrictionKind'] === 'property')
-        .map((r) => r['owl:onProperty']);
-      const propNote = props.length > 0 ? `  [${props.join(', ')}]` : '';
-      lines.push(`${prefix}${child['rdfs:label']}${propNote}`);
+      lines.push(`${prefix}${child['rdfs:label']}${conceptAnnotations(child)}`);
       renderTree(child['@id'], depth + 1);
     }
   }
 
   // Render roots first, then recurse
   for (const root of roots) {
-    const props = (root['rdfs:subClassOf'] || [])
-      .filter((r) => r['fandaws:restrictionKind'] === 'property')
-      .map((r) => r['owl:onProperty']);
-    const propNote = props.length > 0 ? `  [${props.join(', ')}]` : '';
-    lines.push(`${root['rdfs:label']}${propNote}`);
+    lines.push(`${root['rdfs:label']}${conceptAnnotations(root)}`);
     renderTree(root['@id'], 1);
   }
 
@@ -994,4 +1244,5 @@ renderFactoryParams();
 runPipeline();
 initPropertyDemo();
 initDescriptionDemo();
+initRelationshipDemo();
 initConversationDemo();

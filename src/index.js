@@ -115,6 +115,14 @@ export { runPropertyPipeline } from './core/pipeline/property-pipeline.js';
 // Relationship Pipeline (Phase 9)
 export { runRelationshipPipeline } from './core/pipeline/relationship-pipeline.js';
 
+// ExportEngine (Phase 10)
+export { exportGraph } from './core/export-engine/export-engine.js';
+export { exportSKOS } from './core/export-engine/skos-export.js';
+export { exportOWL } from './core/export-engine/owl-export.js';
+export { exportRDF } from './core/export-engine/rdf-xml-export.js';
+export { exportTurtle } from './core/export-engine/turtle-export.js';
+export { extractTriples, expandIri } from './core/export-engine/triple-extractor.js';
+
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';
 export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';

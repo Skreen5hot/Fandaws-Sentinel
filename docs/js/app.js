@@ -1234,6 +1234,77 @@ function updateConvGraphState() {
 }
 
 // ─────────────────────────────────────────────────────────
+// Export Demo (Phase 10)
+// ─────────────────────────────────────────────────────────
+
+function buildExportGraph() {
+  const entity = Fandaws.createConcept({ id: 'fandaws:concept/entity', label: 'Entity', prefLabel: 'entity' });
+  const living = Fandaws.createConcept({ id: 'fandaws:concept/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:concept/entity' });
+  const animal = Fandaws.createConcept({ id: 'fandaws:concept/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:concept/living-thing', definition: 'Animal is a Living Thing.' });
+  const dog = Fandaws.createConcept({ id: 'fandaws:concept/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:concept/animal', definition: 'Dog is an Animal that has fur.' });
+  const cat = Fandaws.createConcept({ id: 'fandaws:concept/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:concept/animal', definition: 'Cat is an Animal that has whiskers.' });
+
+  // Add property to dog
+  const furProp = Fandaws.createProperty({ id: 'fandaws:prop/dog--fur', propertyIri: 'fur', attachedTo: 'fandaws:concept/dog', value: 'yes' });
+  dog['rdfs:subClassOf'] = [furProp];
+
+  // Add property to cat
+  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:prop/cat--whiskers', propertyIri: 'whiskers', attachedTo: 'fandaws:concept/cat', value: 'yes' });
+  cat['rdfs:subClassOf'] = [whiskersProp];
+
+  // Add relationship: dog chases cat
+  const chaseRel = Fandaws.createRelationship({ id: 'fandaws:rel/dog--chase--cat', verbIri: 'chase', subject: 'fandaws:concept/dog', object: 'fandaws:concept/cat' });
+  dog['rdfs:subClassOf'].push(chaseRel);
+
+  return Fandaws.createKnowledgeGraph({ id: 'fandaws:graph/export-demo', concepts: [entity, living, animal, dog, cat] });
+}
+
+function initExportDemo() {
+  const formatSelect = document.getElementById('export-format');
+  const runBtn = document.getElementById('export-run');
+  const copyBtn = document.getElementById('export-copy');
+  const outputEl = document.getElementById('export-output');
+  const graphInfoEl = document.getElementById('export-graph-info');
+  if (!runBtn) return;
+
+  const graph = buildExportGraph();
+
+  // Show graph info
+  const concepts = graph['fandaws:concepts'] || [];
+  const lines = concepts.map(c => {
+    const parent = c['skos:broader'] ? ` → ${c['skos:broader'].replace('fandaws:concept/', '')}` : ' (root)';
+    const restrictions = (c['rdfs:subClassOf'] || []);
+    const props = restrictions.filter(r => r['fandaws:restrictionKind'] === 'property').map(r => r['owl:onProperty']);
+    const rels = restrictions.filter(r => r['fandaws:restrictionKind'] === 'relationship').map(r => `${r['owl:onProperty']} → ${r['owl:someValuesFrom'].replace('fandaws:concept/', '')}`);
+    let info = `${c['rdfs:label']}${parent}`;
+    if (props.length) info += ` [props: ${props.join(', ')}]`;
+    if (rels.length) info += ` [rels: ${rels.join(', ')}]`;
+    return info;
+  });
+  graphInfoEl.textContent = `${concepts.length} concepts:\n${lines.join('\n')}`;
+
+  runBtn.addEventListener('click', () => {
+    const format = formatSelect.value;
+    try {
+      const result = Fandaws.exportGraph(graph, { format });
+      outputEl.textContent = result;
+    } catch (e) {
+      outputEl.textContent = `Error: ${e.message}`;
+    }
+  });
+
+  copyBtn.addEventListener('click', () => {
+    const text = outputEl.textContent;
+    if (text && navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy to Clipboard'; }, 1500);
+      });
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -1245,4 +1316,5 @@ runPipeline();
 initPropertyDemo();
 initDescriptionDemo();
 initRelationshipDemo();
+initExportDemo();
 initConversationDemo();

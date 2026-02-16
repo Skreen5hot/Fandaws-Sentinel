@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "9",
+  "currentPhase": "10",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -125,11 +125,11 @@
     {
       "id": 10,
       "name": "ExportEngine",
-      "status": "not-started",
+      "status": "complete",
       "track": "A",
       "depends": [2],
-      "description": "Export knowledge graphs to external formats (SKOS, OWL, RDF/XML, Turtle).",
-      "deliverables": ["export-engine.js", "format adapters"]
+      "description": "Deterministic export of knowledge graphs to SKOS, OWL, RDF/XML, and Turtle formats. Shared triple extraction layer, Turtle and XML serializers, vocabulary-specific filters. 80 new tests across 5 suites.",
+      "deliverables": ["export-engine.js", "triple-extractor.js", "turtle-serializer.js", "xml-serializer.js", "skos-export.js", "owl-export.js", "turtle-export.js", "rdf-xml-export.js", "80 new tests"]
     },
     {
       "id": 11,

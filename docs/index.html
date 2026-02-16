@@ -18,8 +18,8 @@
       <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
-        <span class="badge badge--green" id="badge-phase">Phase 9 Complete</span>
-        <span class="badge badge--green" id="badge-tests">920/920 Tests Pass</span>
+        <span class="badge badge--green" id="badge-phase">Phase 10 Complete</span>
+        <span class="badge badge--green" id="badge-tests">1000/1000 Tests Pass</span>
       </div>
     </header>
 
@@ -34,6 +34,7 @@
           <button class="nav-dropdown-item" data-tab="property">Property Demo</button>
           <button class="nav-dropdown-item" data-tab="description">Description Demo</button>
           <button class="nav-dropdown-item" data-tab="relationship">Relationship Demo</button>
+          <button class="nav-dropdown-item" data-tab="export">Export Demo</button>
         </div>
       </div>
       <button class="nav-tab" data-tab="roadmap">Roadmap</button>
@@ -58,7 +59,7 @@
 
   P1 --> P2["Phase 2 — NLParser + Classifier ✓"]
   P3 --> P7["Phase 7 — DescriptionEngine ✓"]
-  P2 --> P10["Phase 10 — ExportEngine (A)"]
+  P2 --> P10["Phase 10 — ExportEngine (A) ✓"]
 
   P1 --> P3["Phase 3 — StateAdapter (B) ✓"]
   P3 --> P4["Phase 4 — Validator (B) ✓"]
@@ -88,7 +89,8 @@
   style P6 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P7 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P8 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
-  style P9 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c</pre>
+  style P9 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P10 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c</pre>
       </div>
 
       <div class="phase-grid" id="phase-grid">
@@ -382,6 +384,47 @@
               Empty graph — no concepts yet.
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Export Demo -->
+    <section class="section" id="section-export">
+      <h2 class="section-title">Export Demo</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Phase 10 ExportEngine. Export a knowledge graph to standard ontology formats:
+        SKOS, OWL, RDF/XML, or Turtle. The graph below is preloaded with a 5-concept
+        animal taxonomy including properties and a relationship.
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <div class="field-group">
+            <label for="export-format">Export Format</label>
+            <select id="export-format" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; font-size: 0.9rem;">
+              <option value="skos">SKOS (W3C SKOS Core)</option>
+              <option value="owl">OWL (W3C OWL 2)</option>
+              <option value="turtle" selected>Turtle (Full Vocabulary)</option>
+              <option value="rdf">RDF/XML (Full Vocabulary)</option>
+            </select>
+          </div>
+
+          <div style="margin-top: 12px;">
+            <button class="btn btn--primary" id="export-run" style="white-space: nowrap;">Export</button>
+            <button class="btn" id="export-copy" style="background: var(--surface-alt); border: 1px solid var(--border); font-size: 0.75rem; margin-left: 8px;">Copy to Clipboard</button>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label>Preloaded Graph</label>
+            <div id="export-graph-info" class="factory-output" style="max-height: 200px;">
+              Loading...
+            </div>
+          </div>
+        </div>
+
+        <div class="playground-output">
+          <label>Export Output</label>
+          <pre id="export-output" class="factory-output" style="max-height: 500px; white-space: pre; font-size: 0.8rem; overflow: auto;">Select a format and click Export.</pre>
         </div>
       </div>
     </section>

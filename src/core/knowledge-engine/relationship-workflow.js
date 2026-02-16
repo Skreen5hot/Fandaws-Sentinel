@@ -24,6 +24,19 @@ import { normalizeVerb } from '../validator/relationship-validation.js';
 import { isRestrictionNode } from '../../types/type-checks.js';
 
 /**
+ * Derive a consistent display label from raw text.
+ * Capitalizes the first letter to ensure subject and object
+ * labels are treated identically regardless of sentence position.
+ *
+ * @param {string} raw - Raw parsed term
+ * @returns {string}
+ */
+function displayLabel(raw) {
+  if (!raw) return raw;
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+/**
  * Find all concepts in the graph that match a canonical label.
  *
  * @param {string} canonicalLabel
@@ -202,7 +215,7 @@ export function processRelationship(action, graph, indices, options = {}) {
     const newSubject = {
       ...createConcept({
         id: subjectIri,
-        label: rawSubject,
+        label: displayLabel(rawSubject),
         prefLabel: subjectCanonical,
       }),
       'fandaws:allowRoot': true,
@@ -210,7 +223,7 @@ export function processRelationship(action, graph, indices, options = {}) {
     const newObject = {
       ...createConcept({
         id: objectIri,
-        label: rawObject,
+        label: displayLabel(rawObject),
         prefLabel: objectCanonical,
       }),
       'fandaws:allowRoot': true,
@@ -232,7 +245,7 @@ export function processRelationship(action, graph, indices, options = {}) {
     const newObject = {
       ...createConcept({
         id: objectIri,
-        label: rawObject,
+        label: displayLabel(rawObject),
         prefLabel: objectCanonical,
       }),
       'fandaws:allowRoot': true,
@@ -254,7 +267,7 @@ export function processRelationship(action, graph, indices, options = {}) {
     const newSubject = {
       ...createConcept({
         id: subjectIri,
-        label: rawSubject,
+        label: displayLabel(rawSubject),
         prefLabel: subjectCanonical,
       }),
       'fandaws:allowRoot': true,

@@ -248,6 +248,37 @@ describe('processRelationship', () => {
     });
   });
 
+  describe('display label capitalization (finding 10a)', () => {
+    it('capitalizes both subject and object labels consistently', () => {
+      const graph = makeGraph();
+      const indices = makeIndices([]);
+      // Simulates "Dogs chasing cats" — subject capitalized, object lowercase
+      const action = makeAction('Dogs', 'chase', 'cats');
+
+      const result = processRelationship(action, graph, indices);
+      const concepts = result.mutation['fandaws:additions'].filter(
+        (n) => Array.isArray(n['@type']),
+      );
+      expect(concepts).toHaveLength(2);
+      // Both should have capitalized display labels
+      expect(concepts[0]['rdfs:label']).toBe('Dogs');
+      expect(concepts[1]['rdfs:label']).toBe('Cats');
+    });
+
+    it('capitalizes object label when subject exists', () => {
+      const dog = makeConcept('fandaws:concept/dog', 'dog');
+      const graph = makeGraph([dog]);
+      const indices = makeIndices([dog]);
+      const action = makeAction('dog', 'chase', 'cats');
+
+      const result = processRelationship(action, graph, indices);
+      const newConcept = result.mutation['fandaws:additions'].find(
+        (n) => Array.isArray(n['@type']),
+      );
+      expect(newConcept['rdfs:label']).toBe('Cats');
+    });
+  });
+
   describe('error handling', () => {
     it('rejects invalid workflow', () => {
       const action = createClassificationAction({ workflow: 'classification', subject: 'dog', object: 'cat' });

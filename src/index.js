@@ -112,3 +112,7 @@ export { StateAdapter } from './adapters/state/state-adapter.js';
 export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';
 export { IntegrationAdapter } from './adapters/integration/integration-adapter.js';
 export { OrchestrationAdapter } from './adapters/orchestration/orchestration-adapter.js';
+
+// Adapter implementations (Phase 8)
+export { NullIntegrationAdapter } from './adapters/integration/null-integration-adapter.js';
+export { SynchronousOrchestrationAdapter } from './adapters/orchestration/synchronous-orchestration-adapter.js';

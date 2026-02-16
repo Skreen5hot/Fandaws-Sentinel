@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "7",
+  "currentPhase": "8",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7] },
@@ -107,11 +107,11 @@
     {
       "id": 8,
       "name": "Pipeline Integration",
-      "status": "not-started",
+      "status": "complete",
       "track": null,
       "depends": [2, 5, 7],
-      "description": "Convergence gate. Full user utterance → graph mutation pipeline. TagTeam Decision Gate.",
-      "deliverables": ["orchestration-adapter impl", "end-to-end pipeline", "TagTeam evaluation"]
+      "description": "Convergence gate. SynchronousOrchestrationAdapter routes utterances to classification/property pipelines. NullIntegrationAdapter for offline mode. 12-entry conversation simulation corpus. TagTeam Decision Gate: regex NLParser at 100%, ADR-003 accepted. 47 new tests across 3 suites.",
+      "deliverables": ["SynchronousOrchestrationAdapter", "NullIntegrationAdapter", "conversation-simulation corpus (12 entries)", "ADR-003 TagTeam Decision Gate", "47 new tests"]
     },
     {
       "id": 9,

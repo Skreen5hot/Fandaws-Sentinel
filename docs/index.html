@@ -18,8 +18,8 @@
       <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
-        <span class="badge badge--green" id="badge-phase">Phase 7 Complete</span>
-        <span class="badge badge--green" id="badge-tests">777/777 Tests Pass</span>
+        <span class="badge badge--green" id="badge-phase">Phase 8 Complete</span>
+        <span class="badge badge--green" id="badge-tests">824/824 Tests Pass</span>
       </div>
     </header>
 
@@ -30,6 +30,7 @@
       <button class="nav-tab" data-tab="types">Type Explorer</button>
       <button class="nav-tab" data-tab="property">Property Demo</button>
       <button class="nav-tab" data-tab="description">Description Demo</button>
+      <button class="nav-tab" data-tab="conversation">Conversation</button>
       <button class="nav-tab" data-tab="tests">Test Results</button>
     </nav>
 
@@ -63,7 +64,7 @@
   P3 --> P11["Phase 11 — Sessions (C)"]
   P11 --> P12["Phase 12 — Federation (C)"]
 
-  P2 --> P8["Phase 8 — Integration ★"]
+  P2 --> P8["Phase 8 — Integration ✓ ★"]
   P5 --> P8
   P7 --> P8
 
@@ -80,7 +81,7 @@
   style P5 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P6 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P7 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
-  style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f</pre>
+  style P8 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c</pre>
       </div>
 
       <div class="phase-grid" id="phase-grid">
@@ -328,6 +329,53 @@
             <label>Concept JSON-LD</label>
             <div class="factory-output" id="desc-json-output" style="max-height: 250px;">
               Select a concept to see its JSON-LD.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Conversation Demo -->
+    <section class="section" id="section-conversation">
+      <h2 class="section-title">Conversation Demo</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Phase 8 convergence gate — full utterance-to-graph pipeline via SynchronousOrchestrationAdapter.
+        Type natural language statements to build a knowledge graph interactively.
+        The adapter routes each utterance to the correct pipeline (classification or property).
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <div class="field-group">
+            <label for="conv-input">Utterance</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="conv-input" placeholder='Try "A dog is an animal"' style="flex: 1;">
+              <button class="btn btn--primary" id="conv-send" style="white-space: nowrap;">Send</button>
+            </div>
+          </div>
+
+          <div id="conv-scope-prompts" style="margin-top: 8px;"></div>
+
+          <h3 class="card-title" style="margin-top: 16px;">Quick Scenarios</h3>
+          <div id="conv-examples" class="desc-examples">
+            <!-- Populated by app.js -->
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button class="btn" id="conv-reset" style="background: var(--surface-alt); border: 1px solid var(--border); font-size: 0.75rem;">Reset Graph</button>
+          </div>
+        </div>
+
+        <div class="playground-output">
+          <label>Conversation Log</label>
+          <div id="conv-log" class="pipeline-steps" style="max-height: 300px; overflow-y: auto;">
+            <div style="color: var(--text-muted);">Type an utterance and click Send.</div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label>Graph State</label>
+            <div id="conv-graph-state" class="factory-output" style="max-height: 250px;">
+              Empty graph — no concepts yet.
             </div>
           </div>
         </div>

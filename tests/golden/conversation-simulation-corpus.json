@@ -1,0 +1,250 @@
+[
+  {
+    "id": "conv-basic-classification",
+    "note": "Single classification on empty graph",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 2,
+          "concepts": {
+            "dog": { "parent": "animal" },
+            "animal": { "parent": null }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-chain-build",
+    "note": "Build a 3-level chain: poodle → dog → animal",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "A poodle is a dog",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 3,
+          "concepts": {
+            "poodle": { "parent": "dog" },
+            "dog": { "parent": "animal" }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-sibling-concepts",
+    "note": "Two children of same parent: dog + cat under animal",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A cat is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 3,
+          "concepts": {
+            "dog": { "parent": "animal" },
+            "cat": { "parent": "animal" }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-property-root",
+    "note": "Property on root concept — no scope narrowing needed",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "An animal has cells",
+        "options": {},
+        "expect": {
+          "success": true,
+          "propertyOn": "fandaws:concept/animal",
+          "propertyLabel": "cells"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-property-with-scope-no",
+    "note": "Property with scope narrowing: parent=no → attach to subject",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A dog has fur",
+        "options": { "scopeDecisions": { "fandaws:concept/animal": false } },
+        "expect": {
+          "success": true,
+          "propertyOn": "fandaws:concept/dog",
+          "propertyLabel": "fur"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-property-with-scope-yes",
+    "note": "Property with scope narrowing: parent=yes → attach to parent",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A dog has fur",
+        "options": { "scopeDecisions": { "fandaws:concept/animal": true } },
+        "expect": {
+          "success": true,
+          "propertyOn": "fandaws:concept/animal",
+          "propertyLabel": "fur"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-error-empty-input",
+    "note": "Empty input returns error, graph unchanged",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "parse-error",
+          "conceptCount": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-error-circular",
+    "note": "Circular classification rejected, graph unchanged",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "An animal is a dog",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "circular",
+          "conceptCount": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-custom-relationship-unsupported",
+    "note": "Custom relationship returns unsupported-workflow",
+    "turns": [
+      {
+        "utterance": "Dogs chase cats",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "unsupported-workflow"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-determinism",
+    "note": "Same sequence × 3 runs → byte-identical graph",
+    "determinism": true,
+    "turns": [
+      { "utterance": "A dog is an animal", "options": {} },
+      { "utterance": "A cat is an animal", "options": {} },
+      { "utterance": "A poodle is a dog", "options": {} },
+      { "utterance": "An animal has cells", "options": {} }
+    ]
+  },
+  {
+    "id": "conv-idempotent-reclassification",
+    "note": "Re-asserting same classification is idempotent (no mutation)",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "mutationNull": true,
+          "conceptCount": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-full-scenario",
+    "note": "Full multi-turn: taxonomy + properties with integrity check",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A cat is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A poodle is a dog",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A dog has fur",
+        "options": { "scopeDecisions": { "fandaws:concept/animal": false } },
+        "expect": {
+          "success": true,
+          "propertyOn": "fandaws:concept/dog",
+          "propertyLabel": "fur"
+        }
+      },
+      {
+        "utterance": "An animal has cells",
+        "options": {},
+        "expect": { "success": true }
+      }
+    ],
+    "finalExpect": {
+      "conceptCount": 4,
+      "integrity": true
+    }
+  }
+]

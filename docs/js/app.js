@@ -775,6 +775,215 @@ function updateDescription() {
 }
 
 // ─────────────────────────────────────────────────────────
+// Conversation Demo (Phase 8)
+// ─────────────────────────────────────────────────────────
+
+const CONV_GRAPH_ID = 'fandaws:graph/conversation';
+let convAdapter = null;
+let convOrchestrator = null;
+let convTurnCount = 0;
+let convPendingUtterance = null;
+let convScopeDecisions = new Map();
+
+const CONV_SCENARIOS = [
+  { label: 'Build taxonomy: dog → animal', utterances: ['A dog is an animal', 'A cat is an animal', 'A poodle is a dog'] },
+  { label: 'Add properties: dog has fur', utterances: ['A dog is an animal', 'A dog has fur'] },
+  { label: 'Full scenario: taxonomy + properties', utterances: ['A dog is an animal', 'A cat is an animal', 'A poodle is a dog', 'An animal has cells'] },
+  { label: 'Error: circular classification', utterances: ['A dog is an animal', 'An animal is a dog'] },
+];
+
+function initConversationDemo() {
+  const input = document.getElementById('conv-input');
+  const sendBtn = document.getElementById('conv-send');
+  const resetBtn = document.getElementById('conv-reset');
+  const examplesEl = document.getElementById('conv-examples');
+  if (!input) return;
+
+  resetConversation();
+
+  sendBtn.addEventListener('click', () => sendConversation());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendConversation();
+  });
+  resetBtn.addEventListener('click', () => {
+    resetConversation();
+    document.getElementById('conv-log').innerHTML =
+      '<div style="color: var(--text-muted);">Graph reset. Type an utterance and click Send.</div>';
+    document.getElementById('conv-graph-state').textContent = 'Empty graph — no concepts yet.';
+  });
+
+  // Render scenario buttons
+  examplesEl.innerHTML = CONV_SCENARIOS.map((sc, i) =>
+    `<button class="desc-example-btn" data-idx="${i}">${escapeHtml(sc.label)}</button>`,
+  ).join('');
+
+  examplesEl.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.desc-example-btn');
+    if (!btn) return;
+    const sc = CONV_SCENARIOS[Number(btn.dataset.idx)];
+    if (!sc) return;
+
+    resetConversation();
+    document.getElementById('conv-log').innerHTML = '';
+
+    for (const utterance of sc.utterances) {
+      document.getElementById('conv-input').value = utterance;
+      sendConversation();
+    }
+  });
+}
+
+function resetConversation() {
+  convAdapter = new Fandaws.InMemoryStateAdapter();
+  convAdapter.saveGraph(CONV_GRAPH_ID, Fandaws.createKnowledgeGraph({ id: CONV_GRAPH_ID, concepts: [] }));
+  convOrchestrator = new Fandaws.SynchronousOrchestrationAdapter();
+  convTurnCount = 0;
+  convPendingUtterance = null;
+  convScopeDecisions = new Map();
+  document.getElementById('conv-scope-prompts').innerHTML = '';
+}
+
+function sendConversation() {
+  const input = document.getElementById('conv-input');
+  const utterance = input.value.trim();
+  if (!utterance) return;
+
+  const log = document.getElementById('conv-log');
+  const promptArea = document.getElementById('conv-scope-prompts');
+
+  // Clear previous prompts if this is a new utterance
+  if (utterance !== convPendingUtterance) {
+    convScopeDecisions = new Map();
+    convPendingUtterance = null;
+  }
+  promptArea.innerHTML = '';
+
+  convTurnCount++;
+  const context = { stateAdapter: convAdapter, graphId: CONV_GRAPH_ID };
+  const options = convScopeDecisions.size > 0 ? { scopeDecisions: convScopeDecisions } : {};
+
+  const result = convOrchestrator.runPipeline(utterance, context, options);
+
+  // Add user turn to log
+  if (convPendingUtterance !== utterance) {
+    const userDiv = document.createElement('div');
+    userDiv.className = 'pipeline-step';
+    userDiv.innerHTML = `<span class="step-number">${convTurnCount}</span><span class="step-label" style="min-width: 50px; color: var(--accent);">You</span><span class="step-result" style="color: var(--text-primary);">${escapeHtml(utterance)}</span>`;
+    log.appendChild(userDiv);
+  }
+
+  // Determine workflow used
+  const workflow = result.classificationAction
+    ? result.classificationAction['fandaws:workflow']
+    : result.propertyAction
+      ? 'property'
+      : result.parseResult?.['fandaws:verbType'] || '?';
+
+  // Add system response
+  const sysDiv = document.createElement('div');
+  sysDiv.className = 'pipeline-step';
+
+  if (result.prompts && result.prompts.length > 0 && !result.success && !result.error) {
+    // Scope narrowing prompts
+    const pipelineLabel = `[${workflow}]`;
+    sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result step-result--changed">${escapeHtml(pipelineLabel)} Scope narrowing: answer below</span>`;
+    log.appendChild(sysDiv);
+
+    // Render scope prompts
+    convPendingUtterance = utterance;
+    for (const prompt of result.prompts) {
+      const text = prompt['fandaws:text'] || 'Scope question';
+      const ctx = prompt['fandaws:context'] || {};
+      const conceptIri = ctx.conceptIri || '';
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.style.cssText = 'margin-bottom: 8px; padding: 12px;';
+      div.innerHTML = `
+        <p style="margin-bottom: 8px; color: var(--accent);">${escapeHtml(text)}</p>
+        <button class="btn btn--primary conv-scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="true" style="margin-right: 8px;">Yes</button>
+        <button class="btn conv-scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="false" style="background: var(--surface-alt); border: 1px solid var(--border);">No</button>
+      `;
+      promptArea.appendChild(div);
+    }
+
+    promptArea.querySelectorAll('.conv-scope-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        convScopeDecisions.set(btn.dataset.iri, btn.dataset.answer === 'true');
+        sendConversation();
+      });
+    });
+  } else if (result.success) {
+    const conceptCount = (result.graph?.['fandaws:concepts'] || []).length;
+    const mutationNote = result.mutation ? 'graph updated' : 'no-op (idempotent)';
+    const descNote = result.descriptions?.length > 0
+      ? ` — "${result.descriptions[0].description}"`
+      : '';
+    sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result step-result--changed">[${escapeHtml(workflow)}] ${escapeHtml(mutationNote)}, ${conceptCount} concept(s)${escapeHtml(descNote)}</span>`;
+    log.appendChild(sysDiv);
+    convPendingUtterance = null;
+    convScopeDecisions = new Map();
+    input.value = '';
+  } else {
+    sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result" style="color: #f87171;">[${escapeHtml(workflow)}] Error: ${escapeHtml(result.errorReason || 'unknown')}</span>`;
+    log.appendChild(sysDiv);
+    convPendingUtterance = null;
+    convScopeDecisions = new Map();
+  }
+
+  // Scroll log to bottom
+  log.scrollTop = log.scrollHeight;
+
+  // Update graph state display
+  updateConvGraphState();
+}
+
+function updateConvGraphState() {
+  const graph = convAdapter.loadGraph(CONV_GRAPH_ID);
+  const concepts = graph?.['fandaws:concepts'] || [];
+  const display = document.getElementById('conv-graph-state');
+
+  if (concepts.length === 0) {
+    display.textContent = 'Empty graph — no concepts yet.';
+    return;
+  }
+
+  // Build a compact tree view
+  const roots = concepts.filter((c) => !c['skos:broader']);
+  const byParent = new Map();
+  for (const c of concepts) {
+    const parent = c['skos:broader'] || '__root__';
+    if (!byParent.has(parent)) byParent.set(parent, []);
+    byParent.get(parent).push(c);
+  }
+
+  const lines = [];
+  function renderTree(iri, depth) {
+    const children = byParent.get(iri) || [];
+    for (const child of children) {
+      const prefix = depth === 0 ? '' : '  '.repeat(depth - 1) + '\u2514\u2500 ';
+      const props = (child['rdfs:subClassOf'] || [])
+        .filter((r) => r['fandaws:restrictionKind'] === 'property')
+        .map((r) => r['owl:onProperty']);
+      const propNote = props.length > 0 ? `  [${props.join(', ')}]` : '';
+      lines.push(`${prefix}${child['rdfs:label']}${propNote}`);
+      renderTree(child['@id'], depth + 1);
+    }
+  }
+
+  // Render roots first, then recurse
+  for (const root of roots) {
+    const props = (root['rdfs:subClassOf'] || [])
+      .filter((r) => r['fandaws:restrictionKind'] === 'property')
+      .map((r) => r['owl:onProperty']);
+    const propNote = props.length > 0 ? `  [${props.join(', ')}]` : '';
+    lines.push(`${root['rdfs:label']}${propNote}`);
+    renderTree(root['@id'], 1);
+  }
+
+  display.textContent = `${concepts.length} concept(s):\n\n${lines.join('\n')}`;
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -785,3 +994,4 @@ renderFactoryParams();
 runPipeline();
 initPropertyDemo();
 initDescriptionDemo();
+initConversationDemo();

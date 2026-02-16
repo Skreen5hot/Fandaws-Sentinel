@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-02-15T20:00:00.000Z",
+  "generatedAt": "2026-02-16T00:00:00.000Z",
   "success": true,
-  "totalSuites": 43,
-  "passedSuites": 43,
+  "totalSuites": 46,
+  "passedSuites": 46,
   "failedSuites": 0,
-  "totalTests": 777,
-  "passedTests": 777,
+  "totalTests": 824,
+  "passedTests": 824,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -309,6 +309,27 @@
       "failed": 0,
       "skipped": 0,
       "duration": 1003
+    },
+    {
+      "name": "unit/null-integration-adapter.test.js",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 650
+    },
+    {
+      "name": "unit/synchronous-orchestration-adapter.test.js",
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 950
+    },
+    {
+      "name": "integration/conversation-simulation.test.js",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "duration": 1100
     }
   ]
 }

@@ -209,6 +209,106 @@
     ]
   },
   {
+    "id": "conv-adversarial-gibberish",
+    "note": "Gibberish input returns parse error, graph unchanged",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "xyzzy plugh",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "parse-error",
+          "conceptCount": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-adversarial-single-word",
+    "note": "Single word input returns parse error",
+    "turns": [
+      {
+        "utterance": "dog",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "parse-error"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-adversarial-unrecognized-verb",
+    "note": "Unrecognized verb routes to customRelationship → unsupported-workflow",
+    "turns": [
+      {
+        "utterance": "A dog likes bones",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "unsupported-workflow"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-adversarial-reclassification",
+    "note": "Reclassification: 'dog is a cat' moves dog from animal to cat",
+    "turns": [
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "A dog is a cat",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 3,
+          "concepts": {
+            "dog": { "parent": "cat" },
+            "cat": { "parent": null },
+            "animal": { "parent": null }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-adversarial-special-characters",
+    "note": "Special characters return parse error",
+    "turns": [
+      {
+        "utterance": "!!!",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "parse-error"
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-adversarial-long-sentence",
+    "note": "Long non-matching sentence routes to customRelationship → unsupported",
+    "turns": [
+      {
+        "utterance": "The quick brown fox jumped over the lazy dog",
+        "options": {},
+        "expect": {
+          "success": false,
+          "errorContains": "unsupported-workflow"
+        }
+      }
+    ]
+  },
+  {
     "id": "conv-full-scenario",
     "note": "Full multi-turn: taxonomy + properties with integrity check",
     "turns": [

@@ -110,8 +110,8 @@
       "status": "complete",
       "track": null,
       "depends": [2, 5, 7],
-      "description": "Convergence gate. SynchronousOrchestrationAdapter routes utterances to classification/property pipelines. NullIntegrationAdapter for offline mode. 12-entry conversation simulation corpus. TagTeam Decision Gate: regex NLParser at 100%, ADR-003 accepted. 47 new tests across 3 suites.",
-      "deliverables": ["SynchronousOrchestrationAdapter", "NullIntegrationAdapter", "conversation-simulation corpus (12 entries)", "ADR-003 TagTeam Decision Gate", "47 new tests"]
+      "description": "Convergence gate. SynchronousOrchestrationAdapter routes utterances to classification/property pipelines. NullIntegrationAdapter for offline mode. 18-entry conversation simulation corpus (12 core + 6 adversarial). TagTeam Decision Gate: regex NLParser at 100%, ADR-003 accepted. 53 new tests across 3 new suites, 15 additional in 3 extended suites (68 total delta).",
+      "deliverables": ["SynchronousOrchestrationAdapter", "NullIntegrationAdapter", "conversation-simulation corpus (18 entries)", "ADR-003 TagTeam Decision Gate", "68 new tests (53 in 3 new suites + 15 in 3 extended)"]
     },
     {
       "id": 9,

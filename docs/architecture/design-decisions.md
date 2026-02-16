@@ -61,3 +61,43 @@ Decisions made during implementation, with rationale.
 - Phase 9 custom relationship corpus reveals parsing failures > 5%
 - User testing surfaces common utterance patterns the regex parser cannot handle
 - Cross-lingual support requirements extend beyond locale-specific patterns
+
+## ADR-004: Navigation Restructure Plan
+
+**Status:** Proposed
+**Date:** 2026-02-16
+**Context:** The stakeholder review site now has 7 horizontal tabs (Roadmap, Identity Playground, Type Explorer, Property Demo, Description Demo, Conversation, Test Results). Phase 9 (Relationships) will likely need a demo tab, pushing to 8. The horizontal tab bar is at capacity.
+
+**Decision:** Before Phase 9 adds a new tab, consolidate per-phase demo tabs into a single "Demos" tab with an internal sub-navigation (dropdown or vertical sidebar). Keep Roadmap, Conversation (primary product demo), and Test Results as top-level tabs.
+
+**Proposed structure:**
+```
+[Conversation] [Demos ▾] [Roadmap] [Test Results]
+                  └─ Identity Playground
+                  └─ Type Explorer
+                  └─ Classification (was implicit in playground)
+                  └─ Property Demo
+                  └─ Description Demo
+                  └─ Relationship Demo (Phase 9)
+```
+
+**Rationale:**
+1. Conversation tab is the primary product demo and should remain prominent
+2. Component-level demos (identity, types, property, description) are developer/review tools, not end-user features
+3. Sub-navigation scales to Phase 12+ without horizontal overflow
+4. Roadmap and Test Results are cross-cutting concerns, not phase-specific demos
+
+**Implementation:** Phase 9 pre-work, before the Relationship Demo tab is added.
+
+## ADR-005: Adapter Performance Tracking
+
+**Status:** Noted
+**Date:** 2026-02-16
+**Context:** The InMemoryStateAdapter test suite duration increased from ~2,925ms (Phase 7) to ~3,337ms (Phase 8), a 14% regression. The suite count (93 tests) did not change, suggesting heavier graph state in test fixtures due to more concepts, properties, and index maintenance per snapshot.
+
+**Observation:** Not blocking. The regression is attributable to richer graph state in shared test infrastructure rather than algorithmic degradation. However, by Phase 12 (Federation) with cross-graph queries and larger fixture graphs, this trend could compound.
+
+**Action items:**
+- Monitor adapter suite duration each phase (target: < 5s)
+- If duration exceeds 5s, profile `snapshot-and-swap` and index rebuild paths
+- Consider fixture partitioning (small/medium/large graph fixtures) if growth continues

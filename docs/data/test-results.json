@@ -4,8 +4,8 @@
   "totalSuites": 46,
   "passedSuites": 46,
   "failedSuites": 0,
-  "totalTests": 824,
-  "passedTests": 824,
+  "totalTests": 830,
+  "passedTests": 830,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -326,7 +326,7 @@
     },
     {
       "name": "integration/conversation-simulation.test.js",
-      "passed": 15,
+      "passed": 21,
       "failed": 0,
       "skipped": 0,
       "duration": 1100

@@ -14,11 +14,11 @@
     "id": "prop-root-attach",
     "utterance": "An animal has cells",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
     ],
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/animal",
+      "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
       "propertyLabel": "cells",
       "scope": "concept-specific"
     },
@@ -28,13 +28,13 @@
     "id": "prop-parent-no",
     "utterance": "A dog has fur",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
-    "scopeDecisions": { "fandaws:concept/animal": false },
+    "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": false },
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/dog",
+      "propertyOn": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog",
       "propertyLabel": "fur",
       "scope": "concept-specific"
     },
@@ -44,13 +44,13 @@
     "id": "prop-parent-yes",
     "utterance": "A dog has fur",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
-    "scopeDecisions": { "fandaws:concept/animal": true },
+    "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": true },
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/animal",
+      "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
       "propertyLabel": "fur",
       "scope": "inherited"
     },
@@ -60,20 +60,20 @@
     "id": "prop-leap-both-yes",
     "utterance": "A dog has cells",
     "setup": [
-      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
-      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+      { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
     ],
     "scopeDecisions": {
-      "fandaws:concept/canine": true,
-      "fandaws:concept/entity": true
+      "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": true,
+      "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity": true
     },
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/entity",
+      "propertyOn": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity",
       "propertyLabel": "cells",
       "scope": "inherited"
     },
@@ -83,20 +83,20 @@
     "id": "prop-leap-parent-no",
     "utterance": "A dog has a collar",
     "setup": [
-      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
-      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+      { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
     ],
     "scopeDecisions": {
-      "fandaws:concept/canine": false,
-      "fandaws:concept/entity": false
+      "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": false,
+      "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity": false
     },
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/dog",
+      "propertyOn": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog",
       "propertyLabel": "collar",
       "scope": "concept-specific"
     },
@@ -106,16 +106,16 @@
     "id": "prop-leap-diverge",
     "utterance": "A dog has fur",
     "setup": [
-      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
-      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+      { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
     ],
     "scopeDecisions": {
-      "fandaws:concept/canine": true,
-      "fandaws:concept/entity": false
+      "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": true,
+      "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity": false
     },
     "expect": {
       "success": false,
@@ -127,22 +127,22 @@
     "id": "prop-leap-binary-converge",
     "utterance": "A dog has fur",
     "setup": [
-      { "id": "fandaws:concept/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
-      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:concept/entity" },
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:concept/mammal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/canine" }
+      { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "displayLabel": "Entity", "canonicalLabel": "entity" },
+      { "id": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing", "parent": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
     ],
     "scopeDecisions": {
-      "fandaws:concept/canine": true,
-      "fandaws:concept/entity": false,
-      "fandaws:concept/animal": true,
-      "fandaws:concept/living-thing": false
+      "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": true,
+      "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity": false,
+      "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": true,
+      "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing": false
     },
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/animal",
+      "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
       "propertyLabel": "fur",
       "scope": "inherited"
     },
@@ -152,10 +152,10 @@
     "id": "prop-duplicate",
     "utterance": "An animal has cells",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
     ],
     "preAttach": [
-      { "concept": "fandaws:concept/animal", "propertyLabel": "cells" }
+      { "concept": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "propertyLabel": "cells" }
     ],
     "expect": {
       "success": true,
@@ -167,13 +167,13 @@
     "id": "prop-ancestor-overlap",
     "utterance": "A dog has cells",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "preAttach": [
-      { "concept": "fandaws:concept/animal", "propertyLabel": "cells" }
+      { "concept": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "propertyLabel": "cells" }
     ],
-    "scopeDecisions": { "fandaws:concept/animal": false },
+    "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": false },
     "expect": {
       "success": false,
       "errorContains": "engine-error"
@@ -184,16 +184,16 @@
     "id": "prop-descendant-overlap",
     "utterance": "A dog has fur",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "preAttach": [
-      { "concept": "fandaws:concept/dog", "propertyLabel": "fur" }
+      { "concept": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "propertyLabel": "fur" }
     ],
-    "scopeDecisions": { "fandaws:concept/animal": true },
+    "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": true },
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/animal",
+      "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
       "propertyLabel": "fur"
     },
     "note": "Descendant has property → accepted with removal"
@@ -202,10 +202,10 @@
     "id": "prop-idempotent",
     "utterance": "An animal has cells",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
     ],
     "preAttach": [
-      { "concept": "fandaws:concept/animal", "propertyLabel": "cells" }
+      { "concept": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "propertyLabel": "cells" }
     ],
     "expect": {
       "success": true,
@@ -217,8 +217,8 @@
     "id": "prop-multiword",
     "utterance": "A golden retriever has soft fur",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/golden-retriever", "displayLabel": "Golden Retriever", "canonicalLabel": "golden retriever", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever", "displayLabel": "Golden Retriever", "canonicalLabel": "golden retriever", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "expect": {
       "success": false,
@@ -230,8 +230,8 @@
     "id": "prop-have-plural",
     "utterance": "Dogs have four legs",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dogs", "displayLabel": "Dogs", "canonicalLabel": "dogs", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/26e7809b-0d05-53e6-9a07-d6ca0b180f36/dogs", "displayLabel": "Dogs", "canonicalLabel": "dogs", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "expect": {
       "success": false,
@@ -243,8 +243,8 @@
     "id": "prop-disambiguation",
     "utterance": "A bat has wings",
     "setup": [
-      { "id": "fandaws:concept/bat-animal", "displayLabel": "Bat (animal)", "canonicalLabel": "bat" },
-      { "id": "fandaws:concept/bat-equipment", "displayLabel": "Bat (equipment)", "canonicalLabel": "bat" }
+      { "id": "fandaws:class/57466c9a-e0ce-5e75-9e77-9f4515a87abc/bat-animal", "displayLabel": "Bat (animal)", "canonicalLabel": "bat" },
+      { "id": "fandaws:class/92570701-f1e1-5977-8cce-092757d30b01/bat-equipment", "displayLabel": "Bat (equipment)", "canonicalLabel": "bat" }
     ],
     "expect": {
       "success": false,
@@ -257,14 +257,14 @@
     "id": "prop-value-concept",
     "utterance": "An animal has fur",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
     ],
     "expect": {
       "success": true,
-      "propertyOn": "fandaws:concept/animal",
+      "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
       "propertyLabel": "fur",
-      "hasValue": "fandaws:concept/fur"
+      "hasValue": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur"
     },
     "note": "Property term is a known concept → owl:hasValue = concept IRI"
   }

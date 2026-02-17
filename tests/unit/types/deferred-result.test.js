@@ -14,11 +14,11 @@ describe('createDeferredResult', () => {
   it('sets all required fields', () => {
     const result = createDeferredResult({
       operation: 'lookupBFO',
-      input: { concept: 'fandaws:concept/dog' },
+      input: { concept: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog' },
       reason: 'service unavailable',
     });
     expect(result['fandaws:operation']).toBe('lookupBFO');
-    expect(result['fandaws:input']).toEqual({ concept: 'fandaws:concept/dog' });
+    expect(result['fandaws:input']).toEqual({ concept: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog' });
     expect(result['fandaws:reason']).toBe('service unavailable');
   });
 

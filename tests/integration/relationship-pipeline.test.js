@@ -68,8 +68,8 @@ describe('Relationship Pipeline Integration', () => {
   });
 
   it('pipeline with existing concepts', () => {
-    const dog = createConcept({ id: 'fandaws:concept/dog', label: 'dog', prefLabel: 'dog' });
-    const cat = createConcept({ id: 'fandaws:concept/cat', label: 'cat', prefLabel: 'cat' });
+    const dog = createConcept({ id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', label: 'dog', prefLabel: 'dog' });
+    const cat = createConcept({ id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'cat', prefLabel: 'cat' });
     const ctx = setupContextWithConcepts([dog, cat]);
 
     const result = runRelationshipPipeline('A dog chases a cat', ctx);
@@ -79,8 +79,8 @@ describe('Relationship Pipeline Integration', () => {
     expect(graph['fandaws:concepts']).toHaveLength(2);
     const rels = getRelationships(graph);
     expect(rels).toHaveLength(1);
-    expect(rels[0]['fandaws:attachedTo']).toBe('fandaws:concept/dog');
-    expect(rels[0]['owl:someValuesFrom']).toBe('fandaws:concept/cat');
+    expect(rels[0]['fandaws:attachedTo']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(rels[0]['owl:someValuesFrom']).toBe('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
   });
 
   it('pipeline rejects duplicate relationship', () => {
@@ -111,11 +111,11 @@ describe('Relationship Pipeline Integration', () => {
     expect(graph['fandaws:concepts']).toHaveLength(3); // animal, dog, cat
 
     const dog = graph['fandaws:concepts'].find((c) => c['skos:prefLabel'] === 'dog');
-    expect(dog['skos:broader']).toBe('fandaws:concept/animal');
+    expect(dog['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
 
     const rels = getRelationships(graph);
     expect(rels).toHaveLength(1);
-    expect(rels[0]['fandaws:attachedTo']).toBe('fandaws:concept/dog');
+    expect(rels[0]['fandaws:attachedTo']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('multi-turn: property + relationship coexist on same concept', () => {
@@ -123,7 +123,7 @@ describe('Relationship Pipeline Integration', () => {
 
     runClassificationPipeline('A dog is an animal', ctx);
     runPropertyPipeline('A dog has fur', ctx, {
-      scopeDecisions: new Map([['fandaws:concept/animal', false]]),
+      scopeDecisions: new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', false]]),
     });
 
     const r1 = runRelationshipPipeline('A dog chases a cat', ctx);
@@ -143,18 +143,18 @@ describe('Relationship Pipeline Integration', () => {
 
   it('description generation includes relationship', () => {
     const dog = createConcept({
-      id: 'fandaws:concept/dog',
+      id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       label: 'dog',
       prefLabel: 'dog',
-      broader: 'fandaws:concept/animal',
+      broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     });
     const animal = createConcept({
-      id: 'fandaws:concept/animal',
+      id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       label: 'animal',
       prefLabel: 'animal',
     });
     const cat = createConcept({
-      id: 'fandaws:concept/cat',
+      id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
       label: 'cat',
       prefLabel: 'cat',
     });
@@ -165,7 +165,7 @@ describe('Relationship Pipeline Integration', () => {
     expect(result.descriptions.length).toBeGreaterThan(0);
 
     // Subject concept should have a description
-    const dogDesc = result.descriptions.find((d) => d.conceptIri === 'fandaws:concept/dog');
+    const dogDesc = result.descriptions.find((d) => d.conceptIri === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(dogDesc).toBeDefined();
     expect(dogDesc.description).toBeTruthy();
   });
@@ -183,30 +183,30 @@ describe('Relationship Pipeline Integration', () => {
 
   it('sub-relationship detected through pipeline', () => {
     const rel = createRelationship({
-      id: 'fandaws:rel/animal--eat--food',
+      id: 'fandaws:rel/9e131854-3600-5992-9b27-c0310f2baa7c/animal--eat--food',
       verbIri: 'eat',
-      subject: 'fandaws:concept/animal',
-      object: 'fandaws:concept/food',
+      subject: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
+      object: 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food',
     });
     const animal = createConcept({
-      id: 'fandaws:concept/animal',
+      id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       label: 'animal',
       prefLabel: 'animal',
     });
     animal['rdfs:subClassOf'] = [rel];
     const dog = createConcept({
-      id: 'fandaws:concept/dog',
+      id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       label: 'dog',
       prefLabel: 'dog',
-      broader: 'fandaws:concept/animal',
+      broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     });
     const food = createConcept({
-      id: 'fandaws:concept/food',
+      id: 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food',
       label: 'food',
       prefLabel: 'food',
     });
     const meat = createConcept({
-      id: 'fandaws:concept/meat',
+      id: 'fandaws:class/107300ee-028f-5722-904c-3f135c37ce7e/meat',
       label: 'meat',
       prefLabel: 'meat',
     });
@@ -217,8 +217,8 @@ describe('Relationship Pipeline Integration', () => {
 
     const graph = ctx.stateAdapter.loadGraph(GRAPH_ID);
     const rels = getRelationships(graph);
-    const dogRel = rels.find((r) => r['fandaws:attachedTo'] === 'fandaws:concept/dog');
-    expect(dogRel['fandaws:subRestrictionOf']).toBe('fandaws:rel/animal--eat--food');
+    const dogRel = rels.find((r) => r['fandaws:attachedTo'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(dogRel['fandaws:subRestrictionOf']).toBe('fandaws:rel/9e131854-3600-5992-9b27-c0310f2baa7c/animal--eat--food');
   });
 
   it('pipeline latency is under 40ms', () => {

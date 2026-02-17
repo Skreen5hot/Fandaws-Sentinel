@@ -30,7 +30,7 @@ describe('NullIntegrationAdapter', () => {
 
   it('lookupBFO returns DeferredResult with reason "offline"', () => {
     const adapter = new NullIntegrationAdapter();
-    const concept = { '@id': 'fandaws:concept/dog', '@type': 'owl:Class' };
+    const concept = { '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', '@type': 'owl:Class' };
     const result = adapter.lookupBFO(concept);
     expect(result['@type']).toBe('fandaws:DeferredResult');
     expect(result['fandaws:reason']).toBe('offline');
@@ -76,7 +76,7 @@ describe('NullIntegrationAdapter', () => {
   it('preserves complex input objects', () => {
     const adapter = new NullIntegrationAdapter();
     const concept = {
-      '@id': 'fandaws:concept/entity',
+      '@id': 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity',
       '@type': ['owl:Class', 'skos:Concept'],
       'rdfs:label': 'Entity',
     };

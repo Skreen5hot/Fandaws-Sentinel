@@ -60,7 +60,7 @@ describe('Classification Pipeline', () => {
   });
 
   it('creates child when parent exists', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal]));
 
     const result = runClassificationPipeline('A dog is an animal', context);
@@ -69,12 +69,12 @@ describe('Classification Pipeline', () => {
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(2);
     const dog = concepts.find((c) => c['skos:prefLabel'] === 'dog');
-    expect(dog['skos:broader']).toBe('fandaws:concept/animal');
+    expect(dog['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('extends a chain: poodle → dog → animal', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('A poodle is a dog', context);
@@ -83,12 +83,12 @@ describe('Classification Pipeline', () => {
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(3);
     const poodle = concepts.find((c) => c['skos:prefLabel'] === 'poodle');
-    expect(poodle['skos:broader']).toBe('fandaws:concept/dog');
+    expect(poodle['skos:broader']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('links two existing unlinked concepts', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('A dog is an animal', context);
@@ -96,16 +96,16 @@ describe('Classification Pipeline', () => {
 
     const updated = adapter.loadGraph(GRAPH_ID);
     const updatedDog = updated['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(updatedDog['skos:broader']).toBe('fandaws:concept/animal');
+    expect(updatedDog['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   // ── Idempotency ──
 
   it('is idempotent: same classification repeated returns success with no mutation', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('A dog is an animal', context);
@@ -130,8 +130,8 @@ describe('Classification Pipeline', () => {
   });
 
   it('rejects circular classification', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
     const result = runClassificationPipeline('An animal is a dog', context);
@@ -176,7 +176,7 @@ describe('Classification Pipeline', () => {
     expect(result.descriptions.length).toBeGreaterThan(0);
 
     const dogDesc = result.descriptions.find(
-      (d) => d.conceptIri === 'fandaws:concept/dog',
+      (d) => d.conceptIri === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     expect(dogDesc).toBeDefined();
     expect(dogDesc.description).toContain('Dog');
@@ -185,7 +185,7 @@ describe('Classification Pipeline', () => {
   it('generates "root concept" description for new root', () => {
     const result = runClassificationPipeline('A dog is an animal', context);
     const animalDesc = result.descriptions.find(
-      (d) => d.conceptIri === 'fandaws:concept/animal',
+      (d) => d.conceptIri === 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     expect(animalDesc.description).toContain('root concept');
   });
@@ -202,7 +202,7 @@ describe('Classification Pipeline', () => {
   // ── Case-insensitive matching ──
 
   it('matches existing concepts case-insensitively', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
     adapter.saveGraph(GRAPH_ID, makeGraph([animal]));
 
     const result = runClassificationPipeline('A DOG is an ANIMAL', context);
@@ -210,7 +210,7 @@ describe('Classification Pipeline', () => {
     const concepts = result.graph['fandaws:concepts'];
     expect(concepts).toHaveLength(2);
     const dog = concepts.find((c) => c['skos:prefLabel'] === 'dog');
-    expect(dog['skos:broader']).toBe('fandaws:concept/animal');
+    expect(dog['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   // ── Article handling ──
@@ -236,14 +236,14 @@ describe('Classification Pipeline', () => {
       (c) => c['skos:prefLabel'] === 'golden retriever',
     );
     expect(gr).toBeDefined();
-    expect(gr['@id']).toBe('fandaws:concept/golden-retriever');
+    expect(gr['@id']).toBe('fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever');
   });
 
   // ── Disambiguation ──
 
   it('returns disambiguation prompt when object is ambiguous', () => {
-    const bank1 = makeConcept('fandaws:concept/bank-1', 'Bank (financial)', 'bank');
-    const bank2 = makeConcept('fandaws:concept/bank-2', 'Bank (river)', 'bank');
+    const bank1 = makeConcept('fandaws:class/05a64685-8b2a-5277-bceb-2818812522ed/bank-1', 'Bank (financial)', 'bank');
+    const bank2 = makeConcept('fandaws:class/86b5184e-f6b0-5b2e-b6da-b9fe12cfa318/bank-2', 'Bank (river)', 'bank');
     adapter.saveGraph(GRAPH_ID, makeGraph([bank1, bank2]));
 
     const result = runClassificationPipeline('An atm is a bank', context);
@@ -255,7 +255,7 @@ describe('Classification Pipeline', () => {
   // ── Unknown parent negotiation ──
 
   it('returns negotiation prompt when negotiateUnknownParent is true', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
     adapter.saveGraph(GRAPH_ID, makeGraph([dog]));
 
     const result = runClassificationPipeline('A dog is an animal', context, {
@@ -266,7 +266,7 @@ describe('Classification Pipeline', () => {
   });
 
   it('auto-creates unknown parent when negotiateUnknownParent is false', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
     adapter.saveGraph(GRAPH_ID, makeGraph([dog]));
 
     const result = runClassificationPipeline('A dog is an animal', context, {
@@ -321,7 +321,7 @@ describe('Classification Pipeline', () => {
 
   it('SUP-07a: pipeline halts when concept has blocking governance flag', () => {
     const dog = {
-      ...makeConcept('fandaws:concept/dog', 'Dog', 'dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'blocking',
         'fandaws:reason': 'Under OCE review.',
@@ -342,7 +342,7 @@ describe('Classification Pipeline', () => {
 
   it('SUP-07b: pipeline proceeds when concept has advisory governance flag', () => {
     const dog = {
-      ...makeConcept('fandaws:concept/dog', 'Dog', 'dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'advisory',
         'fandaws:reason': 'Consider renaming.',
@@ -356,7 +356,7 @@ describe('Classification Pipeline', () => {
   });
 
   it('SUP-07c: pipeline proceeds when concept has no governance flag', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
     adapter.saveGraph(GRAPH_ID, makeGraph([dog]));
 
     const result = runClassificationPipeline('A dog is an animal', context);
@@ -389,9 +389,9 @@ describe('Classification Pipeline', () => {
   // ── Novel parent creation (SUP-13) ──
 
   it('SUP-13a: novel parent creates both concepts, parent as root', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
     const mammal = makeConcept(
-      'fandaws:concept/mammal', 'Mammal', 'mammal', 'fandaws:concept/animal',
+      'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, mammal]));
 
@@ -412,13 +412,13 @@ describe('Classification Pipeline', () => {
     const savedAnimal = concepts.find((c) => c['skos:prefLabel'] === 'animal');
     const savedMammal = concepts.find((c) => c['skos:prefLabel'] === 'mammal');
     expect(savedAnimal['skos:broader']).toBeNull();
-    expect(savedMammal['skos:broader']).toBe('fandaws:concept/animal');
+    expect(savedMammal['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('SUP-13b: novel parent does not corrupt existing tree indices', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
     const mammal = makeConcept(
-      'fandaws:concept/mammal', 'Mammal', 'mammal', 'fandaws:concept/animal',
+      'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, mammal]));
 

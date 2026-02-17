@@ -47,19 +47,19 @@ describe('buildParentIndex', () => {
   });
 
   it('maps root concepts to null', () => {
-    const graph = makeGraph([makeConcept('fandaws:concept/animal', 'Animal')]);
+    const graph = makeGraph([makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
     const index = buildParentIndex(graph);
-    expect(index.get('fandaws:concept/animal')).toBeNull();
+    expect(index.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal')).toBeNull();
   });
 
   it('maps child concepts to their parent IRI', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
     const index = buildParentIndex(graph);
-    expect(index.get('fandaws:concept/dog')).toBe('fandaws:concept/animal');
-    expect(index.get('fandaws:concept/animal')).toBeNull();
+    expect(index.get('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    expect(index.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal')).toBeNull();
   });
 
   it('handles graph with missing concepts array', () => {
@@ -75,54 +75,54 @@ describe('buildParentIndex', () => {
 
 describe('detectCycle', () => {
   it('detects self-reference', () => {
-    const index = new Map([['fandaws:concept/dog', null]]);
-    const result = detectCycle('fandaws:concept/dog', 'fandaws:concept/dog', index);
+    const index = new Map([['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', null]]);
+    const result = detectCycle('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', index);
     expect(result).not.toBeNull();
     expect(result.reason).toBe('circularHierarchy');
   });
 
   it('detects 2-node cycle (A→B→A)', () => {
     const index = new Map([
-      ['fandaws:concept/dog', 'fandaws:concept/mammal'],
-      ['fandaws:concept/mammal', null],
+      ['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'],
+      ['fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', null],
     ]);
-    const result = detectCycle('fandaws:concept/mammal', 'fandaws:concept/dog', index);
+    const result = detectCycle('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', index);
     expect(result).not.toBeNull();
     expect(result.reason).toBe('circularHierarchy');
   });
 
   it('detects deep cycle (A→B→C→A)', () => {
     const index = new Map([
-      ['fandaws:concept/a', 'fandaws:concept/b'],
-      ['fandaws:concept/b', 'fandaws:concept/c'],
-      ['fandaws:concept/c', null],
+      ['fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', 'fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b'],
+      ['fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b', 'fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c'],
+      ['fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c', null],
     ]);
-    const result = detectCycle('fandaws:concept/c', 'fandaws:concept/a', index);
+    const result = detectCycle('fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c', 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', index);
     expect(result).not.toBeNull();
     expect(result.reason).toBe('circularHierarchy');
   });
 
   it('returns null for valid parent assignment', () => {
     const index = new Map([
-      ['fandaws:concept/animal', null],
-      ['fandaws:concept/mammal', 'fandaws:concept/animal'],
+      ['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', null],
+      ['fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'],
     ]);
-    const result = detectCycle('fandaws:concept/dog', 'fandaws:concept/mammal', index);
+    const result = detectCycle('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', index);
     expect(result).toBeNull();
   });
 
   it('returns null when parent is not in the index', () => {
     const index = new Map();
-    const result = detectCycle('fandaws:concept/dog', 'fandaws:concept/animal', index);
+    const result = detectCycle('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', index);
     expect(result).toBeNull();
   });
 
   it('handles pre-existing cycle in index without infinite loop', () => {
     const index = new Map([
-      ['fandaws:concept/a', 'fandaws:concept/b'],
-      ['fandaws:concept/b', 'fandaws:concept/a'],
+      ['fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', 'fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b'],
+      ['fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b', 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a'],
     ]);
-    const result = detectCycle('fandaws:concept/c', 'fandaws:concept/a', index);
+    const result = detectCycle('fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c', 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', index);
     expect(result).toBeNull();
   });
 });
@@ -133,26 +133,26 @@ describe('detectCycle', () => {
 
 describe('checkMutationForCycles', () => {
   it('returns empty array for mutation with no parent edges', () => {
-    const graph = makeGraph([makeConcept('fandaws:concept/animal', 'Animal')]);
-    const mutation = makeMutation([makeConcept('fandaws:concept/thing', 'Thing')]);
+    const graph = makeGraph([makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
+    const mutation = makeMutation([makeConcept('fandaws:class/c5d09a81-e9b7-5f1b-81d4-dbd3011d5c9d/thing', 'Thing')]);
     expect(checkMutationForCycles(mutation, graph)).toEqual([]);
   });
 
   it('returns empty array for valid parent addition', () => {
-    const graph = makeGraph([makeConcept('fandaws:concept/animal', 'Animal')]);
+    const graph = makeGraph([makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
     const mutation = makeMutation([
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
     expect(checkMutationForCycles(mutation, graph)).toEqual([]);
   });
 
   it('detects cycle in additions against existing graph', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/mammal', 'Mammal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+      makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'),
     ]);
     const mutation = makeMutation([
-      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/dog'),
+      makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'),
     ]);
     const violations = checkMutationForCycles(mutation, graph);
     expect(violations.length).toBeGreaterThan(0);
@@ -161,14 +161,14 @@ describe('checkMutationForCycles', () => {
 
   it('detects cycle via parent modification', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'),
     ]);
     const mutation = makeMutation([], [
       {
-        '@id': 'fandaws:concept/animal',
-        'skos:broader': 'fandaws:concept/dog',
+        '@id': 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
+        'skos:broader': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       },
     ]);
     const violations = checkMutationForCycles(mutation, graph);
@@ -178,8 +178,8 @@ describe('checkMutationForCycles', () => {
 
   it('detects cycle within mutation additions only (no graph state)', () => {
     const graph = makeGraph([]);
-    const a = makeConcept('fandaws:concept/a', 'A', 'fandaws:concept/b');
-    const b = makeConcept('fandaws:concept/b', 'B', 'fandaws:concept/a');
+    const a = makeConcept('fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', 'A', 'fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b');
+    const b = makeConcept('fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b', 'B', 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a');
     const mutation = makeMutation([a, b]);
     const violations = checkMutationForCycles(mutation, graph);
     expect(violations.length).toBeGreaterThan(0);
@@ -187,19 +187,19 @@ describe('checkMutationForCycles', () => {
 
   it('handles stakeholder scenario: "dog is mammal" then "mammal is dog"', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/mammal', 'Mammal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+      makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'),
     ]);
     const mutation = makeMutation([], [
       {
-        '@id': 'fandaws:concept/mammal',
-        'skos:broader': 'fandaws:concept/dog',
+        '@id': 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal',
+        'skos:broader': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       },
     ]);
     const violations = checkMutationForCycles(mutation, graph);
     expect(violations.length).toBe(1);
     expect(violations[0].reason).toBe('circularHierarchy');
-    expect(violations[0].conceptIri).toBe('fandaws:concept/mammal');
-    expect(violations[0].proposedParentIri).toBe('fandaws:concept/dog');
+    expect(violations[0].conceptIri).toBe('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal');
+    expect(violations[0].proposedParentIri).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 });

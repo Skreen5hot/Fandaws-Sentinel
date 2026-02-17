@@ -11,10 +11,10 @@ describe('createGraphMutation', () => {
     const mutation = createGraphMutation({
       additions: [
         {
-          '@id': 'fandaws:property/animal-has-eyes',
+          '@id': 'fandaws:property/ef11b461-246b-5b66-9e06-67383dea04b2/animal-has-eyes',
           '@type': 'owl:Restriction',
           'owl:onProperty': 'has eyes',
-          'fandaws:attachedTo': 'fandaws:concept/animal',
+          'fandaws:attachedTo': 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
           'fandaws:scope': 'inherited',
           'fandaws:restrictionKind': 'property',
         },
@@ -48,12 +48,12 @@ describe('createGraphMutation', () => {
 
   it('accepts deletion IRIs as strings', () => {
     const mutation = createGraphMutation({
-      deletions: ['fandaws:concept/stale-1', 'fandaws:concept/stale-2'],
+      deletions: ['fandaws:class/08ed451a-8a66-5922-a38e-029234abc158/stale-1', 'fandaws:class/f3baf65d-c3ca-5fb2-a31a-8dcfea69af1b/stale-2'],
       reason: 'cleanup',
     });
     expect(mutation['fandaws:deletions']).toEqual([
-      'fandaws:concept/stale-1',
-      'fandaws:concept/stale-2',
+      'fandaws:class/08ed451a-8a66-5922-a38e-029234abc158/stale-1',
+      'fandaws:class/f3baf65d-c3ca-5fb2-a31a-8dcfea69af1b/stale-2',
     ]);
   });
 });

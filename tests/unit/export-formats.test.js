@@ -35,36 +35,36 @@ describe('Export Formats', () => {
     });
 
     it('uses semicolons between predicates of same subject', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportTurtle(makeGraph([dog]));
       expect(result).toContain(';');
     });
 
     it('uses dot to terminate subject blocks', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportTurtle(makeGraph([dog]));
       // Should end subject blocks with .
       expect(result).toMatch(/\.\s*$/m);
     });
 
     it('compacts IRIs using declared prefixes', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportTurtle(makeGraph([dog]));
-      expect(result).toContain('fandaws:concept/dog');
+      expect(result).toContain('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     });
 
     it('escapes special characters in literals', () => {
-      const concept = makeConcept('fandaws:concept/test', 'He said "hello"', 'test');
+      const concept = makeConcept('fandaws:class/0bf07a6b-44d0-59c3-8688-74c07b3163f6/test', 'He said "hello"', 'test');
       const result = exportTurtle(makeGraph([concept]));
       expect(result).toContain('He said \\"hello\\"');
     });
 
     it('emits all concept types and properties', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:prop/dog--fur',
         propertyIri: 'fur',
-        attachedTo: 'fandaws:concept/dog',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
       });
       dog['rdfs:subClassOf'] = [prop];
@@ -76,8 +76,8 @@ describe('Export Formats', () => {
     });
 
     it('is deterministic: same graph produces byte-identical output', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
-      const cat = makeConcept('fandaws:concept/cat', 'Cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'cat');
       const graph = makeGraph([dog, cat]);
 
       const r1 = exportTurtle(graph);
@@ -95,7 +95,7 @@ describe('Export Formats', () => {
     });
 
     it('handles typed literals with datatype annotation', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportTurtle(makeGraph([dog]));
       // dcterms:created should have xsd:dateTime type
       expect(result).toContain('^^<http://www.w3.org/2001/XMLSchema#dateTime>');
@@ -117,39 +117,39 @@ describe('Export Formats', () => {
     });
 
     it('wraps each concept in rdf:Description', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportRDF(makeGraph([dog]));
       expect(result).toContain('<rdf:Description rdf:about=');
       expect(result).toContain('</rdf:Description>');
     });
 
     it('emits rdf:type as child elements', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportRDF(makeGraph([dog]));
       expect(result).toContain('<rdf:type rdf:resource=');
     });
 
     it('emits URI objects as rdf:resource attributes', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
       const result = exportRDF(makeGraph([dog]));
       expect(result).toContain('rdf:resource=');
     });
 
     it('emits literal objects as element text content', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportRDF(makeGraph([dog]));
       expect(result).toContain('>Dog</');
     });
 
     it('escapes XML special characters', () => {
-      const concept = makeConcept('fandaws:concept/test', 'A & B <C>', 'test');
+      const concept = makeConcept('fandaws:class/0bf07a6b-44d0-59c3-8688-74c07b3163f6/test', 'A & B <C>', 'test');
       const result = exportRDF(makeGraph([concept]));
       expect(result).toContain('A &amp; B &lt;C&gt;');
     });
 
     it('is deterministic: same graph produces byte-identical output', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
-      const cat = makeConcept('fandaws:concept/cat', 'Cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'cat');
       const graph = makeGraph([dog, cat]);
 
       const r1 = exportRDF(graph);

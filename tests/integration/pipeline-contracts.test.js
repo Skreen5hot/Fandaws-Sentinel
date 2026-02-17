@@ -161,9 +161,9 @@ describe('Pipeline error propagation (SUP-03)', () => {
   });
 
   it('SUP-03a: circular classification returns error, graph unchanged', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal', 'animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal');
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.saveGraph(GRAPH_ID, makeGraph([animal, dog]));
 
@@ -195,7 +195,7 @@ describe('Pipeline error propagation (SUP-03)', () => {
 
   it('SUP-03d: validation failure propagates through pipeline', () => {
     const dog = {
-      ...makeConcept('fandaws:concept/dog', 'Dog', 'dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'blocking',
         'fandaws:reason': 'Under governance review.',

@@ -16,7 +16,7 @@
     "note": "Subject exists, object is new — creates object concept + relationship",
     "utterance": "A dog chases cats",
     "setup": [
-      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null }
     ],
     "expect": {
       "success": true,
@@ -29,8 +29,8 @@
     "note": "Both exist — adds relationship restriction only",
     "utterance": "A dog chases a cat",
     "setup": [
-      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
-      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
     ],
     "expect": {
       "success": true,
@@ -43,7 +43,7 @@
     "note": "Object exists, subject is new — creates subject concept + relationship",
     "utterance": "Dogs chase a cat",
     "setup": [
-      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+      { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
     ],
     "expect": {
       "success": true,
@@ -96,8 +96,8 @@
     "note": "Same subject with two different relationships — second relationship succeeds",
     "utterance": "A dog guards a home",
     "setup": [
-      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
-      { "id": "fandaws:concept/home", "canonicalLabel": "home", "displayLabel": "home", "parent": null }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:class/ccfa3fe6-10f7-5f48-a46f-97012cfd96d7/home", "canonicalLabel": "home", "displayLabel": "home", "parent": null }
     ],
     "expect": {
       "success": true,
@@ -109,9 +109,9 @@
     "note": "Relationship coexists with existing concept hierarchy",
     "utterance": "A dog chases a cat",
     "setup": [
-      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
-      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
+      { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
     ],
     "expect": {
       "success": true,
@@ -124,9 +124,9 @@
     "note": "Description is generated for subject concept",
     "utterance": "A dog chases a cat",
     "setup": [
-      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
-      { "id": "fandaws:concept/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
+      { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "canonicalLabel": "cat", "displayLabel": "cat", "parent": null }
     ],
     "expect": {
       "success": true,
@@ -168,10 +168,10 @@
     "note": "Sub-relationship detected when ancestor has same verb",
     "utterance": "A dog eats meat",
     "setup": [
-      { "id": "fandaws:concept/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null, "relationships": [{ "id": "fandaws:rel/animal--eat--food", "verb": "eat", "object": "fandaws:concept/food" }] },
-      { "id": "fandaws:concept/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/food", "canonicalLabel": "food", "displayLabel": "food", "parent": null },
-      { "id": "fandaws:concept/meat", "canonicalLabel": "meat", "displayLabel": "meat", "parent": null }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null, "relationships": [{ "id": "fandaws:rel/9e131854-3600-5992-9b27-c0310f2baa7c/animal--eat--food", "verb": "eat", "object": "fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food" }] },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food", "canonicalLabel": "food", "displayLabel": "food", "parent": null },
+      { "id": "fandaws:class/107300ee-028f-5722-904c-3f135c37ce7e/meat", "canonicalLabel": "meat", "displayLabel": "meat", "parent": null }
     ],
     "expect": {
       "success": true,

@@ -129,13 +129,13 @@ describe('InMemoryStateAdapter — graph CRUD', () => {
   });
 
   it('saveGraph accepts graphs with concepts and embedded restrictions', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const rel = makeRelationship(
-      'fandaws:rel/chase',
+      'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'chase',
-      'fandaws:concept/dog',
-      'fandaws:concept/cat',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
     );
     dog['rdfs:subClassOf'] = [...dog['rdfs:subClassOf'], rel];
     const graph = makeGraph({ concepts: [dog, cat] });
@@ -143,7 +143,7 @@ describe('InMemoryStateAdapter — graph CRUD', () => {
     const loaded = adapter.loadGraph(GRAPH_ID);
     expect(loaded['fandaws:concepts']).toHaveLength(2);
     const loadedDog = loaded['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     expect(
       loadedDog['rdfs:subClassOf'].some(
@@ -298,18 +298,18 @@ describe('applyMutation — additions', () => {
   });
 
   it('adds a concept to an empty graph', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [dog] }),
     );
     expect(result['fandaws:concepts']).toHaveLength(1);
-    expect(result['fandaws:concepts'][0]['@id']).toBe('fandaws:concept/dog');
+    expect(result['fandaws:concepts'][0]['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('adds multiple concepts in one mutation', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [dog, cat] }),
@@ -318,20 +318,20 @@ describe('applyMutation — additions', () => {
   });
 
   it('adds a relationship restriction to concept rdfs:subClassOf', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const rel = makeRelationship(
-      'fandaws:rel/chase',
+      'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'chase',
-      'fandaws:concept/dog',
-      'fandaws:concept/cat',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
     );
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [dog, cat, rel] }),
     );
     const updatedDog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     const relRestrictions = updatedDog['rdfs:subClassOf'].filter(
       (e) => e['fandaws:restrictionKind'] === 'relationship',
@@ -341,20 +341,20 @@ describe('applyMutation — additions', () => {
   });
 
   it('adds a property restriction to concept rdfs:subClassOf', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
 
     const prop = makeProperty(
       'fandaws:prop/fur',
       'has fur',
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [prop] }),
     );
     const updatedDog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     const propRestrictions = updatedDog['rdfs:subClassOf'].filter(
       (e) => e['fandaws:restrictionKind'] === 'property',
@@ -364,7 +364,7 @@ describe('applyMutation — additions', () => {
   });
 
   it('returns the updated graph', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [dog] }),
@@ -376,13 +376,13 @@ describe('applyMutation — additions', () => {
   it('does not mutate the original graph object', () => {
     const original = makeGraph();
     adapter.saveGraph(GRAPH_ID, original);
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
     expect(original['fandaws:concepts']).toHaveLength(0);
   });
 
   it('returns MutationRejection for non-existent graph', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const result = adapter.applyMutation(
       'fandaws:graph/nonexistent',
       makeMutation({ additions: [dog] }),
@@ -392,10 +392,10 @@ describe('applyMutation — additions', () => {
   });
 
   it('preserves existing concepts when adding new ones', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
 
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [cat] }),
@@ -404,28 +404,28 @@ describe('applyMutation — additions', () => {
   });
 
   it('adds concept with broader reference', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [animal, dog] }),
     );
     const addedDog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(addedDog['skos:broader']).toBe('fandaws:concept/animal');
+    expect(addedDog['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('adds concept with all fields populated', () => {
     const concept = createConcept({
-      id: 'fandaws:concept/full',
+      id: 'fandaws:class/03fa5b05-99df-5ac2-9418-e8ca98dd36e2/full',
       label: 'Full Concept',
       prefLabel: 'full concept',
-      broader: 'fandaws:concept/parent',
+      broader: 'fandaws:class/eb8f0f83-c7f6-50e5-bf62-a3a826dbfbad/parent',
       definition: 'A fully populated concept',
       bfoMapping: 'bfo:BFO_0000015',
     });
@@ -449,14 +449,14 @@ describe('applyMutation — modifications', () => {
 
   beforeEach(() => {
     adapter = new InMemoryStateAdapter();
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const graph = makeGraph({ concepts: [dog] });
     // Inject vestigial relationship for backward-compat tests
     graph['fandaws:relationships'].push({
-      '@id': 'fandaws:rel/chase',
+      '@id': 'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'owl:onProperty': 'chase',
-      'owl:someValuesFrom': 'fandaws:concept/cat',
-      'fandaws:attachedTo': 'fandaws:concept/dog',
+      'owl:someValuesFrom': 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
+      'fandaws:attachedTo': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     });
     adapter.saveGraph(GRAPH_ID, graph);
   });
@@ -467,7 +467,7 @@ describe('applyMutation — modifications', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:concept/dog',
+            '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'A loyal companion',
           },
@@ -475,7 +475,7 @@ describe('applyMutation — modifications', () => {
       }),
     );
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     expect(dog['skos:definition']).toBe('A loyal companion');
   });
@@ -486,7 +486,7 @@ describe('applyMutation — modifications', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:rel/chase',
+            '@id': 'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
             'fandaws:field': 'owl:onProperty',
             'fandaws:value': 'pursues',
           },
@@ -494,7 +494,7 @@ describe('applyMutation — modifications', () => {
       }),
     );
     const rel = result['fandaws:relationships'].find(
-      (r) => r['@id'] === 'fandaws:rel/chase',
+      (r) => r['@id'] === 'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
     );
     expect(rel['owl:onProperty']).toBe('pursues');
   });
@@ -506,7 +506,7 @@ describe('applyMutation — modifications', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:concept/nonexistent',
+            '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'test',
           },
@@ -525,12 +525,12 @@ describe('applyMutation — modifications', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:concept/dog',
+            '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'A good dog',
           },
           {
-            '@id': 'fandaws:rel/chase',
+            '@id': 'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
             'fandaws:field': 'owl:onProperty',
             'fandaws:value': 'follows',
           },
@@ -538,10 +538,10 @@ describe('applyMutation — modifications', () => {
       }),
     );
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     const rel = result['fandaws:relationships'].find(
-      (r) => r['@id'] === 'fandaws:rel/chase',
+      (r) => r['@id'] === 'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
     );
     expect(dog['skos:definition']).toBe('A good dog');
     expect(rel['owl:onProperty']).toBe('follows');
@@ -553,7 +553,7 @@ describe('applyMutation — modifications', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:concept/dog',
+            '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
             'fandaws:field': 'skos:prefLabel',
             'fandaws:value': 'canine',
           },
@@ -561,19 +561,19 @@ describe('applyMutation — modifications', () => {
       }),
     );
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.canonicalLabelToIri.get('canine')).toBe('fandaws:concept/dog');
+    expect(idx.canonicalLabelToIri.get('canine')).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(idx.canonicalLabelToIri.has('dog')).toBe(false);
   });
 
   it('failed modification with valid additions rolls back everything', () => {
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({
         additions: [cat],
         modifications: [
           {
-            '@id': 'fandaws:concept/nonexistent',
+            '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'bad',
           },
@@ -582,7 +582,7 @@ describe('applyMutation — modifications', () => {
     );
     // Should roll back — cat should not be in graph
     expect(
-      result['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:concept/cat'),
+      result['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat'),
     ).toBeUndefined();
   });
 });
@@ -596,23 +596,23 @@ describe('applyMutation — deletions', () => {
 
   beforeEach(() => {
     adapter = new InMemoryStateAdapter();
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const puppy = makeConcept(
-      'fandaws:concept/puppy',
+      'fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy',
       'Puppy',
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     // Embed a relationship restriction in dog
     const rel = makeRelationship(
-      'fandaws:rel/chase',
+      'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'chase',
-      'fandaws:concept/dog',
-      'fandaws:concept/animal',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     dog['rdfs:subClassOf'] = [...dog['rdfs:subClassOf'], rel];
     const graph = makeGraph({ concepts: [animal, dog, puppy] });
@@ -622,11 +622,11 @@ describe('applyMutation — deletions', () => {
   it('deletes a concept by IRI', () => {
     const result = adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/puppy'] }),
+      makeMutation({ deletions: ['fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy'] }),
     );
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/puppy',
+        (c) => c['@id'] === 'fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy',
       ),
     ).toBeUndefined();
     expect(result['fandaws:concepts']).toHaveLength(2);
@@ -635,11 +635,11 @@ describe('applyMutation — deletions', () => {
   it('concept deletion removes embedded restrictions too', () => {
     const result = adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/dog'] }),
+      makeMutation({ deletions: ['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'] }),
     );
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/dog',
+        (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       ),
     ).toBeUndefined();
     expect(result['fandaws:concepts']).toHaveLength(2);
@@ -648,7 +648,7 @@ describe('applyMutation — deletions', () => {
   it('deletion of non-existent IRI is a no-op (idempotent)', () => {
     const result = adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/nonexistent'] }),
+      makeMutation({ deletions: ['fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent'] }),
     );
     expect(result['fandaws:concepts']).toHaveLength(3);
   });
@@ -657,22 +657,22 @@ describe('applyMutation — deletions', () => {
     // Delete dog — puppy should be reparented to animal
     const result = adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/dog'] }),
+      makeMutation({ deletions: ['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'] }),
     );
     const puppy = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/puppy',
+      (c) => c['@id'] === 'fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy',
     );
-    expect(puppy['skos:broader']).toBe('fandaws:concept/animal');
+    expect(puppy['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('deleting root concept reparents children to null', () => {
     // Delete animal — dog should become a root (broader = null)
     const result = adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/animal'] }),
+      makeMutation({ deletions: ['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'] }),
     );
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     expect(dog['skos:broader']).toBeNull();
   });
@@ -681,17 +681,17 @@ describe('applyMutation — deletions', () => {
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({
-        deletions: ['fandaws:concept/puppy', 'fandaws:concept/dog'],
+        deletions: ['fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'],
       }),
     );
     expect(result['fandaws:concepts']).toHaveLength(1);
-    expect(result['fandaws:concepts'][0]['@id']).toBe('fandaws:concept/animal');
+    expect(result['fandaws:concepts'][0]['@id']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('graph state is consistent after deletion', () => {
     adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/dog'] }),
+      makeMutation({ deletions: ['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'] }),
     );
     const ghosts = adapter.verifyIntegrity(GRAPH_ID);
     expect(ghosts).toEqual([]);
@@ -707,37 +707,37 @@ describe('applyMutation — merges', () => {
 
   beforeEach(() => {
     adapter = new InMemoryStateAdapter();
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const dog2 = createConcept({
-      id: 'fandaws:concept/dog-2',
+      id: 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
       label: 'Dog (duplicate)',
       prefLabel: 'dog',
-      broader: 'fandaws:concept/animal',
+      broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     });
     // Add a property restriction to dog2
     dog2['rdfs:subClassOf'].push({
       '@id': 'fandaws:prop/bark',
       '@type': 'owl:Restriction',
       'owl:onProperty': 'bark',
-      'fandaws:attachedTo': 'fandaws:concept/dog-2',
+      'fandaws:attachedTo': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
       'fandaws:restrictionKind': 'property',
     });
     const puppy = makeConcept(
-      'fandaws:concept/puppy',
+      'fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy',
       'Puppy',
-      'fandaws:concept/dog-2',
+      'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
     );
     // Add a relationship restriction to dog2
     const rel = makeRelationship(
-      'fandaws:rel/chase',
+      'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'chase',
-      'fandaws:concept/dog-2',
-      'fandaws:concept/animal',
+      'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     dog2['rdfs:subClassOf'].push(rel);
     const graph = makeGraph({ concepts: [animal, dog, dog2, puppy] });
@@ -750,20 +750,20 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
     );
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/dog-2',
+        (c) => c['@id'] === 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
       ),
     ).toBeUndefined();
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/dog',
+        (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       ),
     ).toBeDefined();
   });
@@ -774,16 +774,16 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
     );
     const puppy = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/puppy',
+      (c) => c['@id'] === 'fandaws:class/c4c9d071-9bac-56a6-8e4b-420196ca5470/puppy',
     );
-    expect(puppy['skos:broader']).toBe('fandaws:concept/dog');
+    expect(puppy['skos:broader']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('restrictions of source transferred to target rdfs:subClassOf', () => {
@@ -792,14 +792,14 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
     );
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     const propRestrictions = dog['rdfs:subClassOf'].filter(
       (e) => e['@type'] === 'owl:Restriction' && e['fandaws:restrictionKind'] === 'property',
@@ -813,20 +813,20 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
     );
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     const relRestrictions = dog['rdfs:subClassOf'].filter(
       (e) => e['@type'] === 'owl:Restriction' && e['fandaws:restrictionKind'] === 'relationship',
     );
     expect(relRestrictions.length).toBeGreaterThan(0);
-    expect(relRestrictions[0]['fandaws:attachedTo']).toBe('fandaws:concept/dog');
+    expect(relRestrictions[0]['fandaws:attachedTo']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('wasDerivedFrom on target records source IRI', () => {
@@ -835,16 +835,16 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
     );
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:concept/dog-2');
+    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2');
   });
 
   it('merge with non-existent source rolls back (atomicity)', () => {
@@ -853,8 +853,8 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/nonexistent',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
@@ -862,7 +862,7 @@ describe('applyMutation — merges', () => {
     // Should return original — dog-2 still exists
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/dog-2',
+        (c) => c['@id'] === 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
       ),
     ).toBeDefined();
   });
@@ -873,8 +873,8 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/nonexistent',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
           },
         ],
       }),
@@ -882,7 +882,7 @@ describe('applyMutation — merges', () => {
     // Should return original — dog-2 still exists
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/dog-2',
+        (c) => c['@id'] === 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
       ),
     ).toBeDefined();
   });
@@ -890,10 +890,10 @@ describe('applyMutation — merges', () => {
   it('multiple merges in one mutation', () => {
     // Add a third duplicate
     const dog3 = createConcept({
-      id: 'fandaws:concept/dog-3',
+      id: 'fandaws:class/aaa1686f-6fe2-5e00-ac97-f55b22bd3053/dog-3',
       label: 'Dog (triple)',
       prefLabel: 'dog',
-      broader: 'fandaws:concept/animal',
+      broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     });
     adapter.applyMutation(
       GRAPH_ID,
@@ -905,12 +905,12 @@ describe('applyMutation — merges', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
           {
-            'fandaws:source': 'fandaws:concept/dog-3',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/aaa1686f-6fe2-5e00-ac97-f55b22bd3053/dog-3',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
@@ -918,10 +918,10 @@ describe('applyMutation — merges', () => {
     // Only animal, dog, puppy should remain
     expect(result['fandaws:concepts']).toHaveLength(3);
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:concept/dog-2');
-    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:concept/dog-3');
+    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2');
+    expect(dog['prov:wasDerivedFrom']).toContain('fandaws:class/aaa1686f-6fe2-5e00-ac97-f55b22bd3053/dog-3');
   });
 });
 
@@ -934,20 +934,20 @@ describe('applyMutation — atomicity', () => {
 
   beforeEach(() => {
     adapter = new InMemoryStateAdapter();
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const graph = makeGraph({ concepts: [dog] });
     adapter.saveGraph(GRAPH_ID, graph);
   });
 
   it('all-or-nothing: failed modification rolls back additions', () => {
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({
         additions: [cat],
         modifications: [
           {
-            '@id': 'fandaws:concept/nonexistent',
+            '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'fail',
           },
@@ -955,19 +955,19 @@ describe('applyMutation — atomicity', () => {
       }),
     );
     expect(result['fandaws:concepts']).toHaveLength(1);
-    expect(result['fandaws:concepts'][0]['@id']).toBe('fandaws:concept/dog');
+    expect(result['fandaws:concepts'][0]['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('all-or-nothing: failed merge rolls back prior additions', () => {
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({
         additions: [cat],
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/nonexistent',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
@@ -982,7 +982,7 @@ describe('applyMutation — atomicity', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:concept/nonexistent',
+            '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'fail',
           },
@@ -1002,7 +1002,7 @@ describe('applyMutation — atomicity', () => {
       makeMutation({
         modifications: [
           {
-            '@id': 'fandaws:concept/nonexistent',
+            '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
             'fandaws:field': 'skos:prefLabel',
             'fandaws:value': 'canine',
           },
@@ -1015,14 +1015,14 @@ describe('applyMutation — atomicity', () => {
   });
 
   it('successful mutation with additions + modifications', () => {
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({
         additions: [cat],
         modifications: [
           {
-            '@id': 'fandaws:concept/dog',
+            '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'A good dog',
           },
@@ -1031,42 +1031,42 @@ describe('applyMutation — atomicity', () => {
     );
     expect(result['fandaws:concepts']).toHaveLength(2);
     const dog = result['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     expect(dog['skos:definition']).toBe('A good dog');
   });
 
   it('mixed mutation: add concept, modify existing, delete stale', () => {
-    const stale = makeConcept('fandaws:concept/stale', 'Stale');
+    const stale = makeConcept('fandaws:class/d06b4da5-1008-5c8b-af4a-52fe18155016/stale', 'Stale');
     adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [stale] }),
     );
 
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const result = adapter.applyMutation(
       GRAPH_ID,
       makeMutation({
         additions: [cat],
         modifications: [
           {
-            '@id': 'fandaws:concept/dog',
+            '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
             'fandaws:field': 'skos:definition',
             'fandaws:value': 'Updated',
           },
         ],
-        deletions: ['fandaws:concept/stale'],
+        deletions: ['fandaws:class/d06b4da5-1008-5c8b-af4a-52fe18155016/stale'],
       }),
     );
     expect(result['fandaws:concepts']).toHaveLength(2);
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/stale',
+        (c) => c['@id'] === 'fandaws:class/d06b4da5-1008-5c8b-af4a-52fe18155016/stale',
       ),
     ).toBeUndefined();
     expect(
       result['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/cat',
+        (c) => c['@id'] === 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
       ),
     ).toBeDefined();
   });
@@ -1084,66 +1084,66 @@ describe('InMemoryStateAdapter — index correctness', () => {
   });
 
   it('canonicalLabel index maps label to IRI after saveGraph', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:concept/dog');
+    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('canonicalLabel index maps label to IRI after applyMutation addition', () => {
     adapter.saveGraph(GRAPH_ID, makeGraph());
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:concept/dog');
+    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('parent index maps concept to broader after saveGraph', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [animal, dog] }));
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.iriToParent.get('fandaws:concept/dog')).toBe(
-      'fandaws:concept/animal',
+    expect(idx.iriToParent.get('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
-    expect(idx.iriToParent.get('fandaws:concept/animal')).toBeNull();
+    expect(idx.iriToParent.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal')).toBeNull();
   });
 
   it('children index maps parent to children after saveGraph', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [animal, dog] }));
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.iriToChildren.get('fandaws:concept/animal').has('fandaws:concept/dog')).toBe(true);
+    expect(idx.iriToChildren.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal').has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(true);
   });
 
   it('children index maps parent to children after addition mutation', () => {
     adapter.saveGraph(GRAPH_ID, makeGraph());
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [animal, dog] }),
     );
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.iriToChildren.get('fandaws:concept/animal').has('fandaws:concept/dog')).toBe(true);
+    expect(idx.iriToChildren.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal').has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(true);
   });
 
   it('property index maps concept to properties after saveGraph', () => {
     const dog = createConcept({
-      id: 'fandaws:concept/dog',
+      id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       label: 'Dog',
       prefLabel: 'dog',
     });
@@ -1153,35 +1153,35 @@ describe('InMemoryStateAdapter — index correctness', () => {
     );
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
     const idx = adapter.getIndices(GRAPH_ID);
-    const props = idx.iriToProperties.get('fandaws:concept/dog');
+    const props = idx.iriToProperties.get('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(props.has('fandaws:prop/fur')).toBe(true);
     expect(props.has('fandaws:prop/bark')).toBe(true);
   });
 
   it('property index maps concept to properties after addition mutation', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
 
     const prop = makeProperty(
       'fandaws:prop/fur',
       'has fur',
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [prop] }));
     const idx = adapter.getIndices(GRAPH_ID);
     expect(
-      idx.iriToProperties.get('fandaws:concept/dog').has('fandaws:prop/fur'),
+      idx.iriToProperties.get('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog').has('fandaws:prop/fur'),
     ).toBe(true);
   });
 
   it('reverse relationship index maps object to relationships', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const rel = makeRelationship(
-      'fandaws:rel/chase',
+      'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'chase',
-      'fandaws:concept/dog',
-      'fandaws:concept/cat',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
     );
     dog['rdfs:subClassOf'] = [...dog['rdfs:subClassOf'], rel];
     adapter.saveGraph(
@@ -1191,36 +1191,36 @@ describe('InMemoryStateAdapter — index correctness', () => {
     const idx = adapter.getIndices(GRAPH_ID);
     expect(
       idx.iriToReverseRelationships
-        .get('fandaws:concept/cat')
-        .has('fandaws:rel/chase'),
+        .get('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat')
+        .has('fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase'),
     ).toBe(true);
   });
 
   it('all indices cleared for deleted concept', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
     adapter.applyMutation(
       GRAPH_ID,
-      makeMutation({ deletions: ['fandaws:concept/dog'] }),
+      makeMutation({ deletions: ['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'] }),
     );
     const idx = adapter.getIndices(GRAPH_ID);
     expect(idx.canonicalLabelToIri.has('dog')).toBe(false);
-    expect(idx.iriToParent.has('fandaws:concept/dog')).toBe(false);
+    expect(idx.iriToParent.has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(false);
   });
 
   it('indices survive multiple sequential mutations', () => {
     adapter.saveGraph(GRAPH_ID, makeGraph());
 
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     adapter.applyMutation(
       GRAPH_ID,
       makeMutation({ additions: [animal] }),
     );
 
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.applyMutation(
       GRAPH_ID,
@@ -1228,9 +1228,9 @@ describe('InMemoryStateAdapter — index correctness', () => {
     );
 
     const cat = makeConcept(
-      'fandaws:concept/cat',
+      'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
       'Cat',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.applyMutation(
       GRAPH_ID,
@@ -1238,23 +1238,23 @@ describe('InMemoryStateAdapter — index correctness', () => {
     );
 
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.canonicalLabelToIri.get('animal')).toBe('fandaws:concept/animal');
-    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:concept/dog');
-    expect(idx.canonicalLabelToIri.get('cat')).toBe('fandaws:concept/cat');
-    expect(idx.iriToChildren.get('fandaws:concept/animal').size).toBe(2);
+    expect(idx.canonicalLabelToIri.get('animal')).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(idx.canonicalLabelToIri.get('cat')).toBe('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+    expect(idx.iriToChildren.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal').size).toBe(2);
   });
 
   it('indices correct after merge operation', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const dog = makeConcept(
-      'fandaws:concept/dog',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       'Dog',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const dog2 = makeConcept(
-      'fandaws:concept/dog-2',
+      'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
       'Dog 2',
-      'fandaws:concept/animal',
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     adapter.saveGraph(
       GRAPH_ID,
@@ -1266,8 +1266,8 @@ describe('InMemoryStateAdapter — index correctness', () => {
       makeMutation({
         merges: [
           {
-            'fandaws:source': 'fandaws:concept/dog-2',
-            'fandaws:target': 'fandaws:concept/dog',
+            'fandaws:source': 'fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2',
+            'fandaws:target': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
           },
         ],
       }),
@@ -1277,7 +1277,7 @@ describe('InMemoryStateAdapter — index correctness', () => {
     // dog-2 label should be gone
     expect(idx.canonicalLabelToIri.has('dog 2')).toBe(false);
     // dog should still be indexed
-    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:concept/dog');
+    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     // No ghost pointers
     expect(adapter.verifyIntegrity(GRAPH_ID)).toEqual([]);
   });
@@ -1295,13 +1295,13 @@ describe('InMemoryStateAdapter — verifyIntegrity', () => {
   });
 
   it('returns empty array on a healthy graph', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
-    const cat = makeConcept('fandaws:concept/cat', 'Cat');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
+    const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
     const rel = makeRelationship(
-      'fandaws:rel/chase',
+      'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
       'chase',
-      'fandaws:concept/dog',
-      'fandaws:concept/cat',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
     );
     dog['rdfs:subClassOf'] = [...dog['rdfs:subClassOf'], rel];
     adapter.saveGraph(
@@ -1321,12 +1321,12 @@ describe('InMemoryStateAdapter — verifyIntegrity', () => {
   });
 
   it('detects ghost pointer in canonicalLabel index', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
 
     // Corrupt the index manually
     const idx = adapter.getIndices(GRAPH_ID);
-    idx.canonicalLabelToIri.set('ghost', 'fandaws:concept/ghost');
+    idx.canonicalLabelToIri.set('ghost', 'fandaws:class/845fd3dd-66c2-55b5-aed7-af5318b37d50/ghost');
 
     const ghosts = adapter.verifyIntegrity(GRAPH_ID);
     expect(ghosts.length).toBeGreaterThan(0);
@@ -1334,26 +1334,26 @@ describe('InMemoryStateAdapter — verifyIntegrity', () => {
   });
 
   it('detects orphaned child pointer after parent deletion', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
 
     // Corrupt the index: add a ghost child
     const idx = adapter.getIndices(GRAPH_ID);
-    idx.iriToChildren.set('fandaws:concept/dog', new Set(['fandaws:concept/ghost']));
+    idx.iriToChildren.set('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', new Set(['fandaws:class/845fd3dd-66c2-55b5-aed7-af5318b37d50/ghost']));
 
     const ghosts = adapter.verifyIntegrity(GRAPH_ID);
-    expect(ghosts.some((g) => g.index === 'iriToChildren' && g.ghostIri === 'fandaws:concept/ghost')).toBe(true);
+    expect(ghosts.some((g) => g.index === 'iriToChildren' && g.ghostIri === 'fandaws:class/845fd3dd-66c2-55b5-aed7-af5318b37d50/ghost')).toBe(true);
   });
 
   it('detects stale relationship reference', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
 
     // Corrupt the index: add a ghost reverse relationship
     const idx = adapter.getIndices(GRAPH_ID);
     idx.iriToReverseRelationships.set(
-      'fandaws:concept/dog',
-      new Set(['fandaws:rel/ghost']),
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      new Set(['fandaws:rel/845fd3dd-66c2-55b5-aed7-af5318b37d50/ghost']),
     );
 
     const ghosts = adapter.verifyIntegrity(GRAPH_ID);
@@ -1361,18 +1361,18 @@ describe('InMemoryStateAdapter — verifyIntegrity', () => {
       ghosts.some(
         (g) =>
           g.index === 'iriToReverseRelationships' &&
-          g.ghostIri === 'fandaws:rel/ghost',
+          g.ghostIri === 'fandaws:rel/845fd3dd-66c2-55b5-aed7-af5318b37d50/ghost',
       ),
     ).toBe(true);
   });
 
   it('returns multiple ghosts for a corrupted graph', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
 
     const idx = adapter.getIndices(GRAPH_ID);
-    idx.canonicalLabelToIri.set('ghost1', 'fandaws:concept/ghost1');
-    idx.canonicalLabelToIri.set('ghost2', 'fandaws:concept/ghost2');
+    idx.canonicalLabelToIri.set('ghost1', 'fandaws:class/240f699d-2fa7-5761-8793-09286bcc542a/ghost1');
+    idx.canonicalLabelToIri.set('ghost2', 'fandaws:class/a4cd755b-ae01-524f-93b2-04026695981d/ghost2');
 
     const ghosts = adapter.verifyIntegrity(GRAPH_ID);
     expect(ghosts.length).toBeGreaterThanOrEqual(2);
@@ -1389,7 +1389,7 @@ describe('InMemoryStateAdapter — performance', () => {
     const concepts = [];
     for (let i = 0; i < 500; i++) {
       concepts.push(
-        makeConcept(`fandaws:concept/c-${i}`, `Concept ${i}`),
+        makeConcept(`fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c-${i}`, `Concept ${i}`),
       );
     }
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts }));
@@ -1407,7 +1407,7 @@ describe('InMemoryStateAdapter — performance', () => {
     const adapter = new InMemoryStateAdapter();
     adapter.saveGraph(GRAPH_ID, makeGraph());
 
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const start = performance.now();
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
     const elapsed = performance.now() - start;
@@ -1420,7 +1420,7 @@ describe('InMemoryStateAdapter — performance', () => {
 
     const start = performance.now();
     for (let i = 0; i < 1000; i++) {
-      const concept = makeConcept(`fandaws:concept/c-${i}`, `Concept ${i}`);
+      const concept = makeConcept(`fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c-${i}`, `Concept ${i}`);
       adapter.applyMutation(
         GRAPH_ID,
         makeMutation({ additions: [concept] }),
@@ -1450,17 +1450,17 @@ describe('InMemoryStateAdapter — edge cases', () => {
   });
 
   it('handles graph with no restrictions gracefully', () => {
-    const dog = makeConcept('fandaws:concept/dog', 'Dog');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [dog] }));
     const idx = adapter.getIndices(GRAPH_ID);
     expect(idx.iriToReverseRelationships.size).toBe(0);
   });
 
   it('concept with null broader has null in parent index', () => {
-    const root = makeConcept('fandaws:concept/root', 'Root');
+    const root = makeConcept('fandaws:class/12ac83b4-94ba-5214-a91a-d2c53f830fbf/root', 'Root');
     adapter.saveGraph(GRAPH_ID, makeGraph({ concepts: [root] }));
     const idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.iriToParent.get('fandaws:concept/root')).toBeNull();
+    expect(idx.iriToParent.get('fandaws:class/12ac83b4-94ba-5214-a91a-d2c53f830fbf/root')).toBeNull();
   });
 
   it('empty mutation (no operations) returns graph unchanged', () => {
@@ -1485,9 +1485,9 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
   });
 
   it('SUP-11a: create → reparent → verify all indices', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
-    const mammal = makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+    const mammal = makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
 
     // Create all three
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
@@ -1496,15 +1496,15 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
 
     // Verify initial state: dog is child of animal
     let idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.iriToParent.get('fandaws:concept/dog')).toBe('fandaws:concept/animal');
-    expect(idx.iriToChildren.get('fandaws:concept/animal').has('fandaws:concept/dog')).toBe(true);
+    expect(idx.iriToParent.get('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    expect(idx.iriToChildren.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal').has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(true);
 
     // Reparent dog → mammal
     adapter.applyMutation(GRAPH_ID, makeMutation({
       modifications: [{
-        '@id': 'fandaws:concept/dog',
+        '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         'fandaws:field': 'skos:broader',
-        'fandaws:value': 'fandaws:concept/mammal',
+        'fandaws:value': 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal',
       }],
     }));
 
@@ -1512,34 +1512,34 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
     idx = adapter.getIndices(GRAPH_ID);
 
     // canonicalLabel index still works
-    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:concept/dog');
+    expect(idx.canonicalLabelToIri.get('dog')).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
 
     // parent index: dog's parent is now mammal
-    expect(idx.iriToParent.get('fandaws:concept/dog')).toBe('fandaws:concept/mammal');
+    expect(idx.iriToParent.get('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal');
 
     // children index: animal has 1 child (mammal), NOT 2
-    const animalChildren = idx.iriToChildren.get('fandaws:concept/animal');
-    expect(animalChildren.has('fandaws:concept/mammal')).toBe(true);
-    expect(animalChildren.has('fandaws:concept/dog')).toBe(false);
+    const animalChildren = idx.iriToChildren.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    expect(animalChildren.has('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal')).toBe(true);
+    expect(animalChildren.has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(false);
 
     // children index: mammal has 1 child (dog)
-    const mammalChildren = idx.iriToChildren.get('fandaws:concept/mammal');
-    expect(mammalChildren.has('fandaws:concept/dog')).toBe(true);
+    const mammalChildren = idx.iriToChildren.get('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal');
+    expect(mammalChildren.has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(true);
 
     // No ghost pointers
     expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
   });
 
   it('SUP-11b: create → delete leaf → verify index cleanup', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
 
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
 
     // Delete dog (leaf)
     adapter.applyMutation(GRAPH_ID, makeMutation({
-      deletions: ['fandaws:concept/dog'],
+      deletions: ['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'],
     }));
 
     const idx = adapter.getIndices(GRAPH_ID);
@@ -1548,10 +1548,10 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
     expect(idx.canonicalLabelToIri.has('dog')).toBe(false);
 
     // parent index: no entry for dog
-    expect(idx.iriToParent.has('fandaws:concept/dog')).toBe(false);
+    expect(idx.iriToParent.has('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(false);
 
     // children index: animal should have no children
-    const animalChildren = idx.iriToChildren.get('fandaws:concept/animal');
+    const animalChildren = idx.iriToChildren.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(animalChildren.size).toBe(0);
 
     // No ghost pointers
@@ -1559,16 +1559,16 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
   });
 
   it('SUP-11c: property addition updates iriToProperties index', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
 
     // Add a property restriction
     const furRestriction = {
-      '@id': 'fandaws:restriction/animal--fur',
+      '@id': 'fandaws:restriction/6a2d686b-55d8-5bcb-bb44-f082f0a09482/animal--fur',
       '@type': 'owl:Restriction',
       'owl:onProperty': 'fur',
       'fandaws:restrictionKind': 'property',
-      'fandaws:attachedTo': 'fandaws:concept/animal',
+      'fandaws:attachedTo': 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       'fandaws:scope': 'concept-specific',
     };
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [furRestriction] }));
@@ -1576,23 +1576,23 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
     const idx = adapter.getIndices(GRAPH_ID);
 
     // iriToProperties should list the restriction
-    const animalProps = idx.iriToProperties.get('fandaws:concept/animal');
+    const animalProps = idx.iriToProperties.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(animalProps).toBeDefined();
-    expect(animalProps.has('fandaws:restriction/animal--fur')).toBe(true);
+    expect(animalProps.has('fandaws:restriction/6a2d686b-55d8-5bcb-bb44-f082f0a09482/animal--fur')).toBe(true);
 
     // No ghost pointers
     expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
   });
 
   it('SUP-11d: property removal via modification updates indices', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     animal['rdfs:subClassOf'] = [
       {
-        '@id': 'fandaws:restriction/animal--fur',
+        '@id': 'fandaws:restriction/6a2d686b-55d8-5bcb-bb44-f082f0a09482/animal--fur',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'fur',
         'fandaws:restrictionKind': 'property',
-        'fandaws:attachedTo': 'fandaws:concept/animal',
+        'fandaws:attachedTo': 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
         'fandaws:scope': 'concept-specific',
       },
     ];
@@ -1600,19 +1600,19 @@ describe('InMemoryStateAdapter — index consistency after sequences (SUP-11)', 
 
     // Verify property indexed
     let idx = adapter.getIndices(GRAPH_ID);
-    expect(idx.iriToProperties.get('fandaws:concept/animal').size).toBe(1);
+    expect(idx.iriToProperties.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal').size).toBe(1);
 
     // Remove property by modifying rdfs:subClassOf to empty
     adapter.applyMutation(GRAPH_ID, makeMutation({
       modifications: [{
-        '@id': 'fandaws:concept/animal',
+        '@id': 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
         'fandaws:field': 'rdfs:subClassOf',
         'fandaws:value': [],
       }],
     }));
 
     idx = adapter.getIndices(GRAPH_ID);
-    const animalProps = idx.iriToProperties.get('fandaws:concept/animal');
+    const animalProps = idx.iriToProperties.get('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(animalProps.size).toBe(0);
 
     // No ghost pointers
@@ -1633,21 +1633,21 @@ describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', ()
   });
 
   it('SUP-14a: rapid sequential modifications — last write wins', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal, dog] }));
 
     // Two sequential definition writes
     adapter.applyMutation(GRAPH_ID, makeMutation({
       modifications: [{
-        '@id': 'fandaws:concept/dog',
+        '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         'fandaws:field': 'skos:definition',
         'fandaws:value': 'first',
       }],
     }));
     adapter.applyMutation(GRAPH_ID, makeMutation({
       modifications: [{
-        '@id': 'fandaws:concept/dog',
+        '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         'fandaws:field': 'skos:definition',
         'fandaws:value': 'second',
       }],
@@ -1655,20 +1655,20 @@ describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', ()
 
     const graph = adapter.loadGraph(GRAPH_ID);
     const updatedDog = graph['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
     expect(updatedDog['skos:definition']).toBe('second');
     expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
   });
 
   it('SUP-14b: loadGraph after mutation reflects latest state', () => {
-    const animal = makeConcept('fandaws:concept/animal', 'Animal');
+    const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [animal] }));
 
     const before = adapter.loadGraph(GRAPH_ID);
     expect(before['fandaws:concepts']).toHaveLength(1);
 
-    const dog = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     adapter.applyMutation(GRAPH_ID, makeMutation({ additions: [dog] }));
 
     const after = adapter.loadGraph(GRAPH_ID);
@@ -1679,7 +1679,7 @@ describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', ()
     // Build a 10-concept chain: concept-0 → concept-1 → ... → concept-9
     let parentIri = null;
     for (let i = 0; i < 10; i++) {
-      const iri = `fandaws:concept/c${i}`;
+      const iri = `fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c${i}`;
       const label = `Concept${i}`;
       const concept = makeConcept(iri, label, parentIri);
       if (i === 0) concept['fandaws:allowRoot'] = true;
@@ -1691,14 +1691,14 @@ describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', ()
     expect(idx.canonicalLabelToIri.size).toBe(10);
 
     // Verify parent chain from c9 back to c0
-    let current = 'fandaws:concept/c9';
+    let current = `fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c9`;
     for (let i = 8; i >= 0; i--) {
       const parent = idx.iriToParent.get(current);
-      expect(parent).toBe(`fandaws:concept/c${i}`);
+      expect(parent).toBe(`fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c${i}`);
       current = parent;
     }
     // c0 is root
-    expect(idx.iriToParent.get('fandaws:concept/c0')).toBeNull();
+    expect(idx.iriToParent.get('fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c0')).toBeNull();
 
     expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
   });

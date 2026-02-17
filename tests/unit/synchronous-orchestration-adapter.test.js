@@ -115,8 +115,8 @@ describe('SynchronousOrchestrationAdapter', () => {
       stateAdapter.saveGraph(
         GRAPH_ID,
         makeGraph([
-          makeConcept('fandaws:concept/animal', 'Animal', 'animal'),
-          makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal'),
+          makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal'),
+          makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
         ]),
       );
     });
@@ -134,7 +134,7 @@ describe('SynchronousOrchestrationAdapter', () => {
     });
 
     it('completes property with scopeDecisions', () => {
-      const decisions = new Map([['fandaws:concept/animal', false]]);
+      const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', false]]);
       const result = orchestrator.runPipeline('A dog has fur', context, {
         scopeDecisions: decisions,
       });
@@ -142,7 +142,7 @@ describe('SynchronousOrchestrationAdapter', () => {
 
       const graph = stateAdapter.loadGraph(GRAPH_ID);
       const dog = graph['fandaws:concepts'].find(
-        (c) => c['@id'] === 'fandaws:concept/dog',
+        (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       );
       const props = (dog['rdfs:subClassOf'] || []).filter(
         (e) => isRestrictionNode(e) && e['fandaws:restrictionKind'] === 'property',
@@ -196,8 +196,8 @@ describe('SynchronousOrchestrationAdapter', () => {
       stateAdapter.saveGraph(
         GRAPH_ID,
         makeGraph([
-          makeConcept('fandaws:concept/animal', 'Animal', 'animal'),
-          makeConcept('fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal'),
+          makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal'),
+          makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
         ]),
       );
     });
@@ -240,7 +240,7 @@ describe('SynchronousOrchestrationAdapter', () => {
     it('classification then property works end-to-end', () => {
       orchestrator.runPipeline('A dog is an animal', context);
 
-      const decisions = new Map([['fandaws:concept/animal', false]]);
+      const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', false]]);
       const result = orchestrator.runPipeline('A dog has fur', context, {
         scopeDecisions: decisions,
       });

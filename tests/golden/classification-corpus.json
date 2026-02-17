@@ -16,7 +16,7 @@
     "id": "cls-object-exists",
     "utterance": "A dog is an animal",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
     ],
     "expect": {
       "success": true,
@@ -31,8 +31,8 @@
     "id": "cls-chain-extend",
     "utterance": "A poodle is a dog",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "expect": {
       "success": true,
@@ -47,13 +47,13 @@
     "id": "cls-multi-word",
     "utterance": "A golden retriever is a dog",
     "setup": [
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
     ],
     "expect": {
       "success": true,
       "conceptCount": 2,
       "subjectCanonical": "golden retriever",
-      "subjectIri": "fandaws:concept/golden-retriever",
+      "subjectIri": "fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever",
       "parentLink": true
     },
     "note": "Multi-word subject term with hyphenated IRI"
@@ -88,8 +88,8 @@
     "id": "cls-re-assertion",
     "utterance": "A dog is an animal",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "expect": {
       "success": true,
@@ -102,8 +102,8 @@
     "id": "cls-circular-reject",
     "utterance": "An animal is a dog",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
     ],
     "expect": {
       "success": false,
@@ -125,10 +125,10 @@
     "id": "cls-deep-chain",
     "utterance": "A chihuahua is a dog",
     "setup": [
-      { "id": "fandaws:concept/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing" },
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:concept/living-thing" },
-      { "id": "fandaws:concept/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:concept/animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:concept/mammal" }
+      { "id": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing", "displayLabel": "Living Thing", "canonicalLabel": "living thing" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" }
     ],
     "expect": {
       "success": true,
@@ -155,7 +155,7 @@
     "id": "cls-case-insensitive",
     "utterance": "A DOG is an ANIMAL",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
     ],
     "expect": {
       "success": true,
@@ -182,8 +182,8 @@
     "id": "cls-both-exist-link",
     "utterance": "A dog is an animal",
     "setup": [
-      { "id": "fandaws:concept/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
     ],
     "expect": {
       "success": true,
@@ -196,8 +196,8 @@
     "id": "cls-disambiguation",
     "utterance": "An atm is a bank",
     "setup": [
-      { "id": "fandaws:concept/bank-1", "displayLabel": "Bank (financial)", "canonicalLabel": "bank" },
-      { "id": "fandaws:concept/bank-2", "displayLabel": "Bank (river)", "canonicalLabel": "bank" }
+      { "id": "fandaws:class/05a64685-8b2a-5277-bceb-2818812522ed/bank-1", "displayLabel": "Bank (financial)", "canonicalLabel": "bank" },
+      { "id": "fandaws:class/86b5184e-f6b0-5b2e-b6da-b9fe12cfa318/bank-2", "displayLabel": "Bank (river)", "canonicalLabel": "bank" }
     ],
     "expect": {
       "success": false,
@@ -210,7 +210,7 @@
     "id": "cls-unknown-parent-auto",
     "utterance": "A dog is an animal",
     "setup": [
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
     ],
     "options": { "negotiateUnknownParent": false },
     "expect": {
@@ -224,7 +224,7 @@
     "id": "cls-unknown-parent-negotiate",
     "utterance": "A dog is an animal",
     "setup": [
-      { "id": "fandaws:concept/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog" }
     ],
     "options": { "negotiateUnknownParent": true },
     "expect": {

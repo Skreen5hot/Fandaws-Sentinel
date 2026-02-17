@@ -153,14 +153,14 @@ describe('Case C: Both concepts are new', () => {
     expect(additions).toHaveLength(2);
 
     const [objectNode, subjectNode] = additions;
-    expect(objectNode['@id']).toBe('fandaws:concept/animal');
+    expect(objectNode['@id']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(objectNode['skos:prefLabel']).toBe('animal');
     expect(objectNode['fandaws:allowRoot']).toBe(true);
     expect(objectNode['skos:broader']).toBeNull();
 
-    expect(subjectNode['@id']).toBe('fandaws:concept/dog');
+    expect(subjectNode['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(subjectNode['skos:prefLabel']).toBe('dog');
-    expect(subjectNode['skos:broader']).toBe('fandaws:concept/animal');
+    expect(subjectNode['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('handles multi-word terms', () => {
@@ -170,7 +170,7 @@ describe('Case C: Both concepts are new', () => {
       EMPTY_INDICES,
     );
     const additions = result.mutation['fandaws:additions'];
-    expect(additions[1]['@id']).toBe('fandaws:concept/golden-retriever');
+    expect(additions[1]['@id']).toBe('fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever');
     expect(additions[1]['rdfs:label']).toBe('golden retriever');
   });
 
@@ -193,7 +193,7 @@ describe('Case C: Both concepts are new', () => {
 describe('Case B: Object exists, subject is new', () => {
   it('creates subject with broader pointing to existing object', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null,
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal', null,
     );
     const graph = makeGraph([animal]);
     const indices = buildIndices([animal]);
@@ -207,8 +207,8 @@ describe('Case B: Object exists, subject is new', () => {
 
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(1);
-    expect(additions[0]['@id']).toBe('fandaws:concept/dog');
-    expect(additions[0]['skos:broader']).toBe('fandaws:concept/animal');
+    expect(additions[0]['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(additions[0]['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 });
 
@@ -219,10 +219,10 @@ describe('Case B: Object exists, subject is new', () => {
 describe('Case A: Both exist, not linked', () => {
   it('emits modification to set subject broader', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null,
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal', null,
     );
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null,
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([animal, dog]);
     const indices = buildIndices([animal, dog]);
@@ -236,10 +236,10 @@ describe('Case A: Both exist, not linked', () => {
 
     const mods = result.mutation['fandaws:modifications'];
     expect(mods).toHaveLength(1);
-    expect(mods[0]['@id']).toBe('fandaws:concept/dog');
+    expect(mods[0]['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(mods[0]['fandaws:field']).toBe('skos:broader');
-    expect(mods[0]['fandaws:value']).toBe('fandaws:concept/animal');
-    expect(mods[0]['skos:broader']).toBe('fandaws:concept/animal');
+    expect(mods[0]['fandaws:value']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    expect(mods[0]['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 });
 
@@ -250,7 +250,7 @@ describe('Case A: Both exist, not linked', () => {
 describe('Case D: Object new, subject exists', () => {
   it('auto-creates object as root and modifies subject broader', () => {
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null,
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([dog]);
     const indices = buildIndices([dog]);
@@ -264,18 +264,18 @@ describe('Case D: Object new, subject exists', () => {
 
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(1);
-    expect(additions[0]['@id']).toBe('fandaws:concept/animal');
+    expect(additions[0]['@id']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(additions[0]['fandaws:allowRoot']).toBe(true);
 
     const mods = result.mutation['fandaws:modifications'];
     expect(mods).toHaveLength(1);
-    expect(mods[0]['@id']).toBe('fandaws:concept/dog');
-    expect(mods[0]['fandaws:value']).toBe('fandaws:concept/animal');
+    expect(mods[0]['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(mods[0]['fandaws:value']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('negotiates when negotiateUnknownParent is true', () => {
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null,
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([dog]);
     const indices = buildIndices([dog]);
@@ -302,10 +302,10 @@ describe('Case D: Object new, subject exists', () => {
 describe('Re-assertion idempotency', () => {
   it('returns no-op when classification already exists', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null,
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal', null,
     );
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const graph = makeGraph([animal, dog]);
     const indices = buildIndices([animal, dog]);
@@ -328,10 +328,10 @@ describe('Re-assertion idempotency', () => {
 describe('Circular classification', () => {
   it('rejects "animal is a dog" when dog → animal exists', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null,
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal', null,
     );
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', 'fandaws:concept/animal',
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const graph = makeGraph([animal, dog]);
     const indices = buildIndices([animal, dog]);
@@ -346,9 +346,9 @@ describe('Circular classification', () => {
   });
 
   it('rejects transitive cycle: A → B → C, try C is A', () => {
-    const a = makeConcept('fandaws:concept/a', 'A', 'a', null);
-    const b = makeConcept('fandaws:concept/b', 'B', 'b', 'fandaws:concept/a');
-    const c = makeConcept('fandaws:concept/c', 'C', 'c', 'fandaws:concept/b');
+    const a = makeConcept('fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', 'A', 'a', null);
+    const b = makeConcept('fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b', 'B', 'b', 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a');
+    const c = makeConcept('fandaws:class/d15c397d-3f96-5f61-8d20-3f8baf33f1f8/c', 'C', 'c', 'fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b');
     const graph = makeGraph([a, b, c]);
     const indices = buildIndices([a, b, c]);
 
@@ -369,10 +369,10 @@ describe('Circular classification', () => {
 describe('Disambiguation', () => {
   it('emits disambiguation prompt when object has multiple matches', () => {
     const bank1 = makeConcept(
-      'fandaws:concept/bank-1', 'Bank (financial)', 'bank', null,
+      'fandaws:class/05a64685-8b2a-5277-bceb-2818812522ed/bank-1', 'Bank (financial)', 'bank', null,
     );
     const bank2 = makeConcept(
-      'fandaws:concept/bank-2', 'Bank (river)', 'bank', null,
+      'fandaws:class/86b5184e-f6b0-5b2e-b6da-b9fe12cfa318/bank-2', 'Bank (river)', 'bank', null,
     );
     const graph = makeGraph([bank1, bank2]);
     const indices = buildIndices([bank1, bank2]);
@@ -391,13 +391,13 @@ describe('Disambiguation', () => {
 
   it('emits disambiguation prompt when subject has multiple matches', () => {
     const bass1 = makeConcept(
-      'fandaws:concept/bass-1', 'Bass (fish)', 'bass', null,
+      'fandaws:class/2ef9c7d9-4087-52b0-8062-30e24ee10f77/bass-1', 'Bass (fish)', 'bass', null,
     );
     const bass2 = makeConcept(
-      'fandaws:concept/bass-2', 'Bass (instrument)', 'bass', null,
+      'fandaws:class/83492715-d975-50f7-a086-52a31bee5ff1/bass-2', 'Bass (instrument)', 'bass', null,
     );
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null,
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal', null,
     );
     const graph = makeGraph([bass1, bass2, animal]);
     const indices = buildIndices([bass1, bass2, animal]);
@@ -431,7 +431,7 @@ describe('allowRoot flag', () => {
 
   it('sets allowRoot on new object in Case D', () => {
     const dog = makeConcept(
-      'fandaws:concept/dog', 'Dog', 'dog', null,
+      'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', null,
     );
     const graph = makeGraph([dog]);
     const indices = buildIndices([dog]);
@@ -447,7 +447,7 @@ describe('allowRoot flag', () => {
 
   it('does not set allowRoot on new subject (Case B)', () => {
     const animal = makeConcept(
-      'fandaws:concept/animal', 'Animal', 'animal', null,
+      'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'animal', null,
     );
     const graph = makeGraph([animal]);
     const indices = buildIndices([animal]);

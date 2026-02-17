@@ -37,54 +37,54 @@ function makeConcept(id, label, broader = null) {
 
 describe('checkGovernanceBlock', () => {
   it('returns { blocked: false } when concept is not in graph', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const graph = makeGraph([]);
     expect(checkGovernanceBlock(concept, graph)).toEqual({ blocked: false });
   });
 
   it('returns { blocked: false } when concept has no governance flag', () => {
-    const existing = makeConcept('fandaws:concept/dog', 'Dog');
+    const existing = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     expect(checkGovernanceBlock(concept, graph)).toEqual({ blocked: false });
   });
 
   it('returns { blocked: false } for advisory severity', () => {
     const existing = {
-      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'advisory',
         'fandaws:reason': 'Consider renaming.',
       },
     };
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     expect(checkGovernanceBlock(concept, graph).blocked).toBe(false);
   });
 
   it('returns { blocked: false } for warning severity', () => {
     const existing = {
-      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'warning',
         'fandaws:reason': 'Might overlap with another concept.',
       },
     };
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     expect(checkGovernanceBlock(concept, graph).blocked).toBe(false);
   });
 
   it('returns { blocked: true } for blocking severity', () => {
     const existing = {
-      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'blocking',
         'fandaws:reason': 'Under review by governance team.',
       },
     };
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const result = checkGovernanceBlock(concept, graph);
     expect(result.blocked).toBe(true);
     expect(result.reason).toBeDefined();
@@ -93,7 +93,7 @@ describe('checkGovernanceBlock', () => {
 
   it('includes EpistemicFailure node when blocked', () => {
     const existing = {
-      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'blocking',
         'fandaws:type': 'oce-review',
@@ -101,13 +101,13 @@ describe('checkGovernanceBlock', () => {
       },
     };
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const result = checkGovernanceBlock(concept, graph);
     expect(result.blocked).toBe(true);
     expect(result.flagType).toBe('oce-review');
     const ef = result.epistemicFailure;
     expect(ef['@type']).toBe('fandaws:EpistemicFailure');
-    expect(ef['fandaws:conceptId']).toBe('fandaws:concept/dog');
+    expect(ef['fandaws:conceptId']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(ef['fandaws:mutationType']).toBe('governanceBlock');
     expect(ef['fandaws:escalatedToHuman']).toBe(false);
   });
@@ -119,11 +119,11 @@ describe('checkGovernanceBlock', () => {
 
 describe('createGovernanceEpistemicFailure', () => {
   it('produces valid EpistemicFailure shape', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const flag = { 'fandaws:severity': 'blocking', 'fandaws:reason': 'Review needed.' };
     const ef = createGovernanceEpistemicFailure(concept, flag);
     expect(ef['@type']).toBe('fandaws:EpistemicFailure');
-    expect(ef['fandaws:conceptId']).toBe('fandaws:concept/dog');
+    expect(ef['fandaws:conceptId']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(ef['fandaws:mutationType']).toBe('governanceBlock');
     expect(ef['fandaws:rejectionReasons']).toEqual(['Review needed.']);
     expect(ef['fandaws:suggestedActions']).toHaveLength(1);
@@ -132,7 +132,7 @@ describe('createGovernanceEpistemicFailure', () => {
   });
 
   it('uses default reason when flag has none', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const flag = { 'fandaws:severity': 'blocking' };
     const ef = createGovernanceEpistemicFailure(concept, flag);
     expect(ef['fandaws:rejectionReasons'][0]).toContain('Governance flag');
@@ -153,27 +153,27 @@ describe('createGovernanceEpistemicFailure', () => {
 describe('checkGovernanceBlock — SUP-07 edge cases', () => {
   it('SUP-07a: flag with no severity field defaults to non-blocking', () => {
     const existing = {
-      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog'),
       'fandaws:governanceFlag': {
         'fandaws:reason': 'Under review.',
         // no severity field
       },
     };
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     expect(checkGovernanceBlock(concept, graph).blocked).toBe(false);
   });
 
   it('SUP-07b: flag with unknown severity string defaults to non-blocking', () => {
     const existing = {
-      ...makeConcept('fandaws:concept/dog', 'Dog'),
+      ...makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog'),
       'fandaws:governanceFlag': {
         'fandaws:severity': 'critical',
         'fandaws:reason': 'Unknown severity level.',
       },
     };
     const graph = makeGraph([existing]);
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     // Only 'blocking' severity triggers the halt; unknown severities are safe
     expect(checkGovernanceBlock(concept, graph).blocked).toBe(false);
   });

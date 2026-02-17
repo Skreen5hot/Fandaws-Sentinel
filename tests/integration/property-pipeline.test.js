@@ -45,7 +45,7 @@ describe('runPropertyPipeline', () => {
   });
 
   it('rejects non-property utterance', () => {
-    setupGraph(adapter, [makeConcept('fandaws:concept/dog', 'Dog')]);
+    setupGraph(adapter, [makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog')]);
     const result = runPropertyPipeline('A dog is an animal', context);
     expect(result.error).toBe(true);
     expect(result.errorReason).toContain('wrong-workflow');
@@ -60,7 +60,7 @@ describe('runPropertyPipeline', () => {
   });
 
   it('attaches property to root concept (no scope narrowing)', () => {
-    setupGraph(adapter, [makeConcept('fandaws:concept/animal', 'Animal')]);
+    setupGraph(adapter, [makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
     const result = runPropertyPipeline('An animal has cells', context);
     expect(result.success).toBe(true);
     expect(result.mutation).not.toBeNull();
@@ -68,7 +68,7 @@ describe('runPropertyPipeline', () => {
     // Verify property embedded in graph
     const graph = adapter.loadGraph(GRAPH_ID);
     const animal = graph['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/animal',
+      (c) => c['@id'] === 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     const props = (animal['rdfs:subClassOf'] || []).filter(
       (e) => e['fandaws:restrictionKind'] === 'property',
@@ -79,8 +79,8 @@ describe('runPropertyPipeline', () => {
 
   it('returns scope narrowing prompts for non-root subject', () => {
     setupGraph(adapter, [
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
     const result = runPropertyPipeline('A dog has fur', context);
     expect(result.success).toBe(false);
@@ -90,16 +90,16 @@ describe('runPropertyPipeline', () => {
 
   it('completes with scope decision: parent=no → attach to subject', () => {
     setupGraph(adapter, [
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
-    const decisions = new Map([['fandaws:concept/animal', false]]);
+    const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', false]]);
     const result = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
     expect(result.success).toBe(true);
 
     // Verify property on dog
     const graph = adapter.loadGraph(GRAPH_ID);
-    const dog = graph['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:concept/dog');
+    const dog = graph['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     const props = (dog['rdfs:subClassOf'] || []).filter(
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
@@ -109,16 +109,16 @@ describe('runPropertyPipeline', () => {
 
   it('completes with scope decision: parent=yes → attach to parent', () => {
     setupGraph(adapter, [
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
-    const decisions = new Map([['fandaws:concept/animal', true]]);
+    const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', true]]);
     const result = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
     expect(result.success).toBe(true);
 
     // Verify property on animal (not dog)
     const graph = adapter.loadGraph(GRAPH_ID);
-    const animal = graph['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:concept/animal');
+    const animal = graph['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     const props = (animal['rdfs:subClassOf'] || []).filter(
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
@@ -128,23 +128,23 @@ describe('runPropertyPipeline', () => {
 
   it('generates descriptions including properties', () => {
     setupGraph(adapter, [
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
-    const decisions = new Map([['fandaws:concept/animal', true]]);
+    const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', true]]);
     const result = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
     expect(result.success).toBe(true);
     expect(result.descriptions.length).toBeGreaterThan(0);
     // Animal should have description mentioning fur
     const animalDesc = result.descriptions.find(
-      (d) => d.conceptIri === 'fandaws:concept/animal',
+      (d) => d.conceptIri === 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
     expect(animalDesc).toBeDefined();
     expect(animalDesc.description).toContain('fur');
   });
 
   it('is idempotent — re-assertion returns no-op', () => {
-    setupGraph(adapter, [makeConcept('fandaws:concept/animal', 'Animal')]);
+    setupGraph(adapter, [makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
     // First call: attach property
     runPropertyPipeline('An animal has cells', context);
     // Second call: same property — should be no-op
@@ -169,11 +169,11 @@ describe('runPropertyPipeline', () => {
 
   it('works with Leap Check on deep hierarchy', () => {
     setupGraph(adapter, [
-      makeConcept('fandaws:concept/entity', 'Entity'),
-      makeConcept('fandaws:concept/living-thing', 'Living Thing', 'fandaws:concept/entity'),
-      makeConcept('fandaws:concept/animal', 'Animal', 'fandaws:concept/living-thing'),
-      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+      makeConcept('fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', 'Entity'),
+      makeConcept('fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', 'Living Thing', 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing'),
+      makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'),
     ]);
 
     // First call: should get 2 prompts (parent + root) via Leap Check
@@ -182,15 +182,15 @@ describe('runPropertyPipeline', () => {
 
     // Both yes → attach to root
     const decisions = new Map([
-      ['fandaws:concept/mammal', true],
-      ['fandaws:concept/entity', true],
+      ['fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', true],
+      ['fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', true],
     ]);
     const result2 = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
     expect(result2.success).toBe(true);
 
     // Property should be on entity
     const graph = adapter.loadGraph(GRAPH_ID);
-    const entity = graph['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:concept/entity');
+    const entity = graph['fandaws:concepts'].find((c) => c['@id'] === 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity');
     const props = (entity['rdfs:subClassOf'] || []).filter(
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
@@ -203,7 +203,7 @@ describe('runPropertyPipeline', () => {
     // whose prefLabel matches the plural form "dogs".
     setupGraph(adapter, [
       createConcept({
-        id: 'fandaws:concept/dogs',
+        id: 'fandaws:class/26e7809b-0d05-53e6-9a07-d6ca0b180f36/dogs',
         label: 'Dogs',
         prefLabel: 'dogs',
       }),

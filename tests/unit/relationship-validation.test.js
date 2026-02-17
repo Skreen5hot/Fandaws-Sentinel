@@ -98,25 +98,25 @@ describe('normalizeVerb', () => {
 describe('validateRelationship', () => {
   describe('duplicate check', () => {
     it('detects exact duplicate tuple', () => {
-      const rel1 = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', null, [rel1]);
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const rel1 = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', null, [rel1]);
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
 
-      const newRel = makeRel('r2', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
+      const newRel = makeRel('r2', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'duplicateRelationship')).toBe(true);
     });
 
     it('detects normalized verb match ("chases" matches "chase")', () => {
-      const rel1 = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', null, [rel1]);
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const rel1 = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', null, [rel1]);
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
 
-      const newRel = makeRel('r2', 'chases', 'fandaws:concept/dog', 'fandaws:concept/cat');
+      const newRel = makeRel('r2', 'chases', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'duplicateRelationship')).toBe(true);
     });
@@ -124,25 +124,25 @@ describe('validateRelationship', () => {
 
   describe('inverse check', () => {
     it('detects swapped subject/object', () => {
-      const rel1 = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', null, [rel1]);
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const rel1 = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', null, [rel1]);
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
 
-      const newRel = makeRel('r2', 'chase', 'fandaws:concept/cat', 'fandaws:concept/dog');
+      const newRel = makeRel('r2', 'chase', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'inverseRelationship')).toBe(true);
     });
 
     it('does not flag different verb as inverse', () => {
-      const rel1 = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', null, [rel1]);
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const rel1 = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', null, [rel1]);
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
 
-      const newRel = makeRel('r2', 'guard', 'fandaws:concept/cat', 'fandaws:concept/dog');
+      const newRel = makeRel('r2', 'guard', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'inverseRelationship')).toBe(false);
     });
@@ -150,39 +150,39 @@ describe('validateRelationship', () => {
 
   describe('hierarchy consistency', () => {
     it('detects ancestor with same relationship → redundant', () => {
-      const rel1 = makeRel('r1', 'eat', 'fandaws:concept/animal', 'fandaws:concept/food');
-      const animal = makeConcept('fandaws:concept/animal', 'animal', null, [rel1]);
-      const dog = makeConcept('fandaws:concept/dog', 'dog', 'fandaws:concept/animal');
-      const food = makeConcept('fandaws:concept/food', 'food');
+      const rel1 = makeRel('r1', 'eat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal', null, [rel1]);
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const food = makeConcept('fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food', 'food');
       const graph = makeGraph([animal, dog, food]);
       const indices = makeIndices([animal, dog, food]);
 
-      const newRel = makeRel('r2', 'eat', 'fandaws:concept/dog', 'fandaws:concept/food');
+      const newRel = makeRel('r2', 'eat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'hierarchyRedundant')).toBe(true);
     });
 
     it('passes when no ancestor has the relationship', () => {
-      const animal = makeConcept('fandaws:concept/animal', 'animal');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', 'fandaws:concept/animal');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([animal, dog, cat]);
       const indices = makeIndices([animal, dog, cat]);
 
-      const newRel = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
+      const newRel = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'hierarchyRedundant')).toBe(false);
     });
 
     it('passes when ancestor has different verb', () => {
-      const rel1 = makeRel('r1', 'eat', 'fandaws:concept/animal', 'fandaws:concept/food');
-      const animal = makeConcept('fandaws:concept/animal', 'animal', null, [rel1]);
-      const dog = makeConcept('fandaws:concept/dog', 'dog', 'fandaws:concept/animal');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const rel1 = makeRel('r1', 'eat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal', null, [rel1]);
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([animal, dog, cat]);
       const indices = makeIndices([animal, dog, cat]);
 
-      const newRel = makeRel('r2', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
+      const newRel = makeRel('r2', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'hierarchyRedundant')).toBe(false);
     });
@@ -190,15 +190,15 @@ describe('validateRelationship', () => {
 
   describe('reuse assessment', () => {
     it('flags verb reuse as warning', () => {
-      const rel1 = makeRel('r1', 'chase', 'fandaws:concept/cat', 'fandaws:concept/mouse');
-      const cat = makeConcept('fandaws:concept/cat', 'cat', null, [rel1]);
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
-      const mouse = makeConcept('fandaws:concept/mouse', 'mouse');
-      const bird = makeConcept('fandaws:concept/bird', 'bird');
+      const rel1 = makeRel('r1', 'chase', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/e4088625-0c9a-5e4c-85e4-ad574c774e39/mouse');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat', null, [rel1]);
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
+      const mouse = makeConcept('fandaws:class/e4088625-0c9a-5e4c-85e4-ad574c774e39/mouse', 'mouse');
+      const bird = makeConcept('fandaws:class/5573c80b-1dbe-5bfd-bd74-78dca6c0731b/bird', 'bird');
       const graph = makeGraph([cat, dog, mouse, bird]);
       const indices = makeIndices([cat, dog, mouse, bird]);
 
-      const newRel = makeRel('r2', 'chase', 'fandaws:concept/dog', 'fandaws:concept/bird');
+      const newRel = makeRel('r2', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/5573c80b-1dbe-5bfd-bd74-78dca6c0731b/bird');
       const result = validateRelationship(newRel, graph, indices);
       const reuse = result.violations.find((v) => v.reason === 'verbReuse');
       expect(reuse).toBeDefined();
@@ -206,12 +206,12 @@ describe('validateRelationship', () => {
     });
 
     it('does not flag unique verb', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
 
-      const newRel = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
+      const newRel = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'verbReuse')).toBe(false);
     });
@@ -219,20 +219,20 @@ describe('validateRelationship', () => {
 
   describe('promotion check', () => {
     it('suggests promotion when all siblings have same relationship', () => {
-      const parentRel = makeRel('rp', 'eat', 'fandaws:concept/animal', 'fandaws:concept/food');
-      const animal = makeConcept('fandaws:concept/animal', 'animal');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', 'fandaws:concept/animal', [
-        makeRel('r1', 'eat', 'fandaws:concept/dog', 'fandaws:concept/food'),
+      const parentRel = makeRel('rp', 'eat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', [
+        makeRel('r1', 'eat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food'),
       ]);
-      const cat = makeConcept('fandaws:concept/cat', 'cat', 'fandaws:concept/animal', [
-        makeRel('r2', 'eat', 'fandaws:concept/cat', 'fandaws:concept/food'),
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', [
+        makeRel('r2', 'eat', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food'),
       ]);
-      const food = makeConcept('fandaws:concept/food', 'food');
+      const food = makeConcept('fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food', 'food');
       const graph = makeGraph([animal, dog, cat, food]);
       const indices = makeIndices([animal, dog, cat, food]);
 
       // New rel with subRestrictionOf set
-      const newRel = { ...makeRel('r3', 'eat', 'fandaws:concept/dog', 'fandaws:concept/food'), 'fandaws:subRestrictionOf': 'rp' };
+      const newRel = { ...makeRel('r3', 'eat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food'), 'fandaws:subRestrictionOf': 'rp' };
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'promotionCandidate')).toBe(true);
     });
@@ -240,13 +240,13 @@ describe('validateRelationship', () => {
 
   describe('refactoring check', () => {
     it('flags same-subtree relationship', () => {
-      const animal = makeConcept('fandaws:concept/animal', 'animal');
-      const dog = makeConcept('fandaws:concept/dog', 'dog', 'fandaws:concept/animal');
-      const cat = makeConcept('fandaws:concept/cat', 'cat', 'fandaws:concept/animal');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
       const graph = makeGraph([animal, dog, cat]);
       const indices = makeIndices([animal, dog, cat]);
 
-      const newRel = makeRel('r1', 'chase', 'fandaws:concept/dog', 'fandaws:concept/cat');
+      const newRel = makeRel('r1', 'chase', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const result = validateRelationship(newRel, graph, indices);
       const refactor = result.violations.find((v) => v.reason === 'sameSubtree');
       expect(refactor).toBeDefined();
@@ -254,12 +254,12 @@ describe('validateRelationship', () => {
     });
 
     it('does not flag unrelated concepts', () => {
-      const animal = makeConcept('fandaws:concept/animal', 'animal');
-      const plant = makeConcept('fandaws:concept/plant', 'plant');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal');
+      const plant = makeConcept('fandaws:class/ee0234bf-b767-5314-a938-211e7bd3437c/plant', 'plant');
       const graph = makeGraph([animal, plant]);
       const indices = makeIndices([animal, plant]);
 
-      const newRel = makeRel('r1', 'consume', 'fandaws:concept/animal', 'fandaws:concept/plant');
+      const newRel = makeRel('r1', 'consume', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'fandaws:class/ee0234bf-b767-5314-a938-211e7bd3437c/plant');
       const result = validateRelationship(newRel, graph, indices);
       expect(result.violations.some((v) => v.reason === 'sameSubtree')).toBe(false);
     });

@@ -388,12 +388,12 @@ async function loadTestResults() {
 // ─────────────────────────────────────────────────────────
 
 const DEMO_HIERARCHY = [
-  { id: 'fandaws:concept/entity', label: 'Entity', prefLabel: 'entity', broader: null },
-  { id: 'fandaws:concept/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:concept/entity' },
-  { id: 'fandaws:concept/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:concept/living-thing' },
-  { id: 'fandaws:concept/mammal', label: 'Mammal', prefLabel: 'mammal', broader: 'fandaws:concept/animal' },
-  { id: 'fandaws:concept/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:concept/mammal' },
-  { id: 'fandaws:concept/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:concept/mammal' },
+  { id: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', label: 'Entity', prefLabel: 'entity', broader: null },
+  { id: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity' },
+  { id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing' },
+  { id: 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', label: 'Mammal', prefLabel: 'mammal', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal' },
+  { id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal' },
+  { id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal' },
 ];
 
 let propertyAdapter = null;
@@ -568,33 +568,33 @@ function escapeHtml(str) {
 // ─────────────────────────────────────────────────────────
 
 const DESC_HIERARCHY = [
-  { id: 'fandaws:concept/entity', label: 'Entity', prefLabel: 'entity', broader: null },
-  { id: 'fandaws:concept/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:concept/entity' },
-  { id: 'fandaws:concept/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:concept/living-thing' },
-  { id: 'fandaws:concept/mammal', label: 'Mammal', prefLabel: 'mammal', broader: 'fandaws:concept/animal' },
-  { id: 'fandaws:concept/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:concept/mammal' },
-  { id: 'fandaws:concept/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:concept/mammal' },
-  { id: 'fandaws:concept/elephant', label: 'Elephant', prefLabel: 'elephant', broader: 'fandaws:concept/animal' },
-  { id: 'fandaws:concept/hunt', label: 'Hunt', prefLabel: 'hunt', broader: null },
-  { id: 'fandaws:concept/predation', label: 'Predation', prefLabel: 'predation', broader: 'fandaws:concept/hunt' },
-  { id: 'fandaws:concept/university', label: 'University', prefLabel: 'university', broader: null },
-  { id: 'fandaws:concept/oxford', label: 'Oxford', prefLabel: 'oxford', broader: 'fandaws:concept/university' },
-  { id: 'fandaws:concept/hour', label: 'Hour', prefLabel: 'hour', broader: null },
-  { id: 'fandaws:concept/minute', label: 'Minute', prefLabel: 'minute', broader: 'fandaws:concept/hour' },
+  { id: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', label: 'Entity', prefLabel: 'entity', broader: null },
+  { id: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity' },
+  { id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing' },
+  { id: 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', label: 'Mammal', prefLabel: 'mammal', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal' },
+  { id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal' },
+  { id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal' },
+  { id: 'fandaws:class/84583835-5246-5db0-a48f-3f64ea197c2e/elephant', label: 'Elephant', prefLabel: 'elephant', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal' },
+  { id: 'fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt', label: 'Hunt', prefLabel: 'hunt', broader: null },
+  { id: 'fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation', label: 'Predation', prefLabel: 'predation', broader: 'fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt' },
+  { id: 'fandaws:class/6189cbb4-b6dc-56cf-ac11-ea6c4a39df42/university', label: 'University', prefLabel: 'university', broader: null },
+  { id: 'fandaws:class/72b2e3ab-38f0-5870-9e7a-c6f93066ea00/oxford', label: 'Oxford', prefLabel: 'oxford', broader: 'fandaws:class/6189cbb4-b6dc-56cf-ac11-ea6c4a39df42/university' },
+  { id: 'fandaws:class/27b21777-3336-594a-bab0-8020b8d33dbe/hour', label: 'Hour', prefLabel: 'hour', broader: null },
+  { id: 'fandaws:class/d67f6f7b-3981-51d1-88a5-ff5118706b18/minute', label: 'Minute', prefLabel: 'minute', broader: 'fandaws:class/27b21777-3336-594a-bab0-8020b8d33dbe/hour' },
 ];
 
 let descProperties = [];
 
 const DESC_EXAMPLES = [
-  { label: 'Standard: Dog is a Mammal', concept: 'fandaws:concept/dog', properties: [], rel: null },
-  { label: 'Article "an": Animal is a Living Thing', concept: 'fandaws:concept/animal', properties: [], rel: null },
-  { label: 'With properties: Dog + fur, four legs', concept: 'fandaws:concept/dog', properties: ['fur', 'four legs'], rel: null },
-  { label: 'Oxford comma: Cat + whiskers, claws, tail', concept: 'fandaws:concept/cat', properties: ['whiskers', 'claws', 'tail'], rel: null },
-  { label: 'Root concept: Entity', concept: 'fandaws:concept/entity', properties: [], rel: null },
-  { label: 'Root + properties: Entity + mass, energy', concept: 'fandaws:concept/entity', properties: ['mass', 'energy'], rel: null },
-  { label: 'Process: Predation (hunt + chases)', concept: 'fandaws:concept/predation', properties: [], rel: { verb: 'chases', subject: 'fandaws:concept/dog', object: 'fandaws:concept/cat' } },
-  { label: 'Limitation: "an University" (vowel letter)', concept: 'fandaws:concept/oxford', properties: [], rel: null },
-  { label: 'Limitation: "a Hour" (consonant letter)', concept: 'fandaws:concept/minute', properties: [], rel: null },
+  { label: 'Standard: Dog is a Mammal', concept: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', properties: [], rel: null },
+  { label: 'Article "an": Animal is a Living Thing', concept: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', properties: [], rel: null },
+  { label: 'With properties: Dog + fur, four legs', concept: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', properties: ['fur', 'four legs'], rel: null },
+  { label: 'Oxford comma: Cat + whiskers, claws, tail', concept: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', properties: ['whiskers', 'claws', 'tail'], rel: null },
+  { label: 'Root concept: Entity', concept: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', properties: [], rel: null },
+  { label: 'Root + properties: Entity + mass, energy', concept: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', properties: ['mass', 'energy'], rel: null },
+  { label: 'Process: Predation (hunt + chases)', concept: 'fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation', properties: [], rel: { verb: 'chases', subject: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', object: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat' } },
+  { label: 'Limitation: "an University" (vowel letter)', concept: 'fandaws:class/72b2e3ab-38f0-5870-9e7a-c6f93066ea00/oxford', properties: [], rel: null },
+  { label: 'Limitation: "a Hour" (consonant letter)', concept: 'fandaws:class/d67f6f7b-3981-51d1-88a5-ff5118706b18/minute', properties: [], rel: null },
 ];
 
 function initDescriptionDemo() {
@@ -623,9 +623,9 @@ function initDescriptionDemo() {
   }
 
   // Pre-select interesting defaults
-  conceptSelect.value = 'fandaws:concept/dog';
-  subjectSelect.value = 'fandaws:concept/dog';
-  objectSelect.value = 'fandaws:concept/cat';
+  conceptSelect.value = 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog';
+  subjectSelect.value = 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog';
+  objectSelect.value = 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat';
 
   // Render examples
   const examplesEl = document.getElementById('desc-examples');
@@ -1243,22 +1243,22 @@ function updateConvGraphState() {
 // ─────────────────────────────────────────────────────────
 
 function buildExportGraph() {
-  const entity = Fandaws.createConcept({ id: 'fandaws:concept/entity', label: 'Entity', prefLabel: 'entity' });
-  const living = Fandaws.createConcept({ id: 'fandaws:concept/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:concept/entity' });
-  const animal = Fandaws.createConcept({ id: 'fandaws:concept/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:concept/living-thing', definition: 'Animal is a Living Thing.' });
-  const dog = Fandaws.createConcept({ id: 'fandaws:concept/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:concept/animal', definition: 'Dog is an Animal that has fur.' });
-  const cat = Fandaws.createConcept({ id: 'fandaws:concept/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:concept/animal', definition: 'Cat is an Animal that has whiskers.' });
+  const entity = Fandaws.createConcept({ id: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', label: 'Entity', prefLabel: 'entity' });
+  const living = Fandaws.createConcept({ id: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity' });
+  const animal = Fandaws.createConcept({ id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', definition: 'Animal is a Living Thing.' });
+  const dog = Fandaws.createConcept({ id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Dog is an Animal that has fur.' });
+  const cat = Fandaws.createConcept({ id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Cat is an Animal that has whiskers.' });
 
   // Add property to dog
-  const furProp = Fandaws.createProperty({ id: 'fandaws:prop/dog--fur', propertyIri: 'fur', attachedTo: 'fandaws:concept/dog', value: 'yes' });
+  const furProp = Fandaws.createProperty({ id: 'fandaws:prop/dog--fur', propertyIri: 'fur', attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', value: 'yes' });
   dog['rdfs:subClassOf'] = [furProp];
 
   // Add property to cat
-  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:prop/cat--whiskers', propertyIri: 'whiskers', attachedTo: 'fandaws:concept/cat', value: 'yes' });
+  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:prop/cat--whiskers', propertyIri: 'whiskers', attachedTo: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', value: 'yes' });
   cat['rdfs:subClassOf'] = [whiskersProp];
 
   // Add relationship: dog chases cat
-  const chaseRel = Fandaws.createRelationship({ id: 'fandaws:rel/dog--chase--cat', verbIri: 'chase', subject: 'fandaws:concept/dog', object: 'fandaws:concept/cat' });
+  const chaseRel = Fandaws.createRelationship({ id: 'fandaws:rel/5871e405-5c67-5f25-b3bb-4be118e09176/dog--chase--cat', verbIri: 'chase', subject: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', object: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat' });
   dog['rdfs:subClassOf'].push(chaseRel);
 
   return Fandaws.createKnowledgeGraph({ id: 'fandaws:graph/export-demo', concepts: [entity, living, animal, dog, cat] });

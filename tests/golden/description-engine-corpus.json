@@ -3,121 +3,121 @@
   "corpus": [
     {
       "id": "desc-vowel-parent",
-      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" }],
       "expected": "Dog is an Animal.",
       "note": "Article 'an' before vowel-starting parent"
     },
     {
       "id": "desc-consonant-parent",
-      "concept": { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat", "broader": "fandaws:concept/mammal", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/mammal", "label": "Mammal", "prefLabel": "mammal" }],
+      "concept": { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "label": "Cat", "prefLabel": "cat", "broader": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "label": "Mammal", "prefLabel": "mammal" }],
       "expected": "Cat is a Mammal.",
       "note": "Article 'a' before consonant-starting parent"
     },
     {
       "id": "desc-props-two",
-      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": ["fur", "four legs"], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": ["fur", "four legs"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" }],
       "expected": "Dog is an Animal that has fur and four legs.",
       "note": "Two properties joined with 'and'"
     },
     {
       "id": "desc-props-one",
-      "concept": { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat", "broader": "fandaws:concept/animal", "properties": ["whiskers"], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "concept": { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "label": "Cat", "prefLabel": "cat", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": ["whiskers"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" }],
       "expected": "Cat is an Animal that has whiskers.",
       "note": "Single property, no comma or 'and'"
     },
     {
       "id": "desc-props-three",
-      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/mammal", "properties": ["fur", "legs", "tail"], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/mammal", "label": "Mammal", "prefLabel": "mammal" }],
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "properties": ["fur", "legs", "tail"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "label": "Mammal", "prefLabel": "mammal" }],
       "expected": "Dog is a Mammal that has fur, legs, and tail.",
       "note": "Three properties with Oxford comma"
     },
     {
       "id": "desc-root-bare",
-      "concept": { "id": "fandaws:concept/entity", "label": "Entity", "prefLabel": "entity", "properties": [], "relationships": [] },
+      "concept": { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "label": "Entity", "prefLabel": "entity", "properties": [], "relationships": [] },
       "graphConcepts": [],
       "expected": "Entity is a root concept.",
       "note": "Root concept with no parent, no properties"
     },
     {
       "id": "desc-root-props-one",
-      "concept": { "id": "fandaws:concept/entity", "label": "Entity", "prefLabel": "entity", "properties": ["mass"], "relationships": [] },
+      "concept": { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "label": "Entity", "prefLabel": "entity", "properties": ["mass"], "relationships": [] },
       "graphConcepts": [],
       "expected": "Entity is a root concept that has mass.",
       "note": "Root concept with one property"
     },
     {
       "id": "desc-root-props-two",
-      "concept": { "id": "fandaws:concept/entity", "label": "Entity", "prefLabel": "entity", "properties": ["mass", "energy"], "relationships": [] },
+      "concept": { "id": "fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity", "label": "Entity", "prefLabel": "entity", "properties": ["mass", "energy"], "relationships": [] },
       "graphConcepts": [],
       "expected": "Entity is a root concept that has mass and energy.",
       "note": "Root concept with two properties"
     },
     {
       "id": "desc-missing-parent",
-      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": [], "relationships": [] },
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": [], "relationships": [] },
       "graphConcepts": [],
       "expected": "Dog is a concept.",
       "note": "Parent IRI not found in graph — fallback"
     },
     {
       "id": "desc-missing-parent-props",
-      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": ["fur"], "relationships": [] },
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": ["fur"], "relationships": [] },
       "graphConcepts": [],
       "expected": "Dog is a concept that has fur.",
       "note": "Parent missing but properties still shown"
     },
     {
       "id": "desc-capitalize-lower",
-      "concept": { "id": "fandaws:concept/dog", "label": "dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "animal", "prefLabel": "animal" }],
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "animal", "prefLabel": "animal" }],
       "expected": "Dog is an Animal.",
       "note": "Lowercase labels capitalized in output"
     },
     {
       "id": "desc-vowel-e",
-      "concept": { "id": "fandaws:concept/mouse", "label": "Mouse", "prefLabel": "mouse", "broader": "fandaws:concept/elephant", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/elephant", "label": "Elephant", "prefLabel": "elephant" }],
+      "concept": { "id": "fandaws:class/e4088625-0c9a-5e4c-85e4-ad574c774e39/mouse", "label": "Mouse", "prefLabel": "mouse", "broader": "fandaws:class/84583835-5246-5db0-a48f-3f64ea197c2e/elephant", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/84583835-5246-5db0-a48f-3f64ea197c2e/elephant", "label": "Elephant", "prefLabel": "elephant" }],
       "expected": "Mouse is an Elephant.",
       "note": "Article 'an' before 'E'"
     },
     {
       "id": "desc-vowel-i",
-      "concept": { "id": "fandaws:concept/cell", "label": "Cell", "prefLabel": "cell", "broader": "fandaws:concept/invertebrate", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/invertebrate", "label": "Invertebrate", "prefLabel": "invertebrate" }],
+      "concept": { "id": "fandaws:class/ced34b4f-78fa-5c7b-b68e-36237984aea5/cell", "label": "Cell", "prefLabel": "cell", "broader": "fandaws:class/b22cba8c-a7da-528d-81fb-e6a129e69107/invertebrate", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/b22cba8c-a7da-528d-81fb-e6a129e69107/invertebrate", "label": "Invertebrate", "prefLabel": "invertebrate" }],
       "expected": "Cell is an Invertebrate.",
       "note": "Article 'an' before 'I'"
     },
     {
       "id": "desc-vowel-o",
-      "concept": { "id": "fandaws:concept/goat", "label": "Goat", "prefLabel": "goat", "broader": "fandaws:concept/organism", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/organism", "label": "Organism", "prefLabel": "organism" }],
+      "concept": { "id": "fandaws:class/82cb6a27-2a65-5065-8a40-bb101f3f84f9/goat", "label": "Goat", "prefLabel": "goat", "broader": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "label": "Organism", "prefLabel": "organism" }],
       "expected": "Goat is an Organism.",
       "note": "Article 'an' before 'O'"
     },
     {
       "id": "desc-consonant-u",
-      "concept": { "id": "fandaws:concept/screw", "label": "Screw", "prefLabel": "screw", "broader": "fandaws:concept/utensil", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/utensil", "label": "Utensil", "prefLabel": "utensil" }],
+      "concept": { "id": "fandaws:class/24b5bd38-9941-580c-8f18-31dd168f6722/screw", "label": "Screw", "prefLabel": "screw", "broader": "fandaws:class/6f4687b3-a313-5adb-8693-4b09caf1e486/utensil", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/6f4687b3-a313-5adb-8693-4b09caf1e486/utensil", "label": "Utensil", "prefLabel": "utensil" }],
       "expected": "Screw is an Utensil.",
       "note": "Simple vowel check: 'U' treated as vowel (known limitation — 'a utensil' would be phonetically correct)"
     },
     {
       "id": "desc-process-basic",
       "concept": {
-        "id": "fandaws:concept/predation", "label": "Predation", "prefLabel": "predation",
-        "broader": "fandaws:concept/hunt",
+        "id": "fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation", "label": "Predation", "prefLabel": "predation",
+        "broader": "fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt",
         "properties": [],
-        "relationships": [{ "verb": "chases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+        "relationships": [{ "verb": "chases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
       "graphConcepts": [
-        { "id": "fandaws:concept/hunt", "label": "Hunt", "prefLabel": "hunt" },
-        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
-        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+        { "id": "fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt", "label": "Hunt", "prefLabel": "hunt" },
+        { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog" }
       ],
       "expected": "Predation is the hunting of Cat by Dog.",
       "note": "Process template: parent 'Hunt' → gerund 'hunting'"
@@ -125,45 +125,45 @@
     {
       "id": "desc-process-chase",
       "concept": {
-        "id": "fandaws:concept/pursuit", "label": "Pursuit", "prefLabel": "pursuit",
-        "broader": "fandaws:concept/chase",
+        "id": "fandaws:class/df8bc4fe-58af-54df-ad76-afa5409b2176/pursuit", "label": "Pursuit", "prefLabel": "pursuit",
+        "broader": "fandaws:class/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase",
         "properties": [],
-        "relationships": [{ "verb": "follows", "object": "fandaws:concept/prey", "subject": "fandaws:concept/predator" }]
+        "relationships": [{ "verb": "follows", "object": "fandaws:class/0bd48663-46f1-5597-b49f-308e3e419e5d/prey", "subject": "fandaws:class/a5574a02-cdf8-5a3d-ba50-b1ec7a1fecc1/predator" }]
       },
       "graphConcepts": [
-        { "id": "fandaws:concept/chase", "label": "Chase", "prefLabel": "chase" },
-        { "id": "fandaws:concept/prey", "label": "Prey", "prefLabel": "prey" },
-        { "id": "fandaws:concept/predator", "label": "Predator", "prefLabel": "predator" }
+        { "id": "fandaws:class/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase", "label": "Chase", "prefLabel": "chase" },
+        { "id": "fandaws:class/0bd48663-46f1-5597-b49f-308e3e419e5d/prey", "label": "Prey", "prefLabel": "prey" },
+        { "id": "fandaws:class/a5574a02-cdf8-5a3d-ba50-b1ec7a1fecc1/predator", "label": "Predator", "prefLabel": "predator" }
       ],
       "expected": "Pursuit is the chasing of Prey by Predator.",
       "note": "Process template: 'Chase' drops 'e' → 'chasing'"
     },
     {
       "id": "desc-article-university",
-      "concept": { "id": "fandaws:concept/oxford", "label": "Oxford", "prefLabel": "oxford", "broader": "fandaws:concept/university", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/university", "label": "University", "prefLabel": "university" }],
+      "concept": { "id": "fandaws:class/72b2e3ab-38f0-5870-9e7a-c6f93066ea00/oxford", "label": "Oxford", "prefLabel": "oxford", "broader": "fandaws:class/6189cbb4-b6dc-56cf-ac11-ea6c4a39df42/university", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/6189cbb4-b6dc-56cf-ac11-ea6c4a39df42/university", "label": "University", "prefLabel": "university" }],
       "expected": "Oxford is an University.",
       "note": "Known limitation: vowel-letter 'U' produces 'an' (phonetically should be 'a university')"
     },
     {
       "id": "desc-article-hour",
-      "concept": { "id": "fandaws:concept/minute", "label": "Minute", "prefLabel": "minute", "broader": "fandaws:concept/hour", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/hour", "label": "Hour", "prefLabel": "hour" }],
+      "concept": { "id": "fandaws:class/d67f6f7b-3981-51d1-88a5-ff5118706b18/minute", "label": "Minute", "prefLabel": "minute", "broader": "fandaws:class/27b21777-3336-594a-bab0-8020b8d33dbe/hour", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/27b21777-3336-594a-bab0-8020b8d33dbe/hour", "label": "Hour", "prefLabel": "hour" }],
       "expected": "Minute is a Hour.",
       "note": "Known limitation: consonant-letter 'H' produces 'a' (phonetically should be 'an hour')"
     },
     {
       "id": "desc-gerund-ee",
       "concept": {
-        "id": "fandaws:concept/liberation", "label": "Liberation", "prefLabel": "liberation",
-        "broader": "fandaws:concept/free",
+        "id": "fandaws:class/265e2478-a63f-5f85-b3ff-b67098364c94/liberation", "label": "Liberation", "prefLabel": "liberation",
+        "broader": "fandaws:class/d01d3502-0794-5c1c-b44f-2028acffa5e6/free",
         "properties": [],
-        "relationships": [{ "verb": "releases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+        "relationships": [{ "verb": "releases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
       "graphConcepts": [
-        { "id": "fandaws:concept/free", "label": "Free", "prefLabel": "free" },
-        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
-        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+        { "id": "fandaws:class/d01d3502-0794-5c1c-b44f-2028acffa5e6/free", "label": "Free", "prefLabel": "free" },
+        { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog" }
       ],
       "expected": "Liberation is the freeing of Cat by Dog.",
       "note": "Gerund: 'ee' ending preserved — 'Free' → 'freeing'"
@@ -171,54 +171,54 @@
     {
       "id": "desc-gerund-no-double",
       "concept": {
-        "id": "fandaws:concept/sprint", "label": "Sprint", "prefLabel": "sprint",
-        "broader": "fandaws:concept/run",
+        "id": "fandaws:class/0ffdbe30-7ad1-5db6-86dc-e02349e86fcc/sprint", "label": "Sprint", "prefLabel": "sprint",
+        "broader": "fandaws:class/89b8ed2f-594e-50f6-beae-23fde98ec525/run",
         "properties": [],
-        "relationships": [{ "verb": "chases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+        "relationships": [{ "verb": "chases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
       "graphConcepts": [
-        { "id": "fandaws:concept/run", "label": "Run", "prefLabel": "run" },
-        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
-        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+        { "id": "fandaws:class/89b8ed2f-594e-50f6-beae-23fde98ec525/run", "label": "Run", "prefLabel": "run" },
+        { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog" }
       ],
       "expected": "Sprint is the runing of Cat by Dog.",
       "note": "Known limitation: consonant doubling not handled — 'Run' → 'runing' instead of 'running'"
     },
     {
       "id": "desc-props-four",
-      "concept": { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal", "properties": ["fur", "four legs", "tail", "wet nose"], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" }],
+      "concept": { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "properties": ["fur", "four legs", "tail", "wet nose"], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" }],
       "expected": "Dog is an Animal that has fur, four legs, tail, and wet nose.",
       "note": "Four properties with Oxford comma"
     },
     {
       "id": "desc-process-no-parent",
       "concept": {
-        "id": "fandaws:concept/predation", "label": "Predation", "prefLabel": "predation",
+        "id": "fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation", "label": "Predation", "prefLabel": "predation",
         "properties": [],
-        "relationships": [{ "verb": "chases", "object": "fandaws:concept/cat", "subject": "fandaws:concept/dog" }]
+        "relationships": [{ "verb": "chases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
       "graphConcepts": [
-        { "id": "fandaws:concept/cat", "label": "Cat", "prefLabel": "cat" },
-        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }
+        { "id": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "label": "Cat", "prefLabel": "cat" },
+        { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog" }
       ],
       "expected": "Predation is a root concept.",
       "note": "Relationship present but no parent → falls back to root template"
     },
     {
       "id": "desc-deep-chain",
-      "concept": { "id": "fandaws:concept/chihuahua", "label": "Chihuahua", "prefLabel": "chihuahua", "broader": "fandaws:concept/dog", "properties": [], "relationships": [] },
+      "concept": { "id": "fandaws:class/b6daed50-c30d-5c40-8bad-1c2206c7ff68/chihuahua", "label": "Chihuahua", "prefLabel": "chihuahua", "broader": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "properties": [], "relationships": [] },
       "graphConcepts": [
-        { "id": "fandaws:concept/animal", "label": "Animal", "prefLabel": "animal" },
-        { "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:concept/animal" }
+        { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" },
+        { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog", "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
       ],
       "expected": "Chihuahua is a Dog.",
       "note": "Deep hierarchy — describes immediate parent only"
     },
     {
       "id": "desc-multi-word-label",
-      "concept": { "id": "fandaws:concept/golden-retriever", "label": "Golden Retriever", "prefLabel": "golden retriever", "broader": "fandaws:concept/dog", "properties": [], "relationships": [] },
-      "graphConcepts": [{ "id": "fandaws:concept/dog", "label": "Dog", "prefLabel": "dog" }],
+      "concept": { "id": "fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever", "label": "Golden Retriever", "prefLabel": "golden retriever", "broader": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "properties": [], "relationships": [] },
+      "graphConcepts": [{ "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog" }],
       "expected": "Golden Retriever is a Dog.",
       "note": "Multi-word display label preserved"
     }

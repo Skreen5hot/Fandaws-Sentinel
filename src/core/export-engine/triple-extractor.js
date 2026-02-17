@@ -35,7 +35,7 @@ const REVERSE_MAP = Object.entries(NAMESPACE_MAP)
 /**
  * Expand a prefixed IRI to a full URI.
  *
- * @param {string} iri - Prefixed IRI (e.g., "fandaws:concept/dog") or full URI
+ * @param {string} iri - Prefixed IRI (e.g., "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog") or full URI
  * @returns {string} Full URI
  */
 export function expandIri(iri) {

@@ -16,7 +16,7 @@ describe('createValidationResult', () => {
 
   it('represents a failing validation with violations', () => {
     const violations = [
-      { reason: 'circular', message: 'Circular hierarchy detected', conceptIri: 'fandaws:concept/a' },
+      { reason: 'circular', message: 'Circular hierarchy detected', conceptIri: 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a' },
       { reason: 'compoundStatement', message: 'Multiple subjects', conceptIri: null },
     ];
     const result = createValidationResult({ valid: false, violations });

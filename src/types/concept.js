@@ -12,7 +12,7 @@
  * Create a new Concept node.
  *
  * @param {object} params
- * @param {string} params.id - Unique concept IRI (e.g., "fandaws:concept/dog")
+ * @param {string} params.id - Unique concept IRI (e.g., "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog")
  * @param {string} params.label - Display name (rdfs:label)
  * @param {string} params.prefLabel - Normalized form for matching (skos:prefLabel)
  * @param {string|null} [params.broader] - Parent concept IRI (skos:broader, null for roots)

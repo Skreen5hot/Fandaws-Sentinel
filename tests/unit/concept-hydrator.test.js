@@ -39,40 +39,40 @@ function makeGraph(concepts = []) {
 
 describe('computeDepth', () => {
   it('returns 0 for a root concept', () => {
-    const graph = makeGraph([makeConcept('fandaws:concept/animal', 'Animal')]);
-    expect(computeDepth('fandaws:concept/animal', graph)).toBe(0);
+    const graph = makeGraph([makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
+    expect(computeDepth('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', graph)).toBe(0);
   });
 
   it('returns 1 for a direct child', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
-    expect(computeDepth('fandaws:concept/dog', graph)).toBe(1);
+    expect(computeDepth('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', graph)).toBe(1);
   });
 
   it('returns correct depth for deep chain', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/living-thing', 'Living Thing'),
-      makeConcept('fandaws:concept/animal', 'Animal', 'fandaws:concept/living-thing'),
-      makeConcept('fandaws:concept/mammal', 'Mammal', 'fandaws:concept/animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/mammal'),
+      makeConcept('fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', 'Living Thing'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing'),
+      makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'),
     ]);
-    expect(computeDepth('fandaws:concept/dog', graph)).toBe(3);
+    expect(computeDepth('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', graph)).toBe(3);
   });
 
   it('returns 0 for a concept not in the graph', () => {
     const graph = makeGraph([]);
-    expect(computeDepth('fandaws:concept/unknown', graph)).toBe(0);
+    expect(computeDepth('fandaws:class/8f1b306e-c65d-51b2-8c8a-ab5013f42731/unknown', graph)).toBe(0);
   });
 
   it('handles cycle guard gracefully', () => {
     // Manually create a cycle (shouldn't happen in practice, but guard exists)
-    const a = makeConcept('fandaws:concept/a', 'A', 'fandaws:concept/b');
-    const b = makeConcept('fandaws:concept/b', 'B', 'fandaws:concept/a');
+    const a = makeConcept('fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', 'A', 'fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b');
+    const b = makeConcept('fandaws:class/69e20654-36bc-5ce9-a60f-60d08fdf78ce/b', 'B', 'fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a');
     const graph = makeGraph([a, b]);
     // Should not infinite-loop — returns some finite number
-    const depth = computeDepth('fandaws:concept/a', graph);
+    const depth = computeDepth('fandaws:class/68f5b79c-451e-5379-8fc2-53da5b0f622e/a', graph);
     expect(depth).toBeGreaterThanOrEqual(0);
     expect(depth).toBeLessThan(100);
   });
@@ -85,37 +85,37 @@ describe('computeDepth', () => {
 describe('computeChildren', () => {
   it('returns empty array for a leaf concept', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
-    expect(computeChildren('fandaws:concept/dog', graph)).toEqual([]);
+    expect(computeChildren('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', graph)).toEqual([]);
   });
 
   it('returns direct children IRIs', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
-      makeConcept('fandaws:concept/cat', 'Cat', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
-    const children = computeChildren('fandaws:concept/animal', graph);
+    const children = computeChildren('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', graph);
     expect(children).toHaveLength(2);
-    expect(children).toContain('fandaws:concept/dog');
-    expect(children).toContain('fandaws:concept/cat');
+    expect(children).toContain('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(children).toContain('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
   });
 
   it('does not include grandchildren', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
-      makeConcept('fandaws:concept/poodle', 'Poodle', 'fandaws:concept/dog'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/75365f2f-01e0-5fd4-b348-3c8a385074e4/poodle', 'Poodle', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'),
     ]);
-    const children = computeChildren('fandaws:concept/animal', graph);
-    expect(children).toEqual(['fandaws:concept/dog']);
+    const children = computeChildren('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', graph);
+    expect(children).toEqual(['fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog']);
   });
 
   it('returns empty array for a concept not in graph', () => {
     const graph = makeGraph([]);
-    expect(computeChildren('fandaws:concept/unknown', graph)).toEqual([]);
+    expect(computeChildren('fandaws:class/8f1b306e-c65d-51b2-8c8a-ab5013f42731/unknown', graph)).toEqual([]);
   });
 });
 
@@ -125,26 +125,26 @@ describe('computeChildren', () => {
 
 describe('hydrate', () => {
   it('maps stored fields to flat view', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       concept,
     ]);
 
     const view = hydrate(concept, graph);
-    expect(view.id).toBe('fandaws:concept/dog');
+    expect(view.id).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(view.label).toBe('Dog');
     expect(view.prefLabel).toBe('dog');
-    expect(view.broader).toBe('fandaws:concept/animal');
+    expect(view.broader).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
   });
 
   it('computes depth from broader chain', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
     const concept = graph['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/dog',
+      (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
 
     const view = hydrate(concept, graph);
@@ -153,22 +153,22 @@ describe('hydrate', () => {
 
   it('computes children from graph', () => {
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
-      makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal'),
-      makeConcept('fandaws:concept/cat', 'Cat', 'fandaws:concept/animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
     ]);
     const animal = graph['fandaws:concepts'].find(
-      (c) => c['@id'] === 'fandaws:concept/animal',
+      (c) => c['@id'] === 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     );
 
     const view = hydrate(animal, graph);
     expect(view.children).toHaveLength(2);
-    expect(view.children).toContain('fandaws:concept/dog');
-    expect(view.children).toContain('fandaws:concept/cat');
+    expect(view.children).toContain('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+    expect(view.children).toContain('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
   });
 
   it('extracts property restrictions from rdfs:subClassOf', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     concept['rdfs:subClassOf'] = [
       {
         '@id': 'fandaws:prop/fur',
@@ -185,13 +185,13 @@ describe('hydrate', () => {
   });
 
   it('extracts relationship restrictions from rdfs:subClassOf', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     concept['rdfs:subClassOf'] = [
       {
-        '@id': 'fandaws:rel/1',
+        '@id': 'fandaws:rel/84a834fa-c83f-556a-a52c-68b8355fc581/1',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'chases',
-        'owl:someValuesFrom': 'fandaws:concept/cat',
+        'owl:someValuesFrom': 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
         'fandaws:restrictionKind': 'relationship',
       },
     ];
@@ -203,7 +203,7 @@ describe('hydrate', () => {
   });
 
   it('separates properties from relationships in rdfs:subClassOf', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     concept['rdfs:subClassOf'] = [
       {
         '@id': 'fandaws:prop/fur',
@@ -212,10 +212,10 @@ describe('hydrate', () => {
         'fandaws:restrictionKind': 'property',
       },
       {
-        '@id': 'fandaws:rel/1',
+        '@id': 'fandaws:rel/84a834fa-c83f-556a-a52c-68b8355fc581/1',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'chases',
-        'owl:someValuesFrom': 'fandaws:concept/cat',
+        'owl:someValuesFrom': 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
         'fandaws:restrictionKind': 'relationship',
       },
       'bfo:Entity', // BFO IRI — not a restriction
@@ -239,34 +239,34 @@ describe('hydrate', () => {
 
 describe('hydrate — mixed restriction types (SUP-05)', () => {
   it('correctly separates property restrictions, relationship restrictions, and BFO entries', () => {
-    const concept = makeConcept('fandaws:concept/golden-retriever', 'Golden Retriever');
+    const concept = makeConcept('fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever', 'Golden Retriever');
     concept['rdfs:subClassOf'] = [
       'cco:Organism', // BFO/CCO class — bare string
       {
-        '@id': 'fandaws:restriction/gr--friendly',
+        '@id': 'fandaws:restriction/b5e25617-aad3-5533-8814-7d964d0a6197/gr--friendly',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'cco:is_bearer_of',
         'owl:someValuesFrom': 'fandaws:disposition/friendly',
         'fandaws:restrictionKind': 'property',
-        'fandaws:attachedTo': 'fandaws:concept/golden-retriever',
+        'fandaws:attachedTo': 'fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever',
         'fandaws:scope': 'concept-specific',
       },
       {
-        '@id': 'fandaws:restriction/gr--golden-coat',
+        '@id': 'fandaws:restriction/71a5fd01-62bf-5ea1-af07-937b6ccbc440/gr--golden-coat',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'cco:has_quality',
         'owl:hasValue': 'fandaws:quality/golden-coat',
         'fandaws:restrictionKind': 'property',
-        'fandaws:attachedTo': 'fandaws:concept/golden-retriever',
+        'fandaws:attachedTo': 'fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever',
         'fandaws:scope': 'concept-specific',
       },
       {
-        '@id': 'fandaws:rel/gr-chases-cat',
+        '@id': 'fandaws:rel/6bc6c5f0-80c7-56f8-a51e-b3221f033fcc/gr-chases-cat',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'chases',
-        'owl:someValuesFrom': 'fandaws:concept/cat',
+        'owl:someValuesFrom': 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
         'fandaws:restrictionKind': 'relationship',
-        'fandaws:attachedTo': 'fandaws:concept/golden-retriever',
+        'fandaws:attachedTo': 'fandaws:class/b331a181-eb54-5dbe-a2c6-27f0a69fa219/golden-retriever',
       },
     ];
     const graph = makeGraph([concept]);
@@ -289,7 +289,7 @@ describe('hydrate — mixed restriction types (SUP-05)', () => {
   });
 
   it('handles empty subClassOf array', () => {
-    const concept = makeConcept('fandaws:concept/thing', 'Thing');
+    const concept = makeConcept('fandaws:class/c5d09a81-e9b7-5f1b-81d4-dbd3011d5c9d/thing', 'Thing');
     concept['rdfs:subClassOf'] = [];
     const graph = makeGraph([concept]);
     const view = hydrate(concept, graph);
@@ -300,7 +300,7 @@ describe('hydrate — mixed restriction types (SUP-05)', () => {
   });
 
   it('handles subClassOf with only BFO entries (no restrictions)', () => {
-    const concept = makeConcept('fandaws:concept/organism', 'Organism');
+    const concept = makeConcept('fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism', 'Organism');
     concept['rdfs:subClassOf'] = ['bfo:Entity', 'cco:Organism'];
     const graph = makeGraph([concept]);
     const view = hydrate(concept, graph);
@@ -317,31 +317,31 @@ describe('hydrate — mixed restriction types (SUP-05)', () => {
 
 describe('hydrate/dehydrate — round-trip fidelity with restrictions (SUP-06)', () => {
   it('restrictions survive hydrate → dehydrate → hydrate', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     concept['skos:altLabel'] = ['pupper', 'doggo'];
     concept['skos:definition'] = 'A domesticated canine';
     concept['rdfs:subClassOf'] = [
       'cco:Organism',
       {
-        '@id': 'fandaws:restriction/dog--fur',
+        '@id': 'fandaws:restriction/56de7457-e37d-5b39-80ff-ce18950fce9b/dog--fur',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'fur',
         'fandaws:restrictionKind': 'property',
-        'fandaws:attachedTo': 'fandaws:concept/dog',
+        'fandaws:attachedTo': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         'fandaws:scope': 'concept-specific',
       },
       {
-        '@id': 'fandaws:rel/dog-chases-cat',
+        '@id': 'fandaws:rel/01e4b4ee-d083-5fdf-b94e-2d7ec525e901/dog-chases-cat',
         '@type': 'owl:Restriction',
         'owl:onProperty': 'chases',
-        'owl:someValuesFrom': 'fandaws:concept/cat',
+        'owl:someValuesFrom': 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
         'fandaws:restrictionKind': 'relationship',
-        'fandaws:attachedTo': 'fandaws:concept/dog',
+        'fandaws:attachedTo': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       },
     ];
 
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       concept,
     ]);
 
@@ -360,16 +360,16 @@ describe('hydrate/dehydrate — round-trip fidelity with restrictions (SUP-06)',
 
     // Restrictions preserved
     expect(view2.properties).toHaveLength(1);
-    expect(view2.properties[0]['@id']).toBe('fandaws:restriction/dog--fur');
+    expect(view2.properties[0]['@id']).toBe('fandaws:restriction/56de7457-e37d-5b39-80ff-ce18950fce9b/dog--fur');
     expect(view2.relationships).toHaveLength(1);
-    expect(view2.relationships[0]['@id']).toBe('fandaws:rel/dog-chases-cat');
+    expect(view2.relationships[0]['@id']).toBe('fandaws:rel/01e4b4ee-d083-5fdf-b94e-2d7ec525e901/dog-chases-cat');
 
     // BFO entry preserved
     expect(view2.subClassOf[0]).toBe('cco:Organism');
   });
 
   it('computed fields are not duplicated on round-trip', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const graph = makeGraph([concept]);
 
     const view = hydrate(concept, graph);
@@ -426,7 +426,7 @@ describe('hydrate — external JSON-LD forms (SUP-04)', () => {
   });
 
   it('SUP-04c: plain string values pass through unchanged', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     const graph = makeGraph([concept]);
     const view = hydrate(concept, graph);
 
@@ -435,7 +435,7 @@ describe('hydrate — external JSON-LD forms (SUP-04)', () => {
   });
 
   it('SUP-04d: scalar altLabel is wrapped to array', () => {
-    const concept = makeConcept('fandaws:concept/dog', 'Dog');
+    const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
     concept['skos:altLabel'] = 'pupper'; // scalar, not array
     const graph = makeGraph([concept]);
     const view = hydrate(concept, graph);
@@ -452,11 +452,11 @@ describe('hydrate — external JSON-LD forms (SUP-04)', () => {
 describe('dehydrate', () => {
   it('produces canonical output from view', () => {
     const view = {
-      id: 'fandaws:concept/dog',
+      id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       type: ['owl:Class', 'skos:Concept'],
       label: 'Dog',
       prefLabel: 'dog',
-      broader: 'fandaws:concept/animal',
+      broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       definition: 'A domesticated canine.',
       created: '2025-01-01T00:00:00.000Z',
       modified: null,
@@ -466,17 +466,17 @@ describe('dehydrate', () => {
       subClassOf: [],
       // Computed fields should be stripped
       depth: 1,
-      children: ['fandaws:concept/poodle'],
+      children: ['fandaws:class/75365f2f-01e0-5fd4-b348-3c8a385074e4/poodle'],
       properties: [{ '@id': 'fandaws:prop/fur' }],
-      relationships: [{ '@id': 'fandaws:rel/1' }],
+      relationships: [{ '@id': 'fandaws:rel/84a834fa-c83f-556a-a52c-68b8355fc581/1' }],
     };
 
     const canonical = dehydrate(view);
-    expect(canonical['@id']).toBe('fandaws:concept/dog');
+    expect(canonical['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(canonical['@type']).toEqual(['owl:Class', 'skos:Concept']);
     expect(canonical['rdfs:label']).toBe('Dog');
     expect(canonical['skos:prefLabel']).toBe('dog');
-    expect(canonical['skos:broader']).toBe('fandaws:concept/animal');
+    expect(canonical['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(canonical['skos:definition']).toBe('A domesticated canine.');
 
     // Computed fields must NOT be present
@@ -487,9 +487,9 @@ describe('dehydrate', () => {
   });
 
   it('round-trips with hydrate', () => {
-    const original = makeConcept('fandaws:concept/dog', 'Dog', 'fandaws:concept/animal');
+    const original = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     const graph = makeGraph([
-      makeConcept('fandaws:concept/animal', 'Animal'),
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       original,
     ]);
 

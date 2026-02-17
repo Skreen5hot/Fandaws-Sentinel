@@ -93,8 +93,8 @@ describe('processRelationship', () => {
 
   describe('Case A: Both exist', () => {
     it('adds relationship restriction only', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
       const action = makeAction('dog', 'chase', 'cat');
@@ -106,26 +106,26 @@ describe('processRelationship', () => {
       const additions = result.mutation['fandaws:additions'];
       expect(additions).toHaveLength(1);
       expect(additions[0]['fandaws:restrictionKind']).toBe('relationship');
-      expect(additions[0]['fandaws:attachedTo']).toBe('fandaws:concept/dog');
-      expect(additions[0]['owl:someValuesFrom']).toBe('fandaws:concept/cat');
+      expect(additions[0]['fandaws:attachedTo']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      expect(additions[0]['owl:someValuesFrom']).toBe('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
     });
 
     it('sets correct IRI format', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
       const action = makeAction('dog', 'chase', 'cat');
 
       const result = processRelationship(action, graph, indices);
       const relNode = result.mutation['fandaws:additions'][0];
-      expect(relNode['@id']).toBe('fandaws:rel/dog--chase--cat');
+      expect(relNode['@id']).toBe('fandaws:rel/5871e405-5c67-5f25-b3bb-4be118e09176/dog--chase--cat');
     });
   });
 
   describe('Case B: Subject exists, object new', () => {
     it('creates object concept and relationship', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
       const graph = makeGraph([dog]);
       const indices = makeIndices([dog]);
       const action = makeAction('dog', 'chase', 'cats');
@@ -140,7 +140,7 @@ describe('processRelationship', () => {
     });
 
     it('marks new object as allowRoot', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
       const graph = makeGraph([dog]);
       const indices = makeIndices([dog]);
       const action = makeAction('dog', 'chase', 'cats');
@@ -155,7 +155,7 @@ describe('processRelationship', () => {
 
   describe('Case D: Subject new, object exists', () => {
     it('creates subject concept and relationship', () => {
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([cat]);
       const indices = makeIndices([cat]);
       const action = makeAction('dogs', 'chase', 'cat');
@@ -170,7 +170,7 @@ describe('processRelationship', () => {
     });
 
     it('relationship points to existing object', () => {
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([cat]);
       const indices = makeIndices([cat]);
       const action = makeAction('dogs', 'chase', 'cat');
@@ -179,15 +179,15 @@ describe('processRelationship', () => {
       const relNode = result.mutation['fandaws:additions'].find(
         (n) => n['@type'] === 'owl:Restriction',
       );
-      expect(relNode['owl:someValuesFrom']).toBe('fandaws:concept/cat');
+      expect(relNode['owl:someValuesFrom']).toBe('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
     });
   });
 
   describe('disambiguation', () => {
     it('returns prompt when multiple subject matches', () => {
-      const dog1 = makeConcept('fandaws:concept/dog-1', 'dog');
-      const dog2 = makeConcept('fandaws:concept/dog-2', 'dog');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const dog1 = makeConcept('fandaws:class/5a0ddb05-0427-58bc-9667-e08c2f196af2/dog-1', 'dog');
+      const dog2 = makeConcept('fandaws:class/00231556-00eb-5360-bb62-d9388e39d8f1/dog-2', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog1, dog2, cat]);
       const indices = makeIndices([dog1, dog2, cat]);
       const action = makeAction('dog', 'chase', 'cat');
@@ -198,9 +198,9 @@ describe('processRelationship', () => {
     });
 
     it('returns prompt when multiple object matches', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
-      const cat1 = makeConcept('fandaws:concept/cat-1', 'cat');
-      const cat2 = makeConcept('fandaws:concept/cat-2', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
+      const cat1 = makeConcept('fandaws:class/0932e368-2f48-5897-a729-c5c3110e068a/cat-1', 'cat');
+      const cat2 = makeConcept('fandaws:class/e13fcfb3-efa3-50a5-98dc-935aeb9ca3cb/cat-2', 'cat');
       const graph = makeGraph([dog, cat1, cat2]);
       const indices = makeIndices([dog, cat1, cat2]);
       const action = makeAction('dog', 'chase', 'cat');
@@ -213,15 +213,15 @@ describe('processRelationship', () => {
   describe('sub-relationship', () => {
     it('detects parent relationship and sets subRestrictionOf', () => {
       const parentRel = createRelationship({
-        id: 'fandaws:rel/animal--eat--food',
+        id: 'fandaws:rel/9e131854-3600-5992-9b27-c0310f2baa7c/animal--eat--food',
         verbIri: 'eat',
-        subject: 'fandaws:concept/animal',
-        object: 'fandaws:concept/food',
+        subject: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
+        object: 'fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food',
       });
-      const animal = makeConcept('fandaws:concept/animal', 'animal', null, [parentRel]);
-      const dog = makeConcept('fandaws:concept/dog', 'dog', 'fandaws:concept/animal');
-      const meat = makeConcept('fandaws:concept/meat', 'meat');
-      const food = makeConcept('fandaws:concept/food', 'food');
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'animal', null, [parentRel]);
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const meat = makeConcept('fandaws:class/107300ee-028f-5722-904c-3f135c37ce7e/meat', 'meat');
+      const food = makeConcept('fandaws:class/ce2e8495-b9f3-553f-922e-8aa69a6f9439/food', 'food');
       const graph = makeGraph([animal, dog, meat, food]);
       const indices = makeIndices([animal, dog, meat, food]);
       const action = makeAction('dog', 'eat', 'meat');
@@ -230,12 +230,12 @@ describe('processRelationship', () => {
       const relNode = result.mutation['fandaws:additions'].find(
         (n) => n['@type'] === 'owl:Restriction',
       );
-      expect(relNode['fandaws:subRestrictionOf']).toBe('fandaws:rel/animal--eat--food');
+      expect(relNode['fandaws:subRestrictionOf']).toBe('fandaws:rel/9e131854-3600-5992-9b27-c0310f2baa7c/animal--eat--food');
     });
 
     it('sets null subRestrictionOf when no parent relationship exists', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
-      const cat = makeConcept('fandaws:concept/cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'cat');
       const graph = makeGraph([dog, cat]);
       const indices = makeIndices([dog, cat]);
       const action = makeAction('dog', 'chase', 'cat');
@@ -266,7 +266,7 @@ describe('processRelationship', () => {
     });
 
     it('capitalizes object label when subject exists', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'dog');
       const graph = makeGraph([dog]);
       const indices = makeIndices([dog]);
       const action = makeAction('dog', 'chase', 'cats');

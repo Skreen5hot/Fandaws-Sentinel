@@ -32,8 +32,8 @@ function makeConcept(id, label, prefLabel, broader = null) {
 describe('Triple Extractor', () => {
   describe('expandIri', () => {
     it('expands fandaws: prefix', () => {
-      expect(expandIri('fandaws:concept/dog')).toBe(
-        'https://fandaws.org/schema/concept/dog',
+      expect(expandIri('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(
+        'https://fandaws.org/schema/class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       );
     });
 
@@ -61,8 +61,8 @@ describe('Triple Extractor', () => {
 
   describe('compactIri', () => {
     it('compacts full fandaws URI to prefixed form', () => {
-      expect(compactIri('https://fandaws.org/schema/concept/dog')).toBe(
-        'fandaws:concept/dog',
+      expect(compactIri('https://fandaws.org/schema/class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog')).toBe(
+        'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       );
     });
 
@@ -75,13 +75,13 @@ describe('Triple Extractor', () => {
 
   describe('extractTriples', () => {
     it('extracts rdf:type triples for dual-typed concept', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
 
       const typeTriples = triples.filter(
         (t) =>
-          t.subject === expandIri('fandaws:concept/dog') &&
+          t.subject === expandIri('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog') &&
           t.predicate === expandIri('rdf:type'),
       );
       expect(typeTriples).toHaveLength(2);
@@ -92,7 +92,7 @@ describe('Triple Extractor', () => {
     });
 
     it('extracts rdfs:label as literal triple', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
 
@@ -105,7 +105,7 @@ describe('Triple Extractor', () => {
     });
 
     it('extracts skos:prefLabel as literal triple', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
 
@@ -119,10 +119,10 @@ describe('Triple Extractor', () => {
 
     it('extracts skos:broader as URI triple', () => {
       const dog = makeConcept(
-        'fandaws:concept/dog',
+        'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         'Dog',
         'dog',
-        'fandaws:concept/animal',
+        'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       );
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
@@ -131,13 +131,13 @@ describe('Triple Extractor', () => {
         (t) => t.predicate === expandIri('skos:broader'),
       );
       expect(broaderTriple).toBeDefined();
-      expect(broaderTriple.object).toBe(expandIri('fandaws:concept/animal'));
+      expect(broaderTriple.object).toBe(expandIri('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'));
       expect(broaderTriple.objectType).toBe('uri');
     });
 
     it('extracts skos:definition as literal triple', () => {
       const dog = createConcept({
-        id: 'fandaws:concept/dog',
+        id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         label: 'Dog',
         prefLabel: 'dog',
         definition: 'Dog is an Animal.',
@@ -153,7 +153,7 @@ describe('Triple Extractor', () => {
     });
 
     it('extracts dcterms:created as typed literal', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
 
@@ -166,7 +166,7 @@ describe('Triple Extractor', () => {
     });
 
     it('skips dcterms:modified when null', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       // dcterms:modified is null by default in createConcept
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
@@ -178,11 +178,11 @@ describe('Triple Extractor', () => {
     });
 
     it('extracts property restriction triples', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:prop/dog--fur',
         propertyIri: 'fur',
-        attachedTo: 'fandaws:concept/dog',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
       });
       dog['rdfs:subClassOf'] = [prop];
@@ -229,19 +229,19 @@ describe('Triple Extractor', () => {
     });
 
     it('extracts relationship restriction triples', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const rel = createRelationship({
-        id: 'fandaws:rel/dog--chase--cat',
+        id: 'fandaws:rel/5871e405-5c67-5f25-b3bb-4be118e09176/dog--chase--cat',
         verbIri: 'chase',
-        subject: 'fandaws:concept/dog',
-        object: 'fandaws:concept/cat',
+        subject: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        object: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
       });
       dog['rdfs:subClassOf'] = [rel];
 
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
 
-      const restrictionIri = expandIri('fandaws:rel/dog--chase--cat');
+      const restrictionIri = expandIri('fandaws:rel/5871e405-5c67-5f25-b3bb-4be118e09176/dog--chase--cat');
 
       // owl:someValuesFrom
       const someValuesTriple = triples.find(
@@ -250,19 +250,19 @@ describe('Triple Extractor', () => {
           t.predicate === expandIri('owl:someValuesFrom'),
       );
       expect(someValuesTriple).toBeDefined();
-      expect(someValuesTriple.object).toBe(expandIri('fandaws:concept/cat'));
+      expect(someValuesTriple.object).toBe(expandIri('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat'));
       expect(someValuesTriple.objectType).toBe('uri');
     });
 
     it('extracts multiple concepts in sorted order', () => {
-      const cat = makeConcept('fandaws:concept/cat', 'Cat', 'cat');
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'cat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       // Insert out of order
       const graph = makeGraph([dog, cat]);
       const triples = extractTriples(graph);
 
-      // First subject should be cat (alphabetically)
-      expect(triples[0].subject).toBe(expandIri('fandaws:concept/cat'));
+      // First subject is dog (UUID 4d... sorts before cat's UUID a0...)
+      expect(triples[0].subject).toBe(expandIri('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'));
     });
 
     it('handles empty concept array', () => {
@@ -272,7 +272,7 @@ describe('Triple Extractor', () => {
     });
 
     it('handles concept with no properties or relationships', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);
       const triples = extractTriples(graph);
 
@@ -285,12 +285,12 @@ describe('Triple Extractor', () => {
 
     it('produces identical output for same input (determinism)', () => {
       const dog = makeConcept(
-        'fandaws:concept/dog',
+        'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         'Dog',
         'dog',
-        'fandaws:concept/animal',
+        'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       );
-      const cat = makeConcept('fandaws:concept/cat', 'Cat', 'cat');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'cat');
       const graph = makeGraph([dog, cat]);
 
       const result1 = JSON.stringify(extractTriples(graph));

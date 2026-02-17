@@ -25,28 +25,28 @@ function makeConcept(id, label, prefLabel) {
 describe('ExportEngine', () => {
   describe('Format dispatch', () => {
     it('format "skos" delegates to SKOS exporter', () => {
-      const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog', 'dog')]);
+      const graph = makeGraph([makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog')]);
       const result = exportGraph(graph, { format: 'skos' });
       expect(result).toContain('skos:Concept');
       expect(result).not.toContain('owl:Class');
     });
 
     it('format "owl" delegates to OWL exporter', () => {
-      const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog', 'dog')]);
+      const graph = makeGraph([makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog')]);
       const result = exportGraph(graph, { format: 'owl' });
       expect(result).toContain('owl:Class');
       expect(result).not.toContain('skos:Concept');
     });
 
     it('format "rdf" delegates to RDF/XML exporter', () => {
-      const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog', 'dog')]);
+      const graph = makeGraph([makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog')]);
       const result = exportGraph(graph, { format: 'rdf' });
       expect(result).toContain('<?xml');
       expect(result).toContain('<rdf:RDF');
     });
 
     it('format "turtle" delegates to Turtle exporter', () => {
-      const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog', 'dog')]);
+      const graph = makeGraph([makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog')]);
       const result = exportGraph(graph, { format: 'turtle' });
       expect(result).toContain('@prefix');
       expect(result).toContain('owl:Class');
@@ -85,7 +85,7 @@ describe('ExportEngine', () => {
 
   describe('Read-only guarantee', () => {
     it('does not mutate the input graph', () => {
-      const dog = makeConcept('fandaws:concept/dog', 'Dog', 'dog');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);
       const graphBefore = JSON.stringify(graph);
 
@@ -100,7 +100,7 @@ describe('ExportEngine', () => {
 
   describe('Pure function', () => {
     it('same inputs produce identical output (determinism)', () => {
-      const graph = makeGraph([makeConcept('fandaws:concept/dog', 'Dog', 'dog')]);
+      const graph = makeGraph([makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog')]);
       const r1 = exportGraph(graph, { format: 'turtle' });
       const r2 = exportGraph(graph, { format: 'turtle' });
       expect(r1).toBe(r2);

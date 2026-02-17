@@ -25,7 +25,7 @@ describe('createKnowledgeGraph', () => {
   });
 
   it('accepts concepts array', () => {
-    const concepts = [{ '@id': 'fandaws:concept/dog' }];
+    const concepts = [{ '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog' }];
     const graph = createKnowledgeGraph({
       id: 'fandaws:graph/populated',
       concepts,

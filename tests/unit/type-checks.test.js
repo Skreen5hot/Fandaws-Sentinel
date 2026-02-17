@@ -37,7 +37,7 @@ describe('isConceptNode', () => {
   });
 
   it('returns false when @type is missing', () => {
-    const node = { '@id': 'fandaws:concept/dog' };
+    const node = { '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog' };
     expect(isConceptNode(node)).toBe(false);
   });
 

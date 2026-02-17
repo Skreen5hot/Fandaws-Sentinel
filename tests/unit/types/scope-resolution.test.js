@@ -12,11 +12,11 @@ describe('createScopeResolution', () => {
 
   it('matches spec Appendix A.10 shape (resolved)', () => {
     const resolvedConcept = {
-      '@id': 'fandaws:concept/autonomy',
+      '@id': 'fandaws:class/1c49d5ac-ba64-5254-a55d-44786d81d993/autonomy',
       '@type': ['owl:Class', 'skos:Concept'],
       'rdfs:label': 'Autonomy',
       'skos:prefLabel': 'autonomy',
-      'skos:broader': 'fandaws:concept/capacity',
+      'skos:broader': 'fandaws:class/c5e5d03d-b123-5251-aa34-9a0a45e34a9d/capacity',
     };
     const sourceScope = {
       'fandaws:scopeType': 'global',
@@ -74,7 +74,7 @@ describe('createScopeResolution', () => {
     const res = createScopeResolution({
       term: 'justice',
       status: 'resolved',
-      resolvedConcept: { '@id': 'fandaws:concept/justice' },
+      resolvedConcept: { '@id': 'fandaws:class/8763a301-e5ca-5b29-981a-e3458492f56f/justice' },
       sourceScope: { 'fandaws:scopeType': 'user' },
       skippedScopes: [
         { graphId: 'fandaws:graph/offline-1', reason: 'timeout' },

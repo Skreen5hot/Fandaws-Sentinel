@@ -6,10 +6,10 @@ describe('createConcept', () => {
 
   beforeEach(() => {
     concept = createConcept({
-      id: 'fandaws:concept/dog',
+      id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       label: 'Dog',
       prefLabel: 'dog',
-      broader: 'fandaws:concept/animal',
+      broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       bfoMapping: 'bfo:0000040',
     });
   });
@@ -19,13 +19,13 @@ describe('createConcept', () => {
   });
 
   it('sets @id from the id parameter', () => {
-    expect(concept['@id']).toBe('fandaws:concept/dog');
+    expect(concept['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
   });
 
   it('matches v2.1 concept shape', () => {
     expect(concept).toHaveProperty('rdfs:label', 'Dog');
     expect(concept).toHaveProperty('skos:prefLabel', 'dog');
-    expect(concept).toHaveProperty('skos:broader', 'fandaws:concept/animal');
+    expect(concept).toHaveProperty('skos:broader', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(concept).toHaveProperty('skos:definition', '');
     expect(concept).toHaveProperty('dcterms:created');
     expect(concept).toHaveProperty('dcterms:modified', null);
@@ -44,7 +44,7 @@ describe('createConcept', () => {
 
   it('defaults optional fields when not provided', () => {
     const minimal = createConcept({
-      id: 'fandaws:concept/thing',
+      id: 'fandaws:class/c5d09a81-e9b7-5f1b-81d4-dbd3011d5c9d/thing',
       label: 'Thing',
       prefLabel: 'thing',
     });
@@ -59,7 +59,7 @@ describe('createConcept', () => {
 
   it('accepts altLabel and inScheme fields', () => {
     const rich = createConcept({
-      id: 'fandaws:concept/dog',
+      id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
       label: 'Dog',
       prefLabel: 'dog',
       definition: 'Dog is an animal.',

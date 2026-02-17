@@ -18,8 +18,8 @@ describe('createConversationPrompt', () => {
       options: ['Animal (applies to all animals)', 'Dog (specific to dogs)'],
       context: {
         property: 'has eyes',
-        originalConcept: 'fandaws:concept/dog',
-        candidateAncestor: 'fandaws:concept/animal',
+        originalConcept: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        candidateAncestor: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
       },
     });
 
@@ -33,8 +33,8 @@ describe('createConversationPrompt', () => {
     ]);
     expect(prompt['fandaws:context']).toEqual({
       property: 'has eyes',
-      originalConcept: 'fandaws:concept/dog',
-      candidateAncestor: 'fandaws:concept/animal',
+      originalConcept: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+      candidateAncestor: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
     });
     expect(prompt['fandaws:machineSignal']).toBeNull();
   });
@@ -48,7 +48,7 @@ describe('createConversationPrompt', () => {
       },
       'fandaws:validValues': ['animal', 'dog'],
       'fandaws:constraintType': 'scopeLevel',
-      'fandaws:candidateIRIs': ['fandaws:concept/animal', 'fandaws:concept/dog'],
+      'fandaws:candidateIRIs': ['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog'],
       'fandaws:hierarchyContext': {},
     };
     const prompt = createConversationPrompt({

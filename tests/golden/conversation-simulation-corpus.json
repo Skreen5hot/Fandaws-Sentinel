@@ -77,7 +77,7 @@
         "options": {},
         "expect": {
           "success": true,
-          "propertyOn": "fandaws:concept/animal",
+          "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
           "propertyLabel": "cells"
         }
       }
@@ -94,10 +94,10 @@
       },
       {
         "utterance": "A dog has fur",
-        "options": { "scopeDecisions": { "fandaws:concept/animal": false } },
+        "options": { "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": false } },
         "expect": {
           "success": true,
-          "propertyOn": "fandaws:concept/dog",
+          "propertyOn": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog",
           "propertyLabel": "fur"
         }
       }
@@ -114,10 +114,10 @@
       },
       {
         "utterance": "A dog has fur",
-        "options": { "scopeDecisions": { "fandaws:concept/animal": true } },
+        "options": { "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": true } },
         "expect": {
           "success": true,
-          "propertyOn": "fandaws:concept/animal",
+          "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
           "propertyLabel": "fur"
         }
       }
@@ -386,10 +386,10 @@
       },
       {
         "utterance": "A dog has fur",
-        "options": { "scopeDecisions": { "fandaws:concept/animal": false } },
+        "options": { "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": false } },
         "expect": {
           "success": true,
-          "propertyOn": "fandaws:concept/dog",
+          "propertyOn": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog",
           "propertyLabel": "fur"
         }
       },

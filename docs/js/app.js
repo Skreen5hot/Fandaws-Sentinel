@@ -25,6 +25,11 @@ function activateTab(tabId) {
   const section = document.getElementById(`section-${tabId}`);
   if (section) section.classList.add('active');
 
+  // Lazy-render Mermaid diagram when roadmap tab first becomes visible
+  if (tabId === 'roadmap' && window.__mermaid) {
+    window.__mermaid.run();
+  }
+
   const topTab = navContainer.querySelector(`.nav-tab[data-tab="${tabId}"]`);
   const dropdownItem = navContainer.querySelector(`.nav-dropdown-item[data-tab="${tabId}"]`);
 

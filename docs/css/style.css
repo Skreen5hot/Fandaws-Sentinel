@@ -83,7 +83,6 @@ body {
   gap: 4px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 32px;
-  overflow-x: auto;
 }
 
 .nav-tab {

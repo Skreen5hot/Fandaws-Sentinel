@@ -14,24 +14,24 @@ graph TD
   P0["Phase 0 — Scaffolding ✓"] --> P1["Phase 1 — Identity Simplification ✓"]
 
   %% Track A — Linguistics & IO
-  P1 --> P2["Phase 2 — NLParser + Classifier (A)"]
-  P3 --> P7["Phase 7 — DescriptionEngine (A/B)"]
-  P2 --> P10["Phase 10 — ExportEngine (A)"]
+  P1 --> P2["Phase 2 — NLParser + Classifier ✓"]
+  P3 --> P7["Phase 7 — DescriptionEngine ✓"]
+  P2 --> P10["Phase 10 — ExportEngine ✓"]
 
   %% Track B — Graph Mechanics
-  P1 --> P3["Phase 3 — InMemoryStateAdapter (B)"]
-  P3 --> P4["Phase 4 — Validator (B)"]
-  P4 --> P4b["Phase 4b — OCE/IEE Stubs (B)"]
-  P4b --> P5["Phase 5 — Classification Workflow (B)"]
-  P5 --> P6["Phase 6 — Property Workflow (B)"]
-  P5 --> P9["Phase 9 — Relationships + Termidium (B)"]
+  P1 --> P3["Phase 3 — InMemoryStateAdapter ✓"]
+  P3 --> P4["Phase 4 — Validator ✓"]
+  P4 --> P4b["Phase 4b — OCE/IEE Stubs ✓"]
+  P4b --> P5["Phase 5 — Classification Workflow ✓"]
+  P5 --> P6["Phase 6 — Property Workflow ✓"]
+  P5 --> P9["Phase 9 — Relationships + Termidium ✓"]
 
   %% Track C — Lifecycle & Federation
   P3 --> P11["Phase 11 — Session Lifecycle (C)"]
   P11 --> P12["Phase 12 — ScopeResolver + Federation (C)"]
 
   %% Convergence
-  P2 --> P8["Phase 8 — Pipeline Integration ★"]
+  P2 --> P8["Phase 8 — Pipeline Integration ✓ ★"]
   P5 --> P8
   P7 --> P8
 
@@ -41,7 +41,16 @@ graph TD
 
   style P0 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P1 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
-  style P8 fill:#2a1a3a,stroke:#f9f,color:#f9f
+  style P2 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P3 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P4 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P4b fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P5 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P6 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P7 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P8 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P9 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P10 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
 ```
 
 ### Track Summary
@@ -300,7 +309,7 @@ Enum matching to route ParseResult to the correct workflow.
 ## Phase 3: InMemoryStateAdapter `[Track B — Graph Mechanics]`
 
 **Goal:** Implement the reference state adapter so that subsequent phases can store and query knowledge graphs.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Critical
 **Effort:** Medium
 **Depends on:** Phase 1
@@ -325,42 +334,42 @@ Enum matching to route ParseResult to the correct workflow.
 **Acceptance Criteria:**
 
 *Graph operations:*
-- [ ] `saveGraph(id, graph)` + `loadGraph(id)` round-trips a KnowledgeGraph
-- [ ] `loadGraph(unknownId)` returns `null` (not throws)
-- [ ] `applyMutation(id, mutation)` adds concepts to an existing graph
-- [ ] `applyMutation(id, mutation)` modifies existing concept properties
-- [ ] `applyMutation(id, mutation)` deletes concepts by IRI
-- [ ] `applyMutation` is atomic: all-or-nothing on multi-operation mutations
-- [ ] `applyMutation` with invalid target returns unmodified graph + MutationRejection reason
+- [x] `saveGraph(id, graph)` + `loadGraph(id)` round-trips a KnowledgeGraph
+- [x] `loadGraph(unknownId)` returns `null` (not throws)
+- [x] `applyMutation(id, mutation)` adds concepts to an existing graph
+- [x] `applyMutation(id, mutation)` modifies existing concept properties
+- [x] `applyMutation(id, mutation)` deletes concepts by IRI
+- [x] `applyMutation` is atomic: all-or-nothing on multi-operation mutations
+- [x] `applyMutation` with invalid target returns unmodified graph + MutationRejection reason
 
 *Session operations:*
-- [ ] `saveSession` + `loadSession` round-trips a ConversationSession
-- [ ] `loadSession(unknownId)` returns `null`
-- [ ] `listSessions(callerId)` returns only that caller's sessions
-- [ ] `listSessions(callerId, {state: "negotiating"})` filters by state
+- [x] `saveSession` + `loadSession` round-trips a ConversationSession
+- [x] `loadSession(unknownId)` returns `null`
+- [x] `listSessions(callerId)` returns only that caller's sessions
+- [x] `listSessions(callerId, {state: "negotiating"})` filters by state
 
 *Index correctness:*
-- [ ] After adding concept "dog", lookup by canonicalLabel "dog" returns its IRI
-- [ ] After adding "dog" as child of "animal", parent index maps dog→animal
-- [ ] After adding "dog" as child of "animal", child index maps animal→[dog]
-- [ ] After adding property "fur" to "dog", property index maps dog→[fur]
-- [ ] After adding relationship "dogs chase cats", reverse index maps cats→[chase-relationship]
-- [ ] After deleting "dog", all five indices no longer contain "dog"
-- [ ] Indices survive multiple sequential mutations
+- [x] After adding concept "dog", lookup by canonicalLabel "dog" returns its IRI
+- [x] After adding "dog" as child of "animal", parent index maps dog→animal
+- [x] After adding "dog" as child of "animal", child index maps animal→[dog]
+- [x] After adding property "fur" to "dog", property index maps dog→[fur]
+- [x] After adding relationship "dogs chase cats", reverse index maps cats→[chase-relationship]
+- [x] After deleting "dog", all five indices no longer contain "dog"
+- [x] Indices survive multiple sequential mutations
 
 *Integrity verification:*
-- [ ] `verifyIntegrity(graphId)` scans all indices and returns a list of ghost pointers (IRIs in indices that point to deleted/missing concepts)
-- [ ] `verifyIntegrity` returns empty array on a healthy graph
-- [ ] `verifyIntegrity` detects orphaned child pointers after parent deletion
-- [ ] `verifyIntegrity` detects stale relationship references after concept deletion
+- [x] `verifyIntegrity(graphId)` scans all indices and returns a list of ghost pointers (IRIs in indices that point to deleted/missing concepts)
+- [x] `verifyIntegrity` returns empty array on a healthy graph
+- [x] `verifyIntegrity` detects orphaned child pointers after parent deletion
+- [x] `verifyIntegrity` detects stale relationship references after concept deletion
 
 *Performance:*
-- [ ] Index lookups: O(1) — verified by timing 1000 lookups on a 500-concept graph in < 100ms
-- [ ] `applyMutation` < 5ms for single-concept operations
+- [x] Index lookups: O(1) — verified by timing 1000 lookups on a 500-concept graph in < 100ms
+- [x] `applyMutation` < 5ms for single-concept operations
 
 *Scope operations:*
-- [ ] `saveScopeConfig` + `loadScopeConfig` round-trips
-- [ ] `loadScopeConfig(unknownId)` returns `null`
+- [x] `saveScopeConfig` + `loadScopeConfig` round-trips
+- [x] `loadScopeConfig(unknownId)` returns `null`
 
 > **Technical Advisory — verifyIntegrity():** Add a `verifyIntegrity(graphId)` method that walks all five indices and reports any IRI that points to a concept not present in the graph. This traps "ghost pointers" — stale index entries left behind by buggy mutation paths. Call it in test teardowns and integration tests. It's cheap insurance against index corruption.
 
@@ -373,24 +382,26 @@ Enum matching to route ParseResult to the correct workflow.
 - `tests/browser/state-adapter-browser.test.html` — browser test harness (opens in any browser, runs assertions, reports pass/fail)
 
 **Acceptance Criteria:**
-- [ ] `npm run build` produces a single `docs/dist/fandaws.js` that exports `InMemoryStateAdapter`
-- [ ] Browser test harness imports the bundle via `<script type="module">`
-- [ ] In-browser test: `saveGraph` + `loadGraph` round-trips a KnowledgeGraph
-- [ ] In-browser test: `applyMutation` adds a concept and index lookup succeeds
-- [ ] In-browser test: `simplify()` produces correct canonicalLabel
-- [ ] Bundle size remains < 20KB (single-file constraint)
-- [ ] No Node.js-only APIs used in core (no `fs`, `path`, `process` in bundled code)
+- [x] `npm run build` produces a single `docs/dist/fandaws.js` that exports `InMemoryStateAdapter`
+- [x] Browser test harness imports the bundle via `<script type="module">`
+- [x] In-browser test: `saveGraph` + `loadGraph` round-trips a KnowledgeGraph
+- [x] In-browser test: `applyMutation` adds a concept and index lookup succeeds
+- [x] In-browser test: `simplify()` produces correct canonicalLabel
+- [ ] Bundle size remains < 20KB (single-file constraint) — **142 KB actual; exceeded as codebase grew through Phases 3–10. No functional impact.**
+- [x] No Node.js-only APIs used in core (no `fs`, `path`, `process` in bundled code)
 
 > **Technical Advisory — Single-File Deployment:** The stakeholder requirement is "a brain in a box" — one `.js` file that any web app can `import` to get the full Fandaws engine. This is validated here at Phase 3 rather than Phase 8 to catch Node.js-only API leaks early. The esbuild bundle (ADR-002) already produces this file; this phase adds the proof.
 
 **NOT in scope:** FileSystemStateAdapter, queryGraph (pattern matching), IPFS CID resolution.
+
+**Phase 3 totals:** 93 unit tests + browser test harness, all passing.
 
 ---
 
 ## Phase 4: Validator — Structural Checks `[Track B — Graph Mechanics]`
 
 **Goal:** Implement input sanitization, structural grounding, and circular hierarchy prevention.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** High
 **Effort:** Medium
 **Depends on:** Phase 3
@@ -411,15 +422,15 @@ Enum matching to route ParseResult to the correct workflow.
 5. At confirmation steps, accept only yes/no
 
 **Acceptance Criteria:**
-- [ ] `"  A dog is an animal  "` is trimmed and normalized
-- [ ] `"A dog is an animal and a cat is a pet"` → rejected with `reason: "compoundStatement"`
-- [ ] Concept with no parent, no allowRoot flag, no typed property → rejected with `reason: "structuralGroundingError"`
-- [ ] Concept with existing parent → accepted
-- [ ] Concept with `fandaws:allowRoot: true` → accepted
-- [ ] At confirmation step: `"yes"` → accepted, `"no"` → accepted, `"maybe"` → re-prompt
-- [ ] At confirmation step: `"y"`, `"Yes"`, `"YES"` all → accepted as yes
-- [ ] Each rejection includes descriptive message per spec (e.g., "Concept 'truth' has no parent classification...")
-- [ ] All outputs are JSON-LD ValidationResult nodes
+- [x] `"  A dog is an animal  "` is trimmed and normalized
+- [x] `"A dog is an animal and a cat is a pet"` → rejected with `reason: "compoundStatement"`
+- [x] Concept with no parent, no allowRoot flag, no typed property → rejected with `reason: "structuralGroundingError"`
+- [x] Concept with existing parent → accepted
+- [x] Concept with `fandaws:allowRoot: true` → accepted
+- [x] At confirmation step: `"yes"` → accepted, `"no"` → accepted, `"maybe"` → re-prompt
+- [x] At confirmation step: `"y"`, `"Yes"`, `"YES"` all → accepted as yes
+- [x] Each rejection includes descriptive message per spec (e.g., "Concept 'truth' has no parent classification...")
+- [x] All outputs are JSON-LD ValidationResult nodes
 
 ### 4.2 Sanity Check (Circular Hierarchy Prevention)
 
@@ -432,13 +443,13 @@ Enum matching to route ParseResult to the correct workflow.
 **Algorithm:** Walk from proposed parent up to root. If proposed child encountered → reject.
 
 **Acceptance Criteria:**
-- [ ] `dog → animal → living_thing` — adding `dog` as child of `animal`: accepted
-- [ ] `dog → animal` — adding `animal` as child of `dog`: rejected (circular)
-- [ ] `A → B → C → A` three-node cycle: detected and rejected
-- [ ] `A → B → C → D → E → A` deep cycle: detected and rejected
-- [ ] Single-node self-reference `A → A`: rejected
-- [ ] Root node with no parent: always accepted
-- [ ] Performance: O(d) where d = depth, verified with depth-20 chain in < 1ms
+- [x] `dog → animal → living_thing` — adding `dog` as child of `animal`: accepted
+- [x] `dog → animal` — adding `animal` as child of `dog`: rejected (circular)
+- [x] `A → B → C → A` three-node cycle: detected and rejected
+- [x] `A → B → C → D → E → A` deep cycle: detected and rejected
+- [x] Single-node self-reference `A → A`: rejected
+- [x] Root node with no parent: always accepted
+- [x] Performance: O(d) where d = depth, verified with depth-20 chain in < 1ms
 
 ### 4.3 Validation Result Assembly
 
@@ -449,20 +460,22 @@ Enum matching to route ParseResult to the correct workflow.
 - `tests/unit/validator.test.js`
 
 **Acceptance Criteria:**
-- [ ] `validate(mutation, graph)` returns `{valid: true}` for clean mutations
-- [ ] `validate(mutation, graph)` returns `{valid: false, violations: [...]}` for bad mutations
-- [ ] Multiple violations collected in single pass (not fail-fast)
-- [ ] Violation descriptors include `reason`, `message`, and affected concept IRI
-- [ ] Validator is stateless — no I/O, no side effects
+- [x] `validate(mutation, graph)` returns `{valid: true}` for clean mutations
+- [x] `validate(mutation, graph)` returns `{valid: false, violations: [...]}` for bad mutations
+- [x] Multiple violations collected in single pass (not fail-fast)
+- [x] Violation descriptors include `reason`, `message`, and affected concept IRI
+- [x] Validator is stateless — no I/O, no side effects
 
 **NOT in scope:** Termidium (Phase 9), Property Redundancy Prevention (Phase 6), Custom Relationship Validation (Phase 9).
+
+**Phase 4 totals:** 91 new tests across 4 suites (28 input-sanitizer, 16 sanity-check, 34 validator, 13 property-redundancy), all passing.
 
 ---
 
 ## Phase 4b: OCE/IEE Governance Stubs `[Track B — Graph Mechanics]`
 
 **Goal:** Wire up the governance flows from Section 10.4.3 (OCE blocking flags) and Section 10.5.2 (IEE ethical contestation) with null implementations. This enables the blocking-flag-as-EpistemicFailure behavior from v3.4 to be testable before Phase 13 (M2M), where deadlock prevention depends on it.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** High
 **Effort:** Low
 **Depends on:** Phase 4
@@ -474,13 +487,13 @@ Enum matching to route ParseResult to the correct workflow.
 - `tests/unit/governance-check.test.js`
 
 **Acceptance Criteria:**
-- [ ] `checkGovernanceBlock(concept, graph)` returns `{blocked: false}` by default (null implementation)
-- [ ] When a concept has `fandaws:governanceFlag: "blocked"`, returns `{blocked: true, reason, epistemicFailure}` with EpistemicFailure JSON-LD node
-- [ ] EpistemicFailure node includes `flagType` (OCE/IEE), `flaggedBy`, `flaggedAt`, `reason`
-- [ ] Validator (Phase 4.3) calls `checkGovernanceBlock` before approving mutations
-- [ ] Blocked mutations produce a GraphMutation with `mutationType: "governanceRejection"`
-- [ ] OrchestrationAdapter can check governance status before pipeline execution
-- [ ] 8+ unit tests covering: no flag, OCE block, IEE block, cleared flag, malformed flag
+- [x] `checkGovernanceBlock(concept, graph)` returns `{blocked: false}` by default (null implementation)
+- [x] When a concept has `fandaws:governanceFlag: "blocked"`, returns `{blocked: true, reason, epistemicFailure}` with EpistemicFailure JSON-LD node
+- [x] EpistemicFailure node includes `flagType` (OCE/IEE), `flaggedBy`, `flaggedAt`, `reason`
+- [x] Validator (Phase 4.3) calls `checkGovernanceBlock` before approving mutations
+- [x] Blocked mutations produce a GraphMutation with `mutationType: "governanceRejection"`
+- [x] OrchestrationAdapter can check governance status before pipeline execution
+- [x] 8+ unit tests covering: no flag, OCE block, IEE block, cleared flag, malformed flag (11 tests)
 
 **NOT in scope:** Actual OCE/IEE adapter implementations, external governance service integration, human review workflows.
 
@@ -489,7 +502,7 @@ Enum matching to route ParseResult to the correct workflow.
 ## Phase 5: KnowledgeEngine — Classification Workflow `[Track B — Graph Mechanics]`
 
 **Goal:** Implement "X is a Y" — the simplest and most foundational workflow.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Critical
 **Effort:** High
 **Depends on:** Phase 4b (Validator + governance stubs)
@@ -514,42 +527,44 @@ Enum matching to route ParseResult to the correct workflow.
 **Acceptance Criteria:**
 
 *Basic classification:*
-- [ ] `"A dog is an animal"` on empty graph → creates both concepts, dog.parent=animal
-- [ ] `"A dog is an animal"` when "animal" exists → creates dog, links to existing animal
-- [ ] `"A poodle is a dog"` when "dog→animal" exists → creates poodle, poodle.parent=dog, depth=correct
+- [x] `"A dog is an animal"` on empty graph → creates both concepts, dog.parent=animal
+- [x] `"A dog is an animal"` when "animal" exists → creates dog, links to existing animal
+- [x] `"A poodle is a dog"` when "dog→animal" exists → creates poodle, poodle.parent=dog, depth=correct
 
 *Disambiguation:*
-- [ ] When "animal" has two meanings (homonyms), returns ConversationPrompt with options
-- [ ] User selects meaning → workflow continues with selected concept
-- [ ] User says "none" → new concept created for Y
+- [x] When "animal" has two meanings (homonyms), returns ConversationPrompt with options
+- [x] User selects meaning → workflow continues with selected concept
+- [x] User says "none" → new concept created for Y
 
 *Sanity check integration:*
-- [ ] `"An animal is a dog"` when dog→animal exists → rejected (circular)
+- [x] `"An animal is a dog"` when dog→animal exists → rejected (circular)
 
 *GraphMutation correctness:*
-- [ ] Mutation includes addition nodes for new concepts
-- [ ] Mutation includes modification to parent's children array
-- [ ] Mutation includes `reason` string
-- [ ] Mutation is valid JSON-LD
+- [x] Mutation includes addition nodes for new concepts
+- [x] Mutation includes modification to parent's children array
+- [x] Mutation includes `reason` string
+- [x] Mutation is valid JSON-LD
 
 *Edge cases:*
-- [ ] Classifying a concept under itself → rejected
-- [ ] Re-asserting an existing classification → idempotent (no duplicate, no error)
-- [ ] Multi-word concepts: `"golden retriever is a dog"` → handled correctly
+- [x] Classifying a concept under itself → rejected
+- [x] Re-asserting an existing classification → idempotent (no duplicate, no error)
+- [x] Multi-word concepts: `"golden retriever is a dog"` → handled correctly
 
 *Golden corpus:*
-- [ ] 20+ classification scenarios passing
+- [x] 20+ classification scenarios passing (38 entries)
 
 **NOT in scope:** Termidium deduplication (Phase 9.3 — the 8-level hierarchy search, merge governance, and `mergeReviewThreshold` are scoped there because they depend on the Classification Workflow being operational first), scope resolution, property attachment.
 
 > **Stakeholder note — Termidium placement:** Termidium (Section 6.2) is a Validator-adjacent concern but depends on a working classification hierarchy to search. Phase 9.3 contains its full acceptance criteria: 8-level bounded search, tie-breaking merge policy, recursive merge, `mergedFrom` tracking, `ReverseRelationshipIndex` usage, and `mergeReviewThreshold` confirmation. The Classification Workflow (Phase 5) must be complete first to provide the graph structures Termidium operates on.
+
+**Phase 5 totals:** 93 new tests across 4 suites (34 knowledge-engine unit, 25 classification-pipeline integration, 38 golden corpus entries, plus type factory tests), all passing.
 
 ---
 
 ## Phase 6: KnowledgeEngine — Property Workflow `[Track B — Graph Mechanics]`
 
 **Goal:** Implement "X has Y" with scope narrowing (including Leap Check optimization) and property redundancy prevention.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** High
 **Effort:** High
 **Depends on:** Phase 5
@@ -569,11 +584,11 @@ Enum matching to route ParseResult to the correct workflow.
 4. **No Inherited Redundancy:** Property must not be logically entailed by existing properties + hierarchy
 
 **Acceptance Criteria:**
-- [ ] Adding "fur" to "dog" when "dog" already has "fur" → rejected (check 1)
-- [ ] Adding "fur" to "dog" when "animal" (ancestor) has "fur" → rejected (check 2)
-- [ ] Adding "legs" to "animal" when "dog" (descendant) has "legs" → accepted, "dog" copy removed (check 3)
-- [ ] Check 3 returns list of descendant properties to remove in the GraphMutation
-- [ ] All four checks run on every property assertion — no short-circuit on first pass
+- [x] Adding "fur" to "dog" when "dog" already has "fur" → rejected (check 1)
+- [x] Adding "fur" to "dog" when "animal" (ancestor) has "fur" → rejected (check 2)
+- [x] Adding "legs" to "animal" when "dog" (descendant) has "legs" → accepted, "dog" copy removed (check 3)
+- [x] Check 3 returns list of descendant properties to remove in the GraphMutation
+- [x] All four checks run on every property assertion — no short-circuit on first pass
 
 ### 6.2 Scope Narrowing with Leap Check
 
@@ -594,37 +609,39 @@ Enum matching to route ParseResult to the correct workflow.
 > **Technical Advisory — Leap Check:** The naive scope-narrowing approach walks every ancestor level, generating one confirmation prompt per level. For deep hierarchies (depth 6+) this causes "survey fatigue." The Leap Check optimization probes the boundaries first: ask about the immediate parent and the root. If boundaries agree (both "yes" → attach at root; both "no" → attach at original concept), no intermediate prompts are needed. Only when they diverge (parent=yes, root=no) do you binary-search the intermediate levels to find the correct attachment point. This reduces worst-case prompts from O(d) to O(log d).
 
 **Acceptance Criteria:**
-- [ ] `"A dog has fur"` → ConversationPrompt: "Does an animal also have fur?"
-- [ ] User says yes → property attached to "animal", not "dog"
-- [ ] User says no → property attached to "dog"
+- [x] `"A dog has fur"` → ConversationPrompt: "Does an animal also have fur?"
+- [x] User says yes → property attached to "animal", not "dog"
+- [x] User says no → property attached to "dog"
 
 *Leap Check:*
-- [ ] Hierarchy `poodle→dog→canine→animal→living_thing→entity` with property "fur":
+- [x] Hierarchy `poodle→dog→canine→animal→living_thing→entity` with property "fur":
   - Immediate parent ("dog") = yes, root ("entity") = no → binary search intermediate levels
   - Immediate parent ("dog") = yes, root ("entity") = yes → attach at root, skip all intermediates
   - Immediate parent ("dog") = no → attach at "poodle", skip all ancestors
-- [ ] Leap Check produces fewer prompts than full walk for depth ≥ 4
+- [x] Leap Check produces fewer prompts than full walk for depth ≥ 4
 
 *Standard scope narrowing:*
-- [ ] Scope narrowing walks full chain when Leap Check boundaries diverge
-- [ ] Scope narrowing stops at root (no prompt for root's parent)
-- [ ] Unknown concept X → ConversationPrompt: "I don't know what X is. Please classify it first."
-- [ ] Property mutation includes correct `attachedTo` IRI
-- [ ] Descriptions regenerated for target and all inheriting descendants (noted in mutation reason)
+- [x] Scope narrowing walks full chain when Leap Check boundaries diverge
+- [x] Scope narrowing stops at root (no prompt for root's parent)
+- [x] Unknown concept X → ConversationPrompt: "I don't know what X is. Please classify it first."
+- [x] Property mutation includes correct `attachedTo` IRI
+- [x] Descriptions regenerated for target and all inheriting descendants (noted in mutation reason)
 
 *Golden corpus:*
-- [ ] 15+ property scenarios with various hierarchy depths
-- [ ] At least 3 Leap Check shortcut scenarios (boundaries agree)
-- [ ] At least 2 Leap Check fallback scenarios (boundaries diverge → binary search)
+- [x] 15+ property scenarios with various hierarchy depths (59 entries)
+- [x] At least 3 Leap Check shortcut scenarios (boundaries agree) (4 entries)
+- [x] At least 2 Leap Check fallback scenarios (boundaries diverge → binary search)
 
 **NOT in scope:** Custom relationships, Termidium interaction with properties.
+
+**Phase 6 totals:** 90 new tests across 5 suites (18 property-workflow, 13 property-redundancy, scope-narrowing, 13 property-pipeline integration, 59 golden corpus entries), all passing.
 
 ---
 
 ## Phase 7: DescriptionEngine `[Track A/B — Linguistics + Graph]`
 
 **Goal:** Auto-generate natural-language definitions from graph structure.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** High
 **Effort:** Low
 **Depends on:** Phase 3 (requires graph traversal for parent chain and inherited properties)
@@ -644,24 +661,26 @@ Enum matching to route ParseResult to the correct workflow.
 - Process: `"[Object] [term] is the [parent+ing] of [object] by [subject]."`
 
 **Acceptance Criteria:**
-- [ ] Concept "dog" with parent "animal" and properties ["fur", "four legs"] → `"Dog is an animal that has fur, four legs."`
-- [ ] Concept "dog" with parent "animal" and no properties → `"Dog is an animal."`
-- [ ] Concept "running" (process) with subject "athlete", object "race" → uses process template
-- [ ] Root concept with no parent → `"Dog."` or appropriate root description
-- [ ] Handles 1 property, 2 properties, 3+ properties (comma-separated with "and" for last)
-- [ ] Uses `displayLabel` (not canonicalLabel) for human-readable output
-- [ ] Performance: < 2ms per description
-- [ ] Pure function: concept IRI + graph in → description string out
-- [ ] 10+ test cases covering standard, process, edge cases
+- [x] Concept "dog" with parent "animal" and properties ["fur", "four legs"] → `"Dog is an Animal that has fur and four legs."`
+- [x] Concept "dog" with parent "animal" and no properties → `"Dog is an Animal."`
+- [x] Concept "running" (process) with subject "athlete", object "race" → uses process template
+- [x] Root concept with no parent → `"Entity is a root concept."`
+- [x] Handles 1 property, 2 properties, 3+ properties (comma-separated with "and" for last, Oxford comma)
+- [x] Uses `displayLabel` (not canonicalLabel) for human-readable output
+- [x] Performance: < 2ms per description
+- [x] Pure function: concept IRI + graph in → description string out
+- [x] 10+ test cases covering standard, process, edge cases (63 tests across 2 suites + 25 golden corpus)
 
-**NOT in scope:** Custom description templates, configurable templates beyond the two standard ones.
+**NOT in scope:** Custom description templates, configurable templates beyond the three standard ones.
+
+**Phase 7 totals:** 63 tests across 2 suites (36 unit + 25 golden corpus + verb conjugation), all passing. Three templates: standard, process (gerund), standard+relationship (verb inflection).
 
 ---
 
 ## Phase 8: Pipeline Integration — First Working Conversation Loop `★ CONVERGENCE GATE`
 
 **Goal:** Wire NLParser → Classifier → KnowledgeEngine → Validator → StateAdapter → DescriptionEngine into a working conversation loop. Pass the Spec Test.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Critical
 **Effort:** High
 **Requires:** Phase 2 (Track A) + Phase 5 (Track B) + Phase 7 (Track A)
@@ -688,10 +707,10 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 - `tests/unit/null-integration-adapter.test.js`
 
 **Acceptance Criteria:**
-- [ ] `lookupDictionary(term)` returns DeferredResult
-- [ ] `lookupBFO(concept)` returns DeferredResult
-- [ ] `importOntology(source)` returns DeferredResult
-- [ ] All DeferredResults include correct reason: "offline"
+- [x] `lookupDictionary(term)` returns DeferredResult
+- [x] `lookupBFO(concept)` returns DeferredResult
+- [x] `importOntology(source)` returns DeferredResult
+- [x] All DeferredResults include correct reason: "offline"
 
 ### 8.2 SynchronousOrchestrationAdapter
 
@@ -702,11 +721,11 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 - `tests/unit/synchronous-orchestration-adapter.test.js`
 
 **Acceptance Criteria:**
-- [ ] `runPipeline(utterance, context)` executes full pipeline: parse → classify → knowledge engine → validate → apply mutation → regenerate descriptions
-- [ ] `getCallerMode()` returns `"human"` (default)
-- [ ] `emitOutput(output)` delivers ConversationPrompts to caller
-- [ ] `receiveInput(input)` accepts text, confirmations, selections
-- [ ] ConversationPrompts pause pipeline until caller responds
+- [x] `runPipeline(utterance, context)` executes full pipeline: parse → classify → knowledge engine → validate → apply mutation → regenerate descriptions
+- [x] `getCallerMode()` returns `"human"` (default)
+- [x] `emitOutput(output)` delivers ConversationPrompts to caller
+- [x] `receiveInput(input)` accepts text, confirmations, selections
+- [x] ConversationPrompts pause pipeline until caller responds
 
 ### 8.3 Conversation Simulation Tests
 
@@ -719,41 +738,43 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 **Acceptance Criteria:**
 
 *End-to-end classification:*
-- [ ] Input: `"A dog is an animal"` → graph contains dog, animal; dog.parent=animal
-- [ ] Input: `"A poodle is a dog"` after previous → poodle.parent=dog, depth=correct
-- [ ] Input: `"A cat is an animal"` after previous → cat.parent=animal, animal has 2 children
+- [x] Input: `"A dog is an animal"` → graph contains dog, animal; dog.parent=animal
+- [x] Input: `"A poodle is a dog"` after previous → poodle.parent=dog, depth=correct
+- [x] Input: `"A cat is an animal"` after previous → cat.parent=animal, animal has 2 children
 
 *End-to-end property:*
-- [ ] Input: `"A dog has fur"`, respond "no" to scope narrowing → fur attached to dog
-- [ ] Input: `"A dog has fur"`, respond "yes" to "does animal have fur?" → fur attached to animal
+- [x] Input: `"A dog has fur"`, respond "no" to scope narrowing → fur attached to dog
+- [x] Input: `"A dog has fur"`, respond "yes" to "does animal have fur?" → fur attached to animal
 
 *Determinism:*
-- [ ] Same utterance sequence + same responses → byte-identical graph state across 3 runs
+- [x] Same utterance sequence + same responses → byte-identical graph state across 3 runs
 
 *Spec Test:*
-- [ ] Full pipeline runs in Node.js with zero external dependencies
-- [ ] Full pipeline runs with NullIntegrationAdapter (offline mode)
-- [ ] `node src/index.js` with a scripted conversation produces expected graph
+- [x] Full pipeline runs in Node.js with zero external dependencies
+- [x] Full pipeline runs with NullIntegrationAdapter (offline mode)
+- [x] `node src/index.js` with a scripted conversation produces expected graph
 
 *TagTeam evaluation:*
-- [ ] NLParser golden corpus success rate measured and recorded
-- [ ] ADR-003 written with decision + rationale
+- [x] NLParser golden corpus success rate measured and recorded — 100% (87/87 parse-dependent entries)
+- [x] ADR-003 written with decision + rationale — continue with regex parser
 
 *Error handling:*
-- [ ] Invalid input (empty, compound) → appropriate ConversationPrompt, no crash
-- [ ] Circular classification attempt → rejection, graph unchanged
+- [x] Invalid input (empty, compound) → appropriate ConversationPrompt, no crash
+- [x] Circular classification attempt → rejection, graph unchanged
 
 *Golden corpus:*
-- [ ] 10+ multi-turn conversation scenarios with expected final graph states
+- [x] 10+ multi-turn conversation scenarios with expected final graph states (22 entries: 14 core + 8 adversarial)
 
 **NOT in scope:** Custom relationships, M2M mode, scope resolution, term explorer.
+
+**Phase 8 totals:** 49 new tests across 4 suites (23 orchestration-adapter, 9 null-integration-adapter, 5 conversation-simulation, 12 pipeline-contracts), plus 22 golden corpus entries. TagTeam Decision Gate: regex NLParser at 100%, ADR-003 accepted.
 
 ---
 
 ## Phase 9: Custom Relationships + Termidium `[Track B — Graph Mechanics]`
 
 **Goal:** Complete the third workflow and add deduplication. After this phase, all three knowledge-building workflows are operational.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** High
 **Effort:** High
 **Depends on:** Phase 5
@@ -776,11 +797,11 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 7. Refactoring Check
 
 **Acceptance Criteria:**
-- [ ] `"dogs chase cats"` + `"dogs chase cats"` → second rejected (duplicate)
-- [ ] `"dogs chase cats"` + `"cats are chased by dogs"` → inverse flagged
-- [ ] Verb normalization: `"chases"` and `"chase"` treated as same verb
-- [ ] `"animals eat food"` then `"dogs eat meat"` → second is sub-relationship of first
-- [ ] Each check produces a typed violation descriptor when failing
+- [x] `"dogs chase cats"` + `"dogs chase cats"` → second rejected (duplicate)
+- [x] `"dogs chase cats"` + `"cats are chased by dogs"` → inverse flagged
+- [x] Verb normalization: `"chases"` and `"chase"` treated as same verb
+- [x] `"animals eat food"` then `"dogs eat meat"` → second is sub-relationship of first
+- [x] Each check produces a typed violation descriptor when failing
 
 ### 9.2 Custom Relationship Workflow
 
@@ -791,11 +812,11 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 - `tests/unit/relationship-workflow.test.js`
 
 **Acceptance Criteria:**
-- [ ] `"Dogs chase cats"` → creates Relationship with verb="chase", subject=dogs, object=cats
-- [ ] Creates placeholder concepts for subject/object if not in graph
-- [ ] Sub-relationship hierarchy: more specific verb becomes child of general verb
-- [ ] GraphMutation includes relationship node with correct JSON-LD shape
-- [ ] 10+ test cases
+- [x] `"Dogs chase cats"` → creates Relationship with verb="chase", subject=dogs, object=cats
+- [x] Creates placeholder concepts for subject/object if not in graph
+- [x] Sub-relationship hierarchy: more specific verb becomes child of general verb
+- [x] GraphMutation includes relationship node with correct JSON-LD shape
+- [x] 10+ test cases (16 tests)
 
 ### 9.3 Termidium Deduplication
 
@@ -823,29 +844,31 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 - Source deleted
 
 **Acceptance Criteria:**
-- [ ] Two concepts with same canonicalLabel at different depths → merged, deeper survives
-- [ ] Same depth, different createdAt → earlier survives
-- [ ] Same depth+time, different assertion count → more assertions survives
-- [ ] Children transferred: source's children become target's children
-- [ ] Properties transferred (non-redundant only)
-- [ ] Relationships rewritten: all references to source now point to target
-- [ ] Relationship rewrite uses ReverseRelationshipIndex (O(k) not O(n))
-- [ ] `mergedFrom` array on target contains source IRI
-- [ ] Source concept deleted from graph
-- [ ] `verifyIntegrity()` returns clean after merge (no ghost pointers)
-- [ ] Recursive: merge triggers re-scan, catches transitive duplicates
-- [ ] Search bounded at 8 levels (configurable via `deduplicationDepth`)
-- [ ] Large merge (> `mergeReviewThreshold` children) → ConversationPrompt for confirmation
-- [ ] 15+ test cases including recursive merge and large merge threshold
+- [x] Two concepts with same canonicalLabel at different depths → merged, deeper survives
+- [x] Same depth, different createdAt → earlier survives
+- [x] Same depth+time, different assertion count → more assertions survives
+- [x] Children transferred: source's children become target's children
+- [x] Properties transferred (non-redundant only)
+- [x] Relationships rewritten: all references to source now point to target
+- [x] Relationship rewrite uses ReverseRelationshipIndex (O(k) not O(n))
+- [x] `mergedFrom` array on target contains source IRI
+- [x] Source concept deleted from graph
+- [x] `verifyIntegrity()` returns clean after merge (no ghost pointers)
+- [x] Recursive: merge triggers re-scan, catches transitive duplicates
+- [x] Search bounded at 8 levels (configurable via `deduplicationDepth`)
+- [x] Large merge (> `mergeReviewThreshold` children) → ConversationPrompt for confirmation
+- [x] 15+ test cases including recursive merge and large merge threshold (16 tests)
 
 **NOT in scope:** M2M machineSignal for merge review.
+
+**Phase 9 totals:** 65 new tests across 5 suites (22 relationship-validation, 16 relationship-workflow, 16 termidium, 11 relationship-pipeline integration, 32 golden corpus entries), all passing. Seven validation checks, deterministic verb normalization, 8-level bounded deduplication.
 
 ---
 
 ## Phase 10: ExportEngine `[Track A — Linguistics]`
 
 **Goal:** Deterministic export to standard ontology formats.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Medium
 **Effort:** Medium
 **Depends on:** Phase 2 (graph structure understanding from NLParser types)
@@ -861,10 +884,10 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 **Mapping:** Concepts → `skos:Concept`, hierarchies → `skos:broader`/`skos:narrower`, descriptions → `skos:definition`
 
 **Acceptance Criteria:**
-- [ ] Exports a KnowledgeGraph with 5 concepts as valid SKOS
-- [ ] Parent-child relationships → `skos:broader` / `skos:narrower`
-- [ ] Descriptions → `skos:definition`
-- [ ] Deterministic: same graph → byte-identical SKOS output
+- [x] Exports a KnowledgeGraph with 5 concepts as valid SKOS
+- [x] Parent-child relationships → `skos:broader` / `skos:narrower`
+- [x] Descriptions → `skos:definition`
+- [x] Deterministic: same graph → byte-identical SKOS output
 
 ### 10.2 OWL Export
 
@@ -875,9 +898,9 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 **Mapping:** Concepts → `owl:Class`, properties → `owl:ObjectProperty` or `owl:DatatypeProperty`, hierarchies → `rdfs:subClassOf`
 
 **Acceptance Criteria:**
-- [ ] Exports valid OWL 2 DL structure
-- [ ] Concept hierarchies → `rdfs:subClassOf`
-- [ ] Deterministic
+- [x] Exports valid OWL 2 DL structure
+- [x] Concept hierarchies → `rdfs:subClassOf`
+- [x] Deterministic
 
 ### 10.3 RDF/XML and Turtle Exports
 
@@ -887,9 +910,9 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 - `tests/unit/export-formats.test.js`
 
 **Acceptance Criteria:**
-- [ ] RDF/XML: syntactically valid RDF/XML serialization of graph
-- [ ] Turtle: syntactically valid Turtle serialization of graph
-- [ ] Both are deterministic
+- [x] RDF/XML: syntactically valid RDF/XML serialization of graph
+- [x] Turtle: syntactically valid Turtle serialization of graph
+- [x] Both are deterministic
 
 ### 10.4 ExportEngine Orchestrator
 
@@ -897,15 +920,17 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 - `src/core/export-engine/export-engine.js`
 
 **Acceptance Criteria:**
-- [ ] `export(graph, {format: "skos"})` delegates to SKOS exporter
-- [ ] `export(graph, {format: "owl"})` delegates to OWL exporter
-- [ ] `export(graph, {format: "rdf"})` delegates to RDF/XML exporter
-- [ ] `export(graph, {format: "turtle"})` delegates to Turtle exporter
-- [ ] Unknown format → clear error
-- [ ] Read-only: no mutations to graph
-- [ ] Pure function: no I/O, no external services
+- [x] `export(graph, {format: "skos"})` delegates to SKOS exporter
+- [x] `export(graph, {format: "owl"})` delegates to OWL exporter
+- [x] `export(graph, {format: "rdf"})` delegates to RDF/XML exporter
+- [x] `export(graph, {format: "turtle"})` delegates to Turtle exporter
+- [x] Unknown format → clear error
+- [x] Read-only: no mutations to graph
+- [x] Pure function: no I/O, no external services
 
 **NOT in scope:** Streaming export, incremental export, external validation against W3C schemas.
+
+**Phase 10 totals:** 80 new tests across 5 suites (13 export-engine, 16 skos-export, 14 owl-export, 20 export-formats, 17 triple-extractor), all passing. Four export formats (SKOS, OWL, RDF/XML, Turtle) with shared triple extraction layer, BFO integration, and deterministic output.
 
 ---
 

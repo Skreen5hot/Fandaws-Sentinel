@@ -23,6 +23,11 @@ function buildConcept(entry) {
     broader: entry.broader || null,
   });
 
+  // BFO process flag — marks concept as a process for process template
+  if (entry.bfoProcess) {
+    c['rdfs:subClassOf'].push('bfo:BFO_0000015');
+  }
+
   // Attach properties
   if (entry.properties) {
     for (const prop of entry.properties) {

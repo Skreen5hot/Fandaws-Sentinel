@@ -271,6 +271,51 @@ describe('Triple Extractor', () => {
       expect(triples).toHaveLength(0);
     });
 
+    it('extracts BFO bare IRI from rdfs:subClassOf as URI triple', () => {
+      const dog = createConcept({
+        id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        label: 'Dog',
+        prefLabel: 'dog',
+        bfoMapping: 'bfo:BFO_0000040',
+      });
+      const graph = makeGraph([dog]);
+      const triples = extractTriples(graph);
+
+      const bfoTriple = triples.find(
+        (t) =>
+          t.predicate === expandIri('rdfs:subClassOf') &&
+          t.object === expandIri('bfo:BFO_0000040'),
+      );
+      expect(bfoTriple).toBeDefined();
+      expect(bfoTriple.objectType).toBe('uri');
+      expect(bfoTriple.object).toBe('http://purl.obolibrary.org/obo/BFO_0000040');
+    });
+
+    it('sorts BFO triples before restriction triples in rdfs:subClassOf', () => {
+      const dog = createConcept({
+        id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        label: 'Dog',
+        prefLabel: 'dog',
+        bfoMapping: 'bfo:BFO_0000040',
+      });
+      const prop = createProperty({
+        id: 'fandaws:restriction/56de7457-e37d-5b39-80ff-ce18950fce9b/dog--fur',
+        propertyIri: 'fur',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        value: 'yes',
+      });
+      dog['rdfs:subClassOf'].push(prop);
+      const graph = makeGraph([dog]);
+      const triples = extractTriples(graph);
+
+      const subClassTriples = triples.filter(
+        (t) => t.predicate === expandIri('rdfs:subClassOf'),
+      );
+      // BFO bare IRI comes first, then restriction IRI
+      expect(subClassTriples.length).toBeGreaterThanOrEqual(2);
+      expect(subClassTriples[0].object).toBe(expandIri('bfo:BFO_0000040'));
+    });
+
     it('handles concept with no properties or relationships', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const graph = makeGraph([dog]);

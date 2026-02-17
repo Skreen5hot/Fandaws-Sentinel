@@ -13,6 +13,7 @@ import { serializeRdfXml } from './xml-serializer.js';
 // ── Full Prefixes ──
 
 const ALL_PREFIXES = {
+  bfo: 'http://purl.obolibrary.org/obo/',
   dcterms: 'http://purl.org/dc/terms/',
   fandaws: 'https://fandaws.org/schema/',
   owl: 'http://www.w3.org/2002/07/owl#',

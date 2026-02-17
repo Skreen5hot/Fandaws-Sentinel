@@ -18,6 +18,7 @@
  */
 
 import { isRestrictionNode } from '../../types/type-checks.js';
+import { BFO } from '../knowledge-engine/bfo-heuristic.js';
 
 // ─────────────────────────────────────────────────────────
 // Internal helpers
@@ -155,6 +156,20 @@ function formatPropertyList(labels) {
   return labels.slice(0, -1).join(', ') + ', and ' + labels[labels.length - 1];
 }
 
+/**
+ * Check if a concept is a BFO process based on its rdfs:subClassOf entries.
+ *
+ * @param {object} concept - JSON-LD Concept node
+ * @returns {boolean}
+ */
+function isProcessConcept(concept) {
+  const subClassOf = concept['rdfs:subClassOf'] || [];
+  for (const entry of subClassOf) {
+    if (entry === BFO.process) return true;
+  }
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────
 // Public API
 // ─────────────────────────────────────────────────────────
@@ -162,12 +177,13 @@ function formatPropertyList(labels) {
 /**
  * Generate a human-readable description for a concept.
  *
- * Selects between two templates:
- * - **Standard:** "[Term] is a/an [parent] that has [props]."
+ * Selects between three templates:
  * - **Process:**  "[Term] is the [parent+ing] of [object] by [subject]."
- *
- * Process template is used when the concept has a relationship restriction
- * and a parent concept. Otherwise the standard template is used.
+ *   (only for concepts with BFO process category)
+ * - **Standard + relationship:** "[Term] is a/an [parent] that [verb] [object]."
+ *   (non-process concepts with relationships)
+ * - **Standard:** "[Term] is a/an [parent] that has [props]."
+ *   (concepts with properties, no relationships)
  *
  * @param {object} concept - JSON-LD Concept node
  * @param {object} graph - JSON-LD KnowledgeGraph containing the concept
@@ -186,7 +202,8 @@ export function describeConcept(concept, graph) {
 
   // ── Process template ──
   // "[Term] is the [parent+ing] of [object] by [subject]."
-  if (relationshipData && parentIri) {
+  // Only for process concepts (BFO process category).
+  if (relationshipData && parentIri && isProcessConcept(concept)) {
     const concepts = graph['fandaws:concepts'] || [];
     const parent = concepts.find((c) => c['@id'] === parentIri);
     if (parent) {
@@ -217,5 +234,13 @@ export function describeConcept(concept, graph) {
 
   const parentLabel = capitalizeLabel(parent['rdfs:label'] || parentIri);
   const article = selectArticle(parentLabel);
+
+  // Standard template with relationship: "[Term] is a [parent] that [verb] [object]."
+  if (relationshipData) {
+    const objectLabel = resolveLabel(relationshipData.object, graph);
+    const relSuffix = ` that ${relationshipData.verb} ${objectLabel}`;
+    return `${displayLabel} is ${article} ${parentLabel}${relSuffix}.`;
+  }
+
   return `${displayLabel} is ${article} ${parentLabel}${propertySuffix}.`;
 }

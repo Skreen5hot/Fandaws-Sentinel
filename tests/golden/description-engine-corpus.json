@@ -111,6 +111,7 @@
       "concept": {
         "id": "fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation", "label": "Predation", "prefLabel": "predation",
         "broader": "fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt",
+        "bfoProcess": true,
         "properties": [],
         "relationships": [{ "verb": "chases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
@@ -127,6 +128,7 @@
       "concept": {
         "id": "fandaws:class/df8bc4fe-58af-54df-ad76-afa5409b2176/pursuit", "label": "Pursuit", "prefLabel": "pursuit",
         "broader": "fandaws:class/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase",
+        "bfoProcess": true,
         "properties": [],
         "relationships": [{ "verb": "follows", "object": "fandaws:class/0bd48663-46f1-5597-b49f-308e3e419e5d/prey", "subject": "fandaws:class/a5574a02-cdf8-5a3d-ba50-b1ec7a1fecc1/predator" }]
       },
@@ -157,6 +159,7 @@
       "concept": {
         "id": "fandaws:class/265e2478-a63f-5f85-b3ff-b67098364c94/liberation", "label": "Liberation", "prefLabel": "liberation",
         "broader": "fandaws:class/d01d3502-0794-5c1c-b44f-2028acffa5e6/free",
+        "bfoProcess": true,
         "properties": [],
         "relationships": [{ "verb": "releases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
@@ -173,6 +176,7 @@
       "concept": {
         "id": "fandaws:class/0ffdbe30-7ad1-5db6-86dc-e02349e86fcc/sprint", "label": "Sprint", "prefLabel": "sprint",
         "broader": "fandaws:class/89b8ed2f-594e-50f6-beae-23fde98ec525/run",
+        "bfoProcess": true,
         "properties": [],
         "relationships": [{ "verb": "chases", "object": "fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
@@ -221,6 +225,21 @@
       "graphConcepts": [{ "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog" }],
       "expected": "Golden Retriever is a Dog.",
       "note": "Multi-word display label preserved"
+    },
+    {
+      "id": "desc-material-entity-with-relationship",
+      "concept": {
+        "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog",
+        "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
+        "properties": [],
+        "relationships": [{ "verb": "eats", "object": "fandaws:class/test-meat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
+      },
+      "graphConcepts": [
+        { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" },
+        { "id": "fandaws:class/test-meat", "label": "Meat", "prefLabel": "meat" }
+      ],
+      "expected": "Dog is an Animal that eats Meat.",
+      "note": "Non-process concept with relationship uses standard+relationship template (not process template)"
     }
   ]
 }

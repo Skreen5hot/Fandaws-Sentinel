@@ -1243,19 +1243,20 @@ function updateConvGraphState() {
 // ─────────────────────────────────────────────────────────
 
 function buildExportGraph() {
-  const entity = Fandaws.createConcept({ id: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', label: 'Entity', prefLabel: 'entity' });
-  const living = Fandaws.createConcept({ id: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity' });
-  const animal = Fandaws.createConcept({ id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', definition: 'Animal is a Living Thing.' });
-  const dog = Fandaws.createConcept({ id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Dog is an Animal that has fur.' });
-  const cat = Fandaws.createConcept({ id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Cat is an Animal that has whiskers.' });
+  const BFO_MATERIAL = 'bfo:BFO_0000040';
+  const entity = Fandaws.createConcept({ id: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', label: 'Entity', prefLabel: 'entity', bfoMapping: 'bfo:BFO_0000001' });
+  const living = Fandaws.createConcept({ id: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', label: 'Living Thing', prefLabel: 'living thing', broader: 'fandaws:class/d0327e06-5470-5b21-85ca-12f8915c8967/entity', bfoMapping: BFO_MATERIAL });
+  const animal = Fandaws.createConcept({ id: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', label: 'Animal', prefLabel: 'animal', broader: 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing', definition: 'Animal is a Living Thing.', bfoMapping: BFO_MATERIAL });
+  const dog = Fandaws.createConcept({ id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', label: 'Dog', prefLabel: 'dog', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Dog is an Animal that has fur.', bfoMapping: BFO_MATERIAL });
+  const cat = Fandaws.createConcept({ id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Cat is an Animal that has whiskers.', bfoMapping: BFO_MATERIAL });
 
-  // Add property to dog
-  const furProp = Fandaws.createProperty({ id: 'fandaws:prop/dog--fur', propertyIri: 'fur', attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', value: 'yes' });
-  dog['rdfs:subClassOf'] = [furProp];
+  // Add property to dog (restriction IRI follows fandaws:restriction/{uuid5}/{concept}--{prop} format)
+  const furProp = Fandaws.createProperty({ id: 'fandaws:restriction/56de7457-e37d-5b39-80ff-ce18950fce9b/dog--fur', propertyIri: 'fur', attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', value: 'yes' });
+  dog['rdfs:subClassOf'].push(furProp);
 
   // Add property to cat
-  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:prop/cat--whiskers', propertyIri: 'whiskers', attachedTo: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', value: 'yes' });
-  cat['rdfs:subClassOf'] = [whiskersProp];
+  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:restriction/b43ef6bb-6e59-5ca6-b599-8375e8d85550/cat--whiskers', propertyIri: 'whiskers', attachedTo: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', value: 'yes' });
+  cat['rdfs:subClassOf'].push(whiskersProp);
 
   // Add relationship: dog chases cat
   const chaseRel = Fandaws.createRelationship({ id: 'fandaws:rel/5871e405-5c67-5f25-b3bb-4be118e09176/dog--chase--cat', verbIri: 'chase', subject: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', object: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat' });

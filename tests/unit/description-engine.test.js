@@ -48,6 +48,14 @@ function addRelationship(concept, verb, objectIri, subjectIri) {
   return concept;
 }
 
+/** Mark a concept as BFO process by adding the process IRI to rdfs:subClassOf. */
+function markAsProcess(concept) {
+  const sub = concept['rdfs:subClassOf'] || [];
+  sub.push('bfo:BFO_0000015');
+  concept['rdfs:subClassOf'] = sub;
+  return concept;
+}
+
 // ─────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────
@@ -193,7 +201,7 @@ describe('DescriptionEngine', () => {
   // ── Process template ───────────────────────────────────
 
   describe('Process template', () => {
-    it('concept with relationship + parent uses process format', () => {
+    it('process concept with relationship + parent uses process format', () => {
       const hunt = makeConcept('fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt', 'Hunt');
       const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
@@ -202,6 +210,7 @@ describe('DescriptionEngine', () => {
         'Predation',
         'fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt',
       );
+      markAsProcess(predation);
       addRelationship(
         predation,
         'chases',
@@ -230,6 +239,43 @@ describe('DescriptionEngine', () => {
       expect(describeConcept(predation, graph)).toBe(
         'Predation is a root concept.',
       );
+    });
+  });
+
+  // ── Standard template with relationship ──────────────
+
+  describe('Standard template with relationship (non-process)', () => {
+    it('material entity with relationship uses standard+relationship format', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const meat = makeConcept('fandaws:class/test-meat', 'Meat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'eats', 'fandaws:class/test-meat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, meat, dog]);
+
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that eats Meat.');
+    });
+
+    it('material entity with relationship + properties uses relationship template', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const meat = makeConcept('fandaws:class/test-meat', 'Meat');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addProperties(dog, ['fur']);
+      addRelationship(dog, 'eats', 'fandaws:class/test-meat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, meat, dog]);
+
+      // Relationship template takes priority over property suffix
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that eats Meat.');
+    });
+
+    it('non-process concept with relationship but no BFO does not use process template', () => {
+      const mammal = makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal');
+      const food = makeConcept('fandaws:class/test-food', 'Food');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal');
+      addRelationship(cat, 'chases', 'fandaws:class/test-food', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      const graph = makeGraph([mammal, food, cat]);
+
+      // Should NOT produce "Cat is the mammaling of ..." — must use standard template
+      expect(describeConcept(cat, graph)).toBe('Cat is a Mammal that chases Food.');
     });
   });
 
@@ -263,6 +309,7 @@ describe('DescriptionEngine', () => {
       const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
       const liberation = makeConcept('fandaws:class/265e2478-a63f-5f85-b3ff-b67098364c94/liberation', 'Liberation', 'fandaws:class/d01d3502-0794-5c1c-b44f-2028acffa5e6/free');
+      markAsProcess(liberation);
       addRelationship(liberation, 'releases', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const graph = makeGraph([free, cat, dog, liberation]);
 
@@ -274,6 +321,7 @@ describe('DescriptionEngine', () => {
       const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
       const sprint = makeConcept('fandaws:class/0ffdbe30-7ad1-5db6-86dc-e02349e86fcc/sprint', 'Sprint', 'fandaws:class/89b8ed2f-594e-50f6-beae-23fde98ec525/run');
+      markAsProcess(sprint);
       addRelationship(sprint, 'chases', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const graph = makeGraph([run, cat, dog, sprint]);
 
@@ -301,6 +349,7 @@ describe('DescriptionEngine', () => {
       const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
       const predation = makeConcept('fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation', 'Predation', 'fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt');
+      markAsProcess(predation);
       addProperties(predation, ['stealth']);
       addRelationship(predation, 'chases', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const graph = makeGraph([hunt, cat, dog, predation]);
@@ -315,6 +364,7 @@ describe('DescriptionEngine', () => {
       const hunt = makeConcept('fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt', 'Hunt');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog');
       const predation = makeConcept('fandaws:class/73765e50-9c16-51b2-8c25-d720762a9127/predation', 'Predation', 'fandaws:class/f478f91b-88dd-5282-809d-e4d441062919/hunt');
+      markAsProcess(predation);
       addRelationship(predation, 'chases', 'fandaws:class/1ca09e44-44ca-5578-a644-7228fb7e04fe/unknown-prey', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const graph = makeGraph([hunt, dog, predation]);
 

@@ -75,6 +75,19 @@ describe('Export Formats', () => {
       expect(result).toContain('owl:Restriction');
     });
 
+    it('emits BFO rdfs:subClassOf triple with compact bfo: prefix', () => {
+      const dog = createConcept({
+        id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        label: 'Dog',
+        prefLabel: 'dog',
+        bfoMapping: 'bfo:BFO_0000040',
+      });
+      const result = exportTurtle(makeGraph([dog]));
+      expect(result).toContain('@prefix bfo:');
+      expect(result).toContain('bfo:BFO_0000040');
+      expect(result).toContain('rdfs:subClassOf');
+    });
+
     it('is deterministic: same graph produces byte-identical output', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
       const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'cat');
@@ -145,6 +158,18 @@ describe('Export Formats', () => {
       const concept = makeConcept('fandaws:class/0bf07a6b-44d0-59c3-8688-74c07b3163f6/test', 'A & B <C>', 'test');
       const result = exportRDF(makeGraph([concept]));
       expect(result).toContain('A &amp; B &lt;C&gt;');
+    });
+
+    it('emits BFO rdfs:subClassOf in RDF/XML', () => {
+      const dog = createConcept({
+        id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        label: 'Dog',
+        prefLabel: 'dog',
+        bfoMapping: 'bfo:BFO_0000040',
+      });
+      const result = exportRDF(makeGraph([dog]));
+      expect(result).toContain('xmlns:bfo=');
+      expect(result).toContain('BFO_0000040');
     });
 
     it('is deterministic: same graph produces byte-identical output', () => {

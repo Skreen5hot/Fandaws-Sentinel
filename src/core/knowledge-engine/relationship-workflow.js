@@ -15,7 +15,8 @@
  */
 
 import { simplify } from '../identity/identity-simplification.js';
-import { generateConceptIri, generateRelationshipIri } from './iri-generator.js';
+import { generateConceptIri, generateRelationshipIri, DEFAULT_SCOPE } from './iri-generator.js';
+import { inferBfoCategory } from './bfo-heuristic.js';
 import { createConcept } from '../../types/concept.js';
 import { createRelationship } from '../../types/relationship.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
@@ -87,6 +88,7 @@ function findParentRelationship(subjectIri, normalizedVerb, graph, indices) {
  * @param {object} graph - KnowledgeGraph snapshot
  * @param {object} indices - Graph indices
  * @param {object} [options={}]
+ * @param {string} [options.scope] - Scope IRI for deterministic IRI generation
  * @param {string} [options.locale='en']
  * @param {Record<string, string>} [options.abbreviationTable={}]
  * @param {string[]} [options.protectedProperNouns=[]]
@@ -94,6 +96,7 @@ function findParentRelationship(subjectIri, normalizedVerb, graph, indices) {
  */
 export function processRelationship(action, graph, indices, options = {}) {
   const {
+    scope = DEFAULT_SCOPE,
     locale = 'en',
     abbreviationTable = {},
     protectedProperNouns = [],
@@ -177,13 +180,13 @@ export function processRelationship(action, graph, indices, options = {}) {
 
   const subjectIri = existingSubject
     ? existingSubject['@id']
-    : generateConceptIri(subjectCanonical);
+    : generateConceptIri(subjectCanonical, scope);
   const objectIri = existingObject
     ? existingObject['@id']
-    : generateConceptIri(objectCanonical);
+    : generateConceptIri(objectCanonical, scope);
 
   // ── 6. Generate relationship IRI and check for duplicates ──
-  const relIri = generateRelationshipIri(subjectCanonical, verb, objectCanonical);
+  const relIri = generateRelationshipIri(subjectCanonical, verb, objectCanonical, scope);
 
   // Early duplicate detection: if a relationship with this IRI already exists, reject
   for (const c of graph['fandaws:concepts'] || []) {
@@ -217,6 +220,7 @@ export function processRelationship(action, graph, indices, options = {}) {
         id: subjectIri,
         label: displayLabel(rawSubject),
         prefLabel: subjectCanonical,
+        bfoMapping: inferBfoCategory(subjectCanonical),
       }),
       'fandaws:allowRoot': true,
     };
@@ -225,6 +229,7 @@ export function processRelationship(action, graph, indices, options = {}) {
         id: objectIri,
         label: displayLabel(rawObject),
         prefLabel: objectCanonical,
+        bfoMapping: inferBfoCategory(objectCanonical),
       }),
       'fandaws:allowRoot': true,
     };
@@ -247,6 +252,7 @@ export function processRelationship(action, graph, indices, options = {}) {
         id: objectIri,
         label: displayLabel(rawObject),
         prefLabel: objectCanonical,
+        bfoMapping: inferBfoCategory(objectCanonical),
       }),
       'fandaws:allowRoot': true,
     };
@@ -269,6 +275,7 @@ export function processRelationship(action, graph, indices, options = {}) {
         id: subjectIri,
         label: displayLabel(rawSubject),
         prefLabel: subjectCanonical,
+        bfoMapping: inferBfoCategory(subjectCanonical),
       }),
       'fandaws:allowRoot': true,
     };

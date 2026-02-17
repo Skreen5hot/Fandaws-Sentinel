@@ -15,6 +15,7 @@ import { checkCompoundStatement, checkStructuralGrounding } from './input-saniti
 import { checkMutationForCycles } from './sanity-check.js';
 import { checkPropertyRedundancy } from './property-redundancy.js';
 import { checkGovernanceBlock } from './governance-check.js';
+import { BFO } from '../knowledge-engine/bfo-heuristic.js';
 
 /**
  * Validate a proposed GraphMutation against a KnowledgeGraph.
@@ -135,6 +136,14 @@ export function validate(mutation, graph, options = {}) {
       }
     }
   }
+
+  // ─── 10. BFO Cross-Category Check (advisory) ───────────
+  const bfoCrossViolations = checkBfoCrossCategory(
+    conceptAdditions,
+    modifications,
+    graph,
+  );
+  violations.push(...bfoCrossViolations);
 
   return createValidationResult({
     valid: violations.length === 0,
@@ -281,6 +290,93 @@ function checkDeletion(iri, graph) {
   }
 
   return null;
+}
+
+/**
+ * Extract the BFO category IRI from a concept's rdfs:subClassOf array.
+ *
+ * @param {object} concept - Concept node
+ * @returns {string|null} BFO IRI or null
+ */
+function getBfoMapping(concept) {
+  if (!concept) return null;
+  const subClassOf = concept['rdfs:subClassOf'] || [];
+  for (const entry of subClassOf) {
+    if (typeof entry === 'string' && entry.startsWith('bfo:')) {
+      return entry;
+    }
+  }
+  return null;
+}
+
+/**
+ * Advisory check: flag when a child's BFO category differs from its parent's.
+ * Not blocking — advisory only. BFO.entity is excluded (universal root).
+ */
+function checkBfoCrossCategory(conceptAdditions, modifications, graph) {
+  const violations = [];
+  const graphConcepts = graph['fandaws:concepts'] || [];
+  const conceptMap = new Map(graphConcepts.map((c) => [c['@id'], c]));
+
+  // Check new concept additions with a broader parent
+  for (const concept of conceptAdditions) {
+    const parentIri = concept['skos:broader'];
+    if (!parentIri) continue;
+
+    const childBfo = getBfoMapping(concept);
+    const parent = conceptMap.get(parentIri);
+    const parentBfo = getBfoMapping(parent);
+
+    if (
+      childBfo && parentBfo &&
+      childBfo !== parentBfo &&
+      childBfo !== BFO.entity &&
+      parentBfo !== BFO.entity
+    ) {
+      violations.push({
+        reason: 'bfoCrossCategory',
+        message: `"${concept['rdfs:label'] || concept['@id']}" (${childBfo}) has a different BFO category than its parent (${parentBfo}). This may indicate an ontological mismatch.`,
+        conceptIri: concept['@id'],
+        parentIri,
+        childBfo,
+        parentBfo,
+        severity: 'advisory',
+      });
+    }
+  }
+
+  // Check modifications that change skos:broader
+  for (const mod of modifications) {
+    if (mod['fandaws:field'] !== 'skos:broader') continue;
+
+    const childIri = mod['@id'];
+    const newParentIri = mod['fandaws:value'];
+    if (!childIri || !newParentIri) continue;
+
+    const child = conceptMap.get(childIri);
+    const parent = conceptMap.get(newParentIri);
+    const childBfo = getBfoMapping(child);
+    const parentBfo = getBfoMapping(parent);
+
+    if (
+      childBfo && parentBfo &&
+      childBfo !== parentBfo &&
+      childBfo !== BFO.entity &&
+      parentBfo !== BFO.entity
+    ) {
+      violations.push({
+        reason: 'bfoCrossCategory',
+        message: `Reclassifying "${child?.['rdfs:label'] || childIri}" (${childBfo}) under a parent with different BFO category (${parentBfo}). This may indicate an ontological mismatch.`,
+        conceptIri: childIri,
+        parentIri: newParentIri,
+        childBfo,
+        parentBfo,
+        severity: 'advisory',
+      });
+    }
+  }
+
+  return violations;
 }
 
 /**

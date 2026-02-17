@@ -16,7 +16,8 @@
  */
 
 import { simplify } from '../identity/identity-simplification.js';
-import { generateConceptIri } from './iri-generator.js';
+import { generateConceptIri, DEFAULT_SCOPE } from './iri-generator.js';
+import { inferBfoCategory, inheritBfoCategory } from './bfo-heuristic.js';
 import { createConcept } from '../../types/concept.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
@@ -66,6 +67,7 @@ function wouldCreateCycle(startIri, targetIri, iriToParent) {
  * @param {object} indices - { canonicalLabelToIri, iriToParent, iriToChildren }
  * @param {object} [options={}]
  * @param {string} [options.graphId] - Graph identifier
+ * @param {string} [options.scope] - Scope IRI for deterministic IRI generation
  * @param {string} [options.locale='en'] - BCP 47 locale
  * @param {Record<string, string>} [options.abbreviationTable={}]
  * @param {string[]} [options.protectedProperNouns=[]]
@@ -74,6 +76,7 @@ function wouldCreateCycle(startIri, targetIri, iriToParent) {
  */
 export function processClassification(action, graph, indices, options = {}) {
   const {
+    scope = DEFAULT_SCOPE,
     locale = 'en',
     abbreviationTable = {},
     protectedProperNouns = [],
@@ -147,10 +150,10 @@ export function processClassification(action, graph, indices, options = {}) {
 
   const subjectIri = existingSubject
     ? existingSubject['@id']
-    : generateConceptIri(subjectCanonical);
+    : generateConceptIri(subjectCanonical, scope);
   const objectIri = existingObject
     ? existingObject['@id']
-    : generateConceptIri(objectCanonical);
+    : generateConceptIri(objectCanonical, scope);
 
   // ── 6. Re-assertion idempotency ──
   if (existingSubject && existingSubject['skos:broader'] === objectIri) {
@@ -184,11 +187,13 @@ export function processClassification(action, graph, indices, options = {}) {
 
   // Case B: Object exists, subject new
   if (!existingSubject && existingObject) {
+    const subjectBfo = inheritBfoCategory(existingObject, subjectCanonical);
     const newSubject = createConcept({
       id: subjectIri,
       label: rawSubject,
       prefLabel: subjectCanonical,
       broader: objectIri,
+      bfoMapping: subjectBfo,
     });
 
     const mutation = createGraphMutation({
@@ -200,20 +205,25 @@ export function processClassification(action, graph, indices, options = {}) {
 
   // Case C: Both new
   if (!existingSubject && !existingObject) {
+    const objectBfo = inferBfoCategory(objectCanonical);
     const newObject = {
       ...createConcept({
         id: objectIri,
         label: rawObject,
         prefLabel: objectCanonical,
+        bfoMapping: objectBfo,
       }),
       'fandaws:allowRoot': true,
     };
 
+    // Child inherits BFO from parent
+    const subjectBfo = inheritBfoCategory(newObject, subjectCanonical);
     const newSubject = createConcept({
       id: subjectIri,
       label: rawSubject,
       prefLabel: subjectCanonical,
       broader: objectIri,
+      bfoMapping: subjectBfo,
     });
 
     const mutation = createGraphMutation({
@@ -253,11 +263,13 @@ export function processClassification(action, graph, indices, options = {}) {
     }
 
     // Auto-create object as root
+    const objectBfo = inferBfoCategory(objectCanonical);
     const newObject = {
       ...createConcept({
         id: objectIri,
         label: rawObject,
         prefLabel: objectCanonical,
+        bfoMapping: objectBfo,
       }),
       'fandaws:allowRoot': true,
     };

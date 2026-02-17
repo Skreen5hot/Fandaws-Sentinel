@@ -149,8 +149,14 @@ function extractConceptTriples(concept, expanded) {
     triples.push(tripleUri(s, expandIri('prov:wasDerivedFrom'), expandIri(d)));
   }
 
-  // rdfs:subClassOf — restrictions (properties and relationships)
+  // rdfs:subClassOf — bare IRI strings (BFO categories, parent classes)
   const subClassOf = concept['rdfs:subClassOf'] || [];
+  const bareIris = subClassOf.filter((entry) => typeof entry === 'string');
+  for (const iri of [...bareIris].sort()) {
+    triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(iri)));
+  }
+
+  // rdfs:subClassOf — restrictions (properties and relationships)
   const restrictions = subClassOf.filter(isRestrictionNode);
   const sortedRestrictions = [...restrictions].sort((a, b) =>
     (a['@id'] || '').localeCompare(b['@id'] || ''),

@@ -15,6 +15,7 @@
  */
 
 import { simplify } from '../identity/identity-simplification.js';
+import { generateRestrictionIri, DEFAULT_SCOPE } from './iri-generator.js';
 import { createProperty } from '../../types/property.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
@@ -52,23 +53,6 @@ function hasPropertyAlready(concept, propertyLabel) {
       entry['fandaws:restrictionKind'] === 'property' &&
       entry['owl:onProperty'] === propertyLabel,
   );
-}
-
-/**
- * Generate a restriction IRI: fandaws:restriction/{concept-slug}--{property-slug}
- *
- * @param {string} conceptIri - e.g., "fandaws:concept/dog"
- * @param {string} propertyLabel - e.g., "fur"
- * @returns {string}
- */
-function generateRestrictionIri(conceptIri, propertyLabel) {
-  const conceptSlug = conceptIri.split('/').pop();
-  const propertySlug = propertyLabel
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-]/g, '')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-|-$/g, '');
-  return `fandaws:restriction/${conceptSlug}--${propertySlug}`;
 }
 
 /**
@@ -114,6 +98,7 @@ function buildDescendantRemovalModifications(descendantRemovals, graph) {
  * @param {object} graph - KnowledgeGraph snapshot
  * @param {object} indices - { canonicalLabelToIri, iriToParent, iriToChildren }
  * @param {object} [options={}]
+ * @param {string} [options.scope] - Scope IRI for deterministic IRI generation
  * @param {string} [options.locale='en'] - BCP 47 locale
  * @param {Record<string, string>} [options.abbreviationTable={}]
  * @param {string[]} [options.protectedProperNouns=[]]
@@ -123,6 +108,7 @@ function buildDescendantRemovalModifications(descendantRemovals, graph) {
  */
 export function processProperty(action, graph, indices, options = {}) {
   const {
+    scope = DEFAULT_SCOPE,
     locale = 'en',
     abbreviationTable = {},
     protectedProperNouns = [],
@@ -234,8 +220,11 @@ export function processProperty(action, graph, indices, options = {}) {
   }
 
   // ── 8. Check property redundancy at attachment point ──
+  const attachmentCanonical = attachmentConcept
+    ? attachmentConcept['skos:prefLabel']
+    : subjectCanonical;
   const propertyNode = createProperty({
-    id: generateRestrictionIri(attachmentIri, propertyCanonical),
+    id: generateRestrictionIri(attachmentCanonical, propertyCanonical, scope),
     propertyIri: propertyCanonical,
     attachedTo: attachmentIri,
     scope: attachmentIri === subjectIri ? 'concept-specific' : 'inherited',

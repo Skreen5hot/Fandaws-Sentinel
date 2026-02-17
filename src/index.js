@@ -81,7 +81,17 @@ export {
 
 // KnowledgeEngine (Phase 5)
 export { processClassification } from './core/knowledge-engine/knowledge-engine.js';
-export { generateConceptIri, generatePropertyIri, generateRelationshipIri } from './core/knowledge-engine/iri-generator.js';
+export {
+  generateConceptIri,
+  generatePropertyIri,
+  generateRestrictionIri,
+  generateRelationshipIri,
+  DEFAULT_SCOPE,
+} from './core/knowledge-engine/iri-generator.js';
+
+// UUID v5 + BFO Heuristic (Infrastructure)
+export { uuid5, FANDAWS_NAMESPACE } from './core/knowledge-engine/uuid5.js';
+export { BFO, BFO_LABELS, HEURISTIC_EXCEPTIONS, inferBfoCategory, inheritBfoCategory } from './core/knowledge-engine/bfo-heuristic.js';
 
 // Property Workflow (Phase 6)
 export { processProperty } from './core/knowledge-engine/property-workflow.js';

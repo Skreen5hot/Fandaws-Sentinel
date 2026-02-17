@@ -1277,10 +1277,10 @@ function initExportDemo() {
   // Show graph info
   const concepts = graph['fandaws:concepts'] || [];
   const lines = concepts.map(c => {
-    const parent = c['skos:broader'] ? ` → ${c['skos:broader'].replace('fandaws:concept/', '')}` : ' (root)';
+    const parent = c['skos:broader'] ? ` → ${c['skos:broader'].split('/').pop()}` : ' (root)';
     const restrictions = (c['rdfs:subClassOf'] || []);
     const props = restrictions.filter(r => r['fandaws:restrictionKind'] === 'property').map(r => r['owl:onProperty']);
-    const rels = restrictions.filter(r => r['fandaws:restrictionKind'] === 'relationship').map(r => `${r['owl:onProperty']} → ${r['owl:someValuesFrom'].replace('fandaws:concept/', '')}`);
+    const rels = restrictions.filter(r => r['fandaws:restrictionKind'] === 'relationship').map(r => `${r['owl:onProperty']} → ${r['owl:someValuesFrom'].split('/').pop()}`);
     let info = `${c['rdfs:label']}${parent}`;
     if (props.length) info += ` [props: ${props.join(', ')}]`;
     if (rels.length) info += ` [rels: ${rels.join(', ')}]`;

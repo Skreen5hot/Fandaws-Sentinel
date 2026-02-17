@@ -1000,18 +1000,20 @@ function updateRelGraphState() {
     return parts.length > 0 ? `  [${parts.join(' | ')}]` : '';
   }
 
+  const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
   const lines = [];
   function renderTree(iri, depth) {
     const children = byParent.get(iri) || [];
     for (const child of children) {
       const prefix = '  '.repeat(depth - 1) + '\u2514\u2500 ';
-      lines.push(`${prefix}${child['rdfs:label']}${annot(child)}`);
+      lines.push(`${prefix}${cap(child['rdfs:label'])}${annot(child)}`);
       renderTree(child['@id'], depth + 1);
     }
   }
 
   for (const root of roots) {
-    lines.push(`${root['rdfs:label']}${annot(root)}`);
+    lines.push(`${cap(root['rdfs:label'])}${annot(root)}`);
     renderTree(root['@id'], 1);
   }
 

@@ -232,14 +232,14 @@
         "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "label": "Dog", "prefLabel": "dog",
         "broader": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
         "properties": [],
-        "relationships": [{ "verb": "eats", "object": "fandaws:class/test-meat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
+        "relationships": [{ "verb": "eat", "object": "fandaws:class/test-meat", "subject": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog" }]
       },
       "graphConcepts": [
         { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "label": "Animal", "prefLabel": "animal" },
         { "id": "fandaws:class/test-meat", "label": "Meat", "prefLabel": "meat" }
       ],
       "expected": "Dog is an Animal that eats Meat.",
-      "note": "Non-process concept with relationship uses standard+relationship template (not process template)"
+      "note": "Non-process concept with relationship: verb lemma 'eat' inflected to 'eats'"
     }
   ]
 }

@@ -157,6 +157,28 @@ function formatPropertyList(labels) {
 }
 
 /**
+ * Inflect a bare-lemma verb to third-person singular present tense.
+ *
+ * Rules:
+ * - Exception table: "have" → "has", "go" → "goes", "do" → "does"
+ * - Ends in s, sh, ch, x, z → append "es" (pass → passes, watch → watches)
+ * - Ends in consonant + y → drop y, add "ies" (carry → carries)
+ * - Otherwise → append "s" (eat → eats, chase → chases)
+ *
+ * @param {string} verb - Base form (lemma) of the verb
+ * @returns {string} Third-person singular form
+ */
+function inflectVerb(verb) {
+  if (!verb) return '';
+  const EXCEPTIONS = { have: 'has', go: 'goes', do: 'does' };
+  const lower = verb.toLowerCase();
+  if (EXCEPTIONS[lower]) return EXCEPTIONS[lower];
+  if (/(?:s|sh|ch|x|z)$/.test(lower)) return verb + 'es';
+  if (/[^aeiou]y$/.test(lower)) return verb.slice(0, -1) + 'ies';
+  return verb + 's';
+}
+
+/**
  * Check if a concept is a BFO process based on its rdfs:subClassOf entries.
  *
  * @param {object} concept - JSON-LD Concept node
@@ -180,7 +202,7 @@ function isProcessConcept(concept) {
  * Selects between three templates:
  * - **Process:**  "[Term] is the [parent+ing] of [object] by [subject]."
  *   (only for concepts with BFO process category)
- * - **Standard + relationship:** "[Term] is a/an [parent] that [verb] [object]."
+ * - **Standard + relationship:** "[Term] is a/an [parent] that [verb-3ps] [object]."
  *   (non-process concepts with relationships)
  * - **Standard:** "[Term] is a/an [parent] that has [props]."
  *   (concepts with properties, no relationships)
@@ -235,10 +257,11 @@ export function describeConcept(concept, graph) {
   const parentLabel = capitalizeLabel(parent['rdfs:label'] || parentIri);
   const article = selectArticle(parentLabel);
 
-  // Standard template with relationship: "[Term] is a [parent] that [verb] [object]."
+  // Standard template with relationship: "[Term] is a [parent] that [verb-s] [object]."
   if (relationshipData) {
     const objectLabel = resolveLabel(relationshipData.object, graph);
-    const relSuffix = ` that ${relationshipData.verb} ${objectLabel}`;
+    const conjugated = inflectVerb(relationshipData.verb);
+    const relSuffix = ` that ${conjugated} ${objectLabel}`;
     return `${displayLabel} is ${article} ${parentLabel}${relSuffix}.`;
   }
 

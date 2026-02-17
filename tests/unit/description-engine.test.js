@@ -249,7 +249,7 @@ describe('DescriptionEngine', () => {
       const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
       const meat = makeConcept('fandaws:class/test-meat', 'Meat');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
-      addRelationship(dog, 'eats', 'fandaws:class/test-meat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      addRelationship(dog, 'eat', 'fandaws:class/test-meat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const graph = makeGraph([animal, meat, dog]);
 
       expect(describeConcept(dog, graph)).toBe('Dog is an Animal that eats Meat.');
@@ -260,10 +260,10 @@ describe('DescriptionEngine', () => {
       const meat = makeConcept('fandaws:class/test-meat', 'Meat');
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
       addProperties(dog, ['fur']);
-      addRelationship(dog, 'eats', 'fandaws:class/test-meat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      addRelationship(dog, 'eat', 'fandaws:class/test-meat', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
       const graph = makeGraph([animal, meat, dog]);
 
-      // Relationship template takes priority over property suffix
+      // Relationship template takes priority over property suffix; verb inflected to 3ps
       expect(describeConcept(dog, graph)).toBe('Dog is an Animal that eats Meat.');
     });
 
@@ -271,11 +271,79 @@ describe('DescriptionEngine', () => {
       const mammal = makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal');
       const food = makeConcept('fandaws:class/test-food', 'Food');
       const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal');
-      addRelationship(cat, 'chases', 'fandaws:class/test-food', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      addRelationship(cat, 'chase', 'fandaws:class/test-food', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
       const graph = makeGraph([mammal, food, cat]);
 
       // Should NOT produce "Cat is the mammaling of ..." — must use standard template
       expect(describeConcept(cat, graph)).toBe('Cat is a Mammal that chases Food.');
+    });
+  });
+
+  // ── Verb conjugation (inflectVerb via standard+relationship) ──
+
+  describe('Verb conjugation in standard+relationship template', () => {
+    it('regular verb: eat → eats', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const food = makeConcept('fandaws:class/test-food', 'Food');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'eat', 'fandaws:class/test-food', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, food, dog]);
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that eats Food.');
+    });
+
+    it('sibilant ending: watch → watches', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const prey = makeConcept('fandaws:class/test-prey', 'Prey');
+      const cat = makeConcept('fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', 'Cat', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(cat, 'watch', 'fandaws:class/test-prey', 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat');
+      const graph = makeGraph([animal, prey, cat]);
+      expect(describeConcept(cat, graph)).toBe('Cat is an Animal that watches Prey.');
+    });
+
+    it('consonant+y ending: carry → carries', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const bone = makeConcept('fandaws:class/test-bone', 'Bone');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'carry', 'fandaws:class/test-bone', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, bone, dog]);
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that carries Bone.');
+    });
+
+    it('exception: have → has', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const fur = makeConcept('fandaws:class/test-fur', 'Fur');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'have', 'fandaws:class/test-fur', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, fur, dog]);
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that has Fur.');
+    });
+
+    it('vowel+y ending: play → plays', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const toy = makeConcept('fandaws:class/test-toy', 'Toy');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'play', 'fandaws:class/test-toy', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, toy, dog]);
+      // vowel+y: plays, not "plaies"
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that plays Toy.');
+    });
+
+    it('-sh ending: push → pushes', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const ball = makeConcept('fandaws:class/test-ball', 'Ball');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'push', 'fandaws:class/test-ball', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, ball, dog]);
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that pushes Ball.');
+    });
+
+    it('exception: go → goes', () => {
+      const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
+      const park = makeConcept('fandaws:class/test-park', 'Park');
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      addRelationship(dog, 'go', 'fandaws:class/test-park', 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      const graph = makeGraph([animal, park, dog]);
+      expect(describeConcept(dog, graph)).toBe('Dog is an Animal that goes Park.');
     });
   });
 

@@ -1529,8 +1529,8 @@ function buildPipelineTrace(result, bfoLabel, domain, utterance) {
     steps.push({ num: 3, name: 'BFO Alignment', cls: 'skip', text: 'skipped (no BFO category)' });
   }
 
-  // Step 4: Domain Whitelist
-  steps.push({ num: 4, name: 'Domain Whitelist', cls: 'skip', text: 'skipped (covered by Step 2)' });
+  // Step 4: Domain Whitelist (property-level — stub, deferred to Phase 14+)
+  steps.push({ num: 4, name: 'Domain Whitelist', cls: 'skip', text: 'skipped (stub — Phase 14+)' });
 
   // Step 5: Teleological
   if (result.flags.includes('teleological-signal')) {

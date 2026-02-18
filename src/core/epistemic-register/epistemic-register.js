@@ -151,7 +151,7 @@ export function routeToRegister(restriction, context = {}) {
 
         return buildResult(
           restriction, lookup.register, ROUTING_METHODS.STRUCTURAL,
-          `bfo:${disambiguation.bfoCategory}+${disambiguation.propertyType}`, flags, scope,
+          `${disambiguation.bfoCategory}+${disambiguation.propertyType}`, flags, scope,
         );
       }
     } else if (bfoCategory) {
@@ -162,7 +162,7 @@ export function routeToRegister(restriction, context = {}) {
 
         return buildResult(
           restriction, lookup.register, ROUTING_METHODS.STRUCTURAL,
-          `bfo:${bfoCategory}`, flags, scope,
+          `${bfoCategory}`, flags, scope,
         );
       }
     }
@@ -179,9 +179,9 @@ export function routeToRegister(restriction, context = {}) {
     );
   }
 
-  // ── Step 4: Domain whitelist ──
-  // Currently session-level only (covered by Step 2).
-  // Property-level domain whitelisting deferred to Phase 14+.
+  // ── Step 4: Property-level domain whitelist (stub — Phase 14+) ──
+  // Independent of Step 2 (session-level). Will check per-property domain tags.
+  // Not yet implemented; falls through to Step 5.
 
   // ── Step 5: Teleological signal detection ──
   applyTeleologicalFlags(utterance, flags, false);

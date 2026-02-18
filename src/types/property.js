@@ -17,6 +17,9 @@
  * @param {string} params.attachedTo - Concept IRI this property belongs to
  * @param {string} [params.scope] - "concept-specific" or "inherited"
  * @param {*} [params.value] - Property value (owl:hasValue)
+ * @param {string|null} [params.epistemicRegister] - Register IRI (ERS Phase 10b)
+ * @param {object|null} [params.routingRecord] - Inline RegisterRoutingRecord (ERS Phase 10b)
+ * @param {string[]} [params.routingFlags] - Routing flags (ERS Phase 10b)
  * @returns {object} JSON-LD owl:Restriction node
  */
 export function createProperty({
@@ -25,8 +28,11 @@ export function createProperty({
   attachedTo,
   scope = 'concept-specific',
   value = null,
+  epistemicRegister = null,
+  routingRecord = null,
+  routingFlags = [],
 }) {
-  return {
+  const node = {
     '@id': id,
     '@type': 'owl:Restriction',
     'owl:onProperty': propertyIri,
@@ -35,4 +41,8 @@ export function createProperty({
     'fandaws:attachedTo': attachedTo,
     'fandaws:restrictionKind': 'property',
   };
+  if (epistemicRegister) node['fandaws:epistemicRegister'] = epistemicRegister;
+  if (routingRecord) node['fandaws:routingRecord'] = routingRecord;
+  if (routingFlags.length > 0) node['fandaws:routingFlags'] = routingFlags;
+  return node;
 }

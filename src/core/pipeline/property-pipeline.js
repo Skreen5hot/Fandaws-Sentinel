@@ -16,6 +16,8 @@ import { classify } from '../classifier/classifier.js';
 import { processProperty } from '../knowledge-engine/property-workflow.js';
 import { validate } from '../validator/validator.js';
 import { describeConcept } from '../description-engine/description-engine.js';
+import { routeToRegister } from '../epistemic-register/epistemic-register.js';
+import { isRestrictionNode } from '../../types/type-checks.js';
 
 /**
  * Collect descendant IRIs from a starting concept using BFS.
@@ -163,6 +165,25 @@ export function runPropertyPipeline(utterance, context, options = {}) {
       graph: stateAdapter.loadGraph(graphId),
       error: false,
     };
+  }
+
+  // ── Step 4b: Epistemic Register Routing ──
+  const ersAdditions = engineResult.mutation['fandaws:additions'] || [];
+  for (const node of ersAdditions) {
+    if (isRestrictionNode(node)) {
+      const ersResult = routeToRegister(node, {
+        graph,
+        session: context.session,
+        config: options.ersConfig,
+        utterance,
+        scope: options.scope,
+      });
+      node['fandaws:epistemicRegister'] = ersResult.register;
+      node['fandaws:routingRecord'] = ersResult.routingRecord;
+      if (ersResult.flags.length > 0) {
+        node['fandaws:routingFlags'] = ersResult.flags;
+      }
+    }
   }
 
   // ── Step 5: Validate ──

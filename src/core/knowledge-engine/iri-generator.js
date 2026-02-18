@@ -148,3 +148,23 @@ export function generateRelationshipIri(subjectCanonical, verb, objectCanonical,
   const hash = uuid5(FANDAWS_NAMESPACE, scope + ':' + subjectCanonical + '--' + verb + '--' + objectCanonical);
   return `fandaws:rel/${hash}/${subjectSlug}--${verbSlug}--${objectSlug}`;
 }
+
+// ── Routing Record IRI ──
+
+/**
+ * Generate a deterministic routing record IRI from a restriction IRI.
+ *
+ * 1:1 with restrictions — same restriction always gets the same routing record IRI.
+ *
+ * @param {string} restrictionIri - The restriction IRI being annotated
+ * @param {string} [scope=DEFAULT_SCOPE] - Scope IRI
+ * @returns {string} Routing record IRI (e.g., "fandaws:routing/{uuid5}")
+ */
+export function generateRoutingRecordIri(restrictionIri, scope = DEFAULT_SCOPE) {
+  if (!restrictionIri || typeof restrictionIri !== 'string') {
+    throw new Error('generateRoutingRecordIri requires a non-empty restriction IRI');
+  }
+
+  const hash = uuid5(FANDAWS_NAMESPACE, scope + ':routing:' + restrictionIri);
+  return `fandaws:routing/${hash}`;
+}

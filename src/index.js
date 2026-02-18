@@ -32,6 +32,10 @@ export {
   createClassificationAction,
   isConceptNode,
   isRestrictionNode,
+  createRoutingRecord,
+  REGISTERS,
+  ROUTING_METHODS,
+  ROUTING_STRENGTHS,
 } from './types/index.js';
 
 // Core modules
@@ -86,6 +90,7 @@ export {
   generatePropertyIri,
   generateRestrictionIri,
   generateRelationshipIri,
+  generateRoutingRecordIri,
   DEFAULT_SCOPE,
 } from './core/knowledge-engine/iri-generator.js';
 
@@ -132,6 +137,12 @@ export { exportOWL } from './core/export-engine/owl-export.js';
 export { exportRDF } from './core/export-engine/rdf-xml-export.js';
 export { exportTurtle } from './core/export-engine/turtle-export.js';
 export { extractTriples, expandIri } from './core/export-engine/triple-extractor.js';
+
+// Epistemic Register Service (Phase 10b)
+export { routeToRegister } from './core/epistemic-register/epistemic-register.js';
+export { lookupBfoRegister, AXIOMATIC_DOMAINS, BFO_REGISTER_MAP } from './core/epistemic-register/bfo-register-map.js';
+export { detectTeleological } from './core/epistemic-register/teleological-detector.js';
+export { disambiguateBearerRole } from './core/epistemic-register/bearer-role-disambiguator.js';
 
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';

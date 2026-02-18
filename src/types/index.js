@@ -29,3 +29,9 @@ export {
 export { createParseResult } from './parse-result.js';
 export { createClassificationAction } from './classification-action.js';
 export { isConceptNode, isRestrictionNode } from './type-checks.js';
+export {
+  createRoutingRecord,
+  REGISTERS,
+  ROUTING_METHODS,
+  ROUTING_STRENGTHS,
+} from './routing-record.js';

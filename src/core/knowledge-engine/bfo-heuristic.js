@@ -21,7 +21,9 @@ export const BFO = {
   quality:          'bfo:BFO_0000019', // Quality — color, mass, shape
   role:             'bfo:BFO_0000023', // Role — student, employer, catalyst
   disposition:      'bfo:BFO_0000016', // Disposition — fragility, solubility
+  function:         'bfo:BFO_0000034', // Function — biological/artifactual capacities
   realizableEntity: 'bfo:BFO_0000017', // Realizable Entity — capabilities
+  spatialRegion:    'bfo:BFO_0000006', // Spatial Region — geometric spaces
   temporalRegion:   'bfo:BFO_0000008', // Temporal Region — hours, minutes, eras
   genDepContinuant: 'bfo:BFO_0000031', // GDC — documents, data, recipes
 };
@@ -36,7 +38,9 @@ export const BFO_LABELS = {
   [BFO.quality]:          'Quality',
   [BFO.role]:             'Role',
   [BFO.disposition]:      'Disposition',
+  [BFO.function]:         'Function',
   [BFO.realizableEntity]: 'Realizable Entity',
+  [BFO.spatialRegion]:    'Spatial Region',
   [BFO.temporalRegion]:   'Temporal Region',
   [BFO.genDepContinuant]: 'Generically Dependent Continuant',
 };

@@ -17,6 +17,9 @@
  * @param {string} params.object - Target concept IRI (owl:someValuesFrom)
  * @param {string|null} [params.subRestrictionOf] - Parent restriction IRI
  * @param {boolean} [params.promoted] - Whether promoted from a sub-restriction
+ * @param {string|null} [params.epistemicRegister] - Register IRI (ERS Phase 10b)
+ * @param {object|null} [params.routingRecord] - Inline RegisterRoutingRecord (ERS Phase 10b)
+ * @param {string[]} [params.routingFlags] - Routing flags (ERS Phase 10b)
  * @returns {object} JSON-LD owl:Restriction node
  */
 export function createRelationship({
@@ -26,8 +29,11 @@ export function createRelationship({
   object,
   subRestrictionOf = null,
   promoted = false,
+  epistemicRegister = null,
+  routingRecord = null,
+  routingFlags = [],
 }) {
-  return {
+  const node = {
     '@id': id,
     '@type': 'owl:Restriction',
     'owl:onProperty': verbIri,
@@ -37,4 +43,8 @@ export function createRelationship({
     'fandaws:subRestrictionOf': subRestrictionOf,
     'fandaws:promoted': promoted,
   };
+  if (epistemicRegister) node['fandaws:epistemicRegister'] = epistemicRegister;
+  if (routingRecord) node['fandaws:routingRecord'] = routingRecord;
+  if (routingFlags.length > 0) node['fandaws:routingFlags'] = routingFlags;
+  return node;
 }

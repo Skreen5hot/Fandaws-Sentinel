@@ -12,6 +12,7 @@ import { createConcept } from '../../src/types/concept.js';
 import { createProperty } from '../../src/types/property.js';
 import { createRelationship } from '../../src/types/relationship.js';
 import { createKnowledgeGraph } from '../../src/types/knowledge-graph.js';
+import { REGISTERS } from '../../src/types/routing-record.js';
 
 // ── Helpers ──
 
@@ -188,6 +189,106 @@ describe('Export Formats', () => {
       const result = exportRDF(makeGraph([]));
       expect(result).toContain('<rdf:RDF');
       expect(result).toContain('</rdf:RDF>');
+    });
+  });
+
+  describe('Epistemic register metadata export', () => {
+    function makeConceptWithRegisterProperty() {
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
+      const prop = createProperty({
+        id: 'fandaws:restriction/test/dog--fur',
+        propertyIri: 'fandaws:property/test/fur',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        value: 'yes',
+        epistemicRegister: REGISTERS.NORMATIVE,
+        routingFlags: ['role-heightened-sensitivity'],
+      });
+      dog['rdfs:subClassOf'] = [prop];
+      return makeGraph([dog]);
+    }
+
+    function makeConceptWithoutRegister() {
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
+      const prop = createProperty({
+        id: 'fandaws:restriction/test/dog--fur',
+        propertyIri: 'fandaws:property/test/fur',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        value: 'yes',
+      });
+      dog['rdfs:subClassOf'] = [prop];
+      return makeGraph([dog]);
+    }
+
+    it('Turtle emits fandaws:epistemicRegister triple when present', () => {
+      const graph = makeConceptWithRegisterProperty();
+      const result = exportTurtle(graph);
+      expect(result).toContain('fandaws:epistemicRegister');
+      expect(result).toContain('fandaws:register/normative');
+    });
+
+    it('Turtle emits fandaws:routingFlags triple when present', () => {
+      const graph = makeConceptWithRegisterProperty();
+      const result = exportTurtle(graph);
+      expect(result).toContain('fandaws:routingFlags');
+      expect(result).toContain('role-heightened-sensitivity');
+    });
+
+    it('Turtle omits register triples when not present', () => {
+      const graph = makeConceptWithoutRegister();
+      const result = exportTurtle(graph);
+      expect(result).not.toContain('fandaws:epistemicRegister');
+      expect(result).not.toContain('fandaws:routingFlags');
+    });
+
+    it('RDF/XML emits register metadata when present', () => {
+      const graph = makeConceptWithRegisterProperty();
+      const result = exportRDF(graph);
+      expect(result).toContain('epistemicRegister');
+      expect(result).toContain('register/normative');
+    });
+
+    it('RDF/XML omits register triples when not present', () => {
+      const graph = makeConceptWithoutRegister();
+      const result = exportRDF(graph);
+      expect(result).not.toContain('epistemicRegister');
+    });
+
+    it('multiple flags are emitted in sorted order', () => {
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
+      const prop = createProperty({
+        id: 'fandaws:restriction/test/dog--fur',
+        propertyIri: 'fandaws:property/test/fur',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        value: 'yes',
+        epistemicRegister: REGISTERS.NORMATIVE,
+        routingFlags: ['teleological-signal', 'bearer-retarget'],
+      });
+      dog['rdfs:subClassOf'] = [prop];
+      const graph = makeGraph([dog]);
+      const result = exportTurtle(graph);
+      // Both flags present
+      expect(result).toContain('bearer-retarget');
+      expect(result).toContain('teleological-signal');
+      // Sorted: bearer-retarget before teleological-signal
+      const bearerIdx = result.indexOf('bearer-retarget');
+      const teleoIdx = result.indexOf('teleological-signal');
+      expect(bearerIdx).toBeLessThan(teleoIdx);
+    });
+
+    it('relationship restriction also emits register metadata', () => {
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
+      const rel = createRelationship({
+        id: 'fandaws:rel/test/dog--chase--cat',
+        verb: 'fandaws:property/test/chase',
+        subjectIri: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        objectIri: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat',
+        epistemicRegister: REGISTERS.AXIOMATIC,
+      });
+      dog['rdfs:subClassOf'] = [rel];
+      const graph = makeGraph([dog]);
+      const result = exportTurtle(graph);
+      expect(result).toContain('fandaws:epistemicRegister');
+      expect(result).toContain('fandaws:register/axiomatic');
     });
   });
 });

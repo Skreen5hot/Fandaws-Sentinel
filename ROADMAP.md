@@ -17,6 +17,8 @@ graph TD
   P1 --> P2["Phase 2 — NLParser + Classifier ✓"]
   P3 --> P7["Phase 7 — DescriptionEngine ✓"]
   P2 --> P10["Phase 10 — ExportEngine ✓"]
+  P10 --> P10b["Phase 10b — ERS Core ✓"]
+  P9 --> P10b
 
   %% Track B — Graph Mechanics
   P1 --> P3["Phase 3 — InMemoryStateAdapter ✓"]
@@ -51,6 +53,7 @@ graph TD
   style P8 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P9 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
   style P10 fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
+  style P10b fill:#1a3a2a,stroke:#3dd68c,color:#3dd68c
 ```
 
 ### Track Summary
@@ -931,6 +934,91 @@ Phase 8 is the checkpoint where we evaluate the NLParser against real conversati
 **NOT in scope:** Streaming export, incremental export, external validation against W3C schemas.
 
 **Phase 10 totals:** 80 new tests across 5 suites (13 export-engine, 16 skos-export, 14 owl-export, 20 export-formats, 17 triple-extractor), all passing. Four export formats (SKOS, OWL, RDF/XML, Turtle) with shared triple extraction layer, BFO integration, and deterministic output.
+
+---
+
+## Phase 10b: ERS Core + ExportEngine Retrofit `[Cross-Track A/B]`
+
+**Goal:** Implement the Epistemic Register Service — a three-register model that distinguishes definitional properties (R1: Axiomatic) from statistical tendencies (R2: Normative) and value judgments (R3: Aspirational). Addresses the Normative-Axiomatic Conflation (NAC).
+**Status:** Complete
+**Priority:** High
+**Effort:** Medium
+**Depends on:** Phase 10 (ExportEngine), Phase 9 (Relationships)
+
+### 10b.1 Three-Register Model
+
+| Register | Name | Meaning | Default For |
+|----------|------|---------|-------------|
+| R1 | Axiomatic | Definitional. Exceptions = contradictions. | Geometry, formal logic, GDC |
+| R2 | Normative | Typical. Exceptions = expected. | MaterialEntity, Quality, Role, Process |
+| R3 | Aspirational | Value judgment. Framework-dependent. | Never auto-assigned; flag-only |
+
+### 10b.2 6-Step Routing Pipeline
+
+- [x] Step 1: APS precedent lookup (stub — Phase 14+, always null)
+- [x] Step 2: Session domain check (config-driven axiomatic domains)
+- [x] Step 3: BFO alignment (11 BFO categories → register map) + Bearer/Role disambiguation
+- [x] Step 4: Domain whitelist (session-level, covered by Step 2)
+- [x] Step 5: Teleological detection (keyword scan, FLAG ONLY — no auto-R3)
+- [x] Step 6: Fallback → R2 (Normative)
+
+### 10b.3 BFO-to-Register Map
+
+- [x] spatialRegion → R1 (Axiomatic)
+- [x] temporalRegion → R1 (Axiomatic)
+- [x] genDepContinuant → R1 (Axiomatic)
+- [x] materialEntity → R2 (Normative)
+- [x] quality → R2 (Normative)
+- [x] disposition → R2 (Normative)
+- [x] function → R2 (Normative) — explicit entry prevents "correction" to R3
+- [x] process → R2 (Normative)
+- [x] realizableEntity → R2 (Normative)
+- [x] role → R2 (Normative) + heightened sensitivity
+- [x] entity → R2 (Normative)
+
+### 10b.4 Bearer/Role Disambiguation
+
+When subject is `bfo:Role`, property type determines routing:
+- [x] Structural (has_arm, has_weight) → re-target to Bearer (MaterialEntity) → R2 clean
+- [x] Behavioral (diagnoses, protects) → Role path → R2 + heightened sensitivity flag
+- [x] Credential (has_license, certified) → Role path → R2 clean
+
+Known v1 limitation: Regex-based property classification. Range-based detection is Phase 14+ upgrade path.
+
+### 10b.5 Pipeline Integration
+
+- [x] Property pipeline: ERS annotation between workflow and validation
+- [x] Relationship pipeline: ERS annotation between workflow and validation
+- [x] Restriction nodes gain: `fandaws:epistemicRegister`, `fandaws:routingRecord`, `fandaws:routingFlags`
+
+### 10b.6 ExportEngine Retrofit
+
+- [x] Register metadata emitted as triples in all export formats
+- [x] No register = no extra triples (backward compatible)
+- [x] Routing flags sorted alphabetically
+
+### 10b.7 Deliverables
+
+**New files (5 source + 5 test):**
+- `src/core/epistemic-register/epistemic-register.js` — 6-step routing pipeline
+- `src/core/epistemic-register/bfo-register-map.js` — BFO→register mapping
+- `src/core/epistemic-register/bearer-role-disambiguator.js` — Property type classification
+- `src/core/epistemic-register/teleological-detector.js` — Keyword detection
+- `src/types/routing-record.js` — Register constants + factory
+
+**Modified files (8):**
+- `src/core/knowledge-engine/bfo-heuristic.js` — Added spatialRegion + function BFO constants
+- `src/core/knowledge-engine/iri-generator.js` — Added generateRoutingRecordIri()
+- `src/core/pipeline/property-pipeline.js` — ERS annotation step
+- `src/core/pipeline/relationship-pipeline.js` — ERS annotation step
+- `src/core/export-engine/triple-extractor.js` — Register metadata triples
+- `src/types/property.js`, `relationship.js` — Optional ERS fields
+- `src/types/index.js`, `context.js` — Exports + context entries
+- `config/default.json` — ERS config params
+
+**Phase 10b totals:** 120 new tests across 5 new suites + 3 updated suites, all passing. Three epistemic registers, 6-step routing pipeline, Bearer/Role disambiguation, teleological flagging, ExportEngine register metadata.
+
+**NOT in scope:** APS precedent lookup, R3 auto-routing, named-graph/reified-axiom export profiles, IVNE integration, instance-level enforcement. All deferred to Phase 14+.
 
 ---
 

@@ -1,10 +1,10 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "10",
+  "currentPhase": "10b",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
-    { "id": "A/B", "theme": "Cross-track", "phases": [7] },
+    { "id": "A/B", "theme": "Cross-track", "phases": [7, "10b"] },
     { "id": "B", "theme": "Graph Mechanics", "phases": [3, 4, "4b", 5, 6, 9] },
     { "id": "C", "theme": "Lifecycle & Federation", "phases": [11, 12] }
   ],
@@ -130,6 +130,15 @@
       "depends": [2],
       "description": "Deterministic export of knowledge graphs to SKOS, OWL, RDF/XML, and Turtle formats. Shared triple extraction layer, Turtle and XML serializers, vocabulary-specific filters. 80 new tests across 5 suites.",
       "deliverables": ["export-engine.js", "triple-extractor.js", "turtle-serializer.js", "xml-serializer.js", "skos-export.js", "owl-export.js", "turtle-export.js", "rdf-xml-export.js", "80 new tests"]
+    },
+    {
+      "id": "10b",
+      "name": "ERS Core + ExportEngine Retrofit",
+      "status": "complete",
+      "track": "A/B",
+      "depends": [10, 9],
+      "description": "Epistemic Register Service — three-register model (Axiomatic/Normative/Aspirational) routing pipeline. BFO-to-register mapping (11 categories), Bearer/Role disambiguation, teleological signal detection (flag-only), ExportEngine register metadata export. Addresses the Normative-Axiomatic Conflation (NAC). 120 new tests.",
+      "deliverables": ["epistemic-register.js", "bfo-register-map.js", "bearer-role-disambiguator.js", "teleological-detector.js", "routing-record.js", "ExportEngine register metadata triples", "120 new tests"]
     },
     {
       "id": 11,

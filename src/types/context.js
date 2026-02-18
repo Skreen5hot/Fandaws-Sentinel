@@ -39,5 +39,10 @@ export const FANDAWS_CONTEXT = {
     'fandaws:disambiguatedFrom': { '@type': '@id' },
     'fandaws:definitions': { '@container': '@set' },
     'fandaws:resolutionOptions': { '@container': '@set' },
+
+    // ── Epistemic Register Service (ERS Phase 10b) ──
+    'fandaws:epistemicRegister': { '@type': '@id' },
+    'fandaws:routingRecord': { '@type': '@id' },
+    'fandaws:routingFlags': { '@container': '@set' },
   },
 };

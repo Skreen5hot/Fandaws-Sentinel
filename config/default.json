@@ -43,5 +43,8 @@
   "fandaws:scopeResolutionEnabled": false,
   "fandaws:staleCopyAction": "prompt",
   "fandaws:autoPromotionThreshold": 3,
-  "fandaws:autoPromotionCooldown": "P7D"
+  "fandaws:autoPromotionCooldown": "P7D",
+  "fandaws:epistemicRegisterEnabled": true,
+  "fandaws:axiomaticDomains": ["mathematics", "geometry", "formal logic"],
+  "fandaws:teleologicalKeywords": ["should", "meant to", "purpose", "duty", "ought", "supposed to", "designed to", "intended to"]
 }

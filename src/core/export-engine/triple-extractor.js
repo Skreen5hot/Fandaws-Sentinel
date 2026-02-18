@@ -197,6 +197,16 @@ function extractConceptTriples(concept, expanded) {
         triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(target)));
       }
     }
+
+    // Epistemic register metadata (ERS Phase 10b)
+    const register = r['fandaws:epistemicRegister'];
+    if (register) {
+      triples.push(tripleUri(rIri, expandIri('fandaws:epistemicRegister'), expandIri(register)));
+    }
+    const routingFlags = r['fandaws:routingFlags'] || [];
+    for (const flag of [...routingFlags].sort()) {
+      triples.push(tripleLiteral(rIri, expandIri('fandaws:routingFlags'), flag));
+    }
   }
 
   return triples;

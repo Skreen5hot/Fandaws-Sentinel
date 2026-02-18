@@ -15,8 +15,8 @@ import {
 
 describe('BFO Heuristic', () => {
   describe('BFO constants', () => {
-    it('has 9 category entries', () => {
-      expect(Object.keys(BFO)).toHaveLength(9);
+    it('has 11 category entries', () => {
+      expect(Object.keys(BFO)).toHaveLength(11);
     });
 
     it('all values use bfo:BFO_ prefix', () => {

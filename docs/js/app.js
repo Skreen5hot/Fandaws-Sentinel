@@ -1321,6 +1321,264 @@ function initExportDemo() {
 }
 
 // ─────────────────────────────────────────────────────────
+// ERS Routing Demo (Phase 10b)
+// ─────────────────────────────────────────────────────────
+
+const ERS_SCENARIOS = [
+  {
+    label: 'Triangle has three sides',
+    bfo: 'bfo:BFO_0000006', property: 'has_sides', utterance: '', domain: '', bearer: false,
+    note: 'SpatialRegion → R1 Axiomatic',
+  },
+  {
+    label: 'Dogs have fur',
+    bfo: 'bfo:BFO_0000040', property: 'fur', utterance: '', domain: '', bearer: false,
+    note: 'MaterialEntity → R2 Normative',
+  },
+  {
+    label: 'Doctors diagnose diseases',
+    bfo: 'bfo:BFO_0000023', property: 'diagnoses', utterance: '', domain: '', bearer: false,
+    note: 'Role + behavioral → R2 + sensitivity flag',
+  },
+  {
+    label: 'Doctors have two arms',
+    bfo: 'bfo:BFO_0000023', property: 'has_arm', utterance: '', domain: '', bearer: true,
+    note: 'Role + structural → Bearer retarget → R2',
+  },
+  {
+    label: 'Teachers should educate',
+    bfo: 'bfo:BFO_0000023', property: 'educates', utterance: 'Teachers should educate', domain: '', bearer: false,
+    note: 'Role + teleological "should" → R2 + flag',
+  },
+  {
+    label: 'Judges ought to be impartial',
+    bfo: 'bfo:BFO_0000023', property: 'adjudicates', utterance: 'Judges ought to be impartial', domain: '', bearer: false,
+    note: 'Role + deontic "ought" → R2 + deontic flag',
+  },
+  {
+    label: 'Dog in geometry session',
+    bfo: 'bfo:BFO_0000040', property: 'has_fur', utterance: '', domain: 'geometry', bearer: false,
+    note: 'BFO overrides session domain (ERS-17 fix)',
+  },
+  {
+    label: 'Unknown concept → fallback',
+    bfo: '', property: 'stuff', utterance: '', domain: '', bearer: false,
+    note: 'No BFO, no session → R2 via fallback',
+  },
+];
+
+const BFO_LABEL_MAP = {
+  'bfo:BFO_0000040': 'MaterialEntity',
+  'bfo:BFO_0000006': 'SpatialRegion',
+  'bfo:BFO_0000023': 'Role',
+  'bfo:BFO_0000015': 'Process',
+  'bfo:BFO_0000019': 'Quality',
+  'bfo:BFO_0000016': 'Disposition',
+  'bfo:BFO_0000034': 'Function',
+  'bfo:BFO_0000031': 'GDC',
+  'bfo:BFO_0000008': 'TemporalRegion',
+};
+
+function initErsDemo() {
+  const scenariosEl = document.getElementById('ers-scenarios');
+  if (!scenariosEl) return;
+
+  // Render scenario buttons
+  scenariosEl.innerHTML = ERS_SCENARIOS.map((sc, i) =>
+    `<button class="desc-example-btn" data-idx="${i}"><strong>${escapeHtml(sc.label)}</strong> — <span style="color: var(--text-muted);">${escapeHtml(sc.note)}</span></button>`,
+  ).join('');
+
+  scenariosEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.desc-example-btn');
+    if (!btn) return;
+    const sc = ERS_SCENARIOS[Number(btn.dataset.idx)];
+    if (!sc) return;
+
+    document.getElementById('ers-bfo').value = sc.bfo;
+    document.getElementById('ers-property').value = sc.property;
+    document.getElementById('ers-utterance').value = sc.utterance;
+    document.getElementById('ers-domain').value = sc.domain;
+    document.getElementById('ers-bearer').value = sc.bearer ? 'materialEntity' : '';
+    runErsRouting();
+  });
+
+  document.getElementById('ers-route')?.addEventListener('click', runErsRouting);
+  document.getElementById('ers-override-btn')?.addEventListener('click', runErsOverride);
+}
+
+function runErsRouting() {
+  const bfo = document.getElementById('ers-bfo').value;
+  const property = document.getElementById('ers-property').value.trim() || 'unknown';
+  const utterance = document.getElementById('ers-utterance').value.trim() || null;
+  const domain = document.getElementById('ers-domain').value.trim() || null;
+  const hasBearer = document.getElementById('ers-bearer').value === 'materialEntity';
+
+  // Build a minimal graph with one concept
+  const conceptId = 'fandaws:class/ers-demo/subject';
+  const bearerId = 'fandaws:class/ers-demo/bearer';
+  const concept = Fandaws.createConcept({ id: conceptId, label: 'Subject', prefLabel: 'subject' });
+
+  if (bfo) {
+    concept['rdfs:subClassOf'].push(bfo);
+  }
+
+  const concepts = [concept];
+
+  // If bearer retarget is requested, add a MaterialEntity parent
+  if (hasBearer && bfo === 'bfo:BFO_0000023') {
+    const bearer = Fandaws.createConcept({ id: bearerId, label: 'Bearer', prefLabel: 'bearer' });
+    bearer['rdfs:subClassOf'].push('bfo:BFO_0000040');
+    concepts.push(bearer);
+    concept['skos:broader'] = bearerId;
+  }
+
+  const graph = Fandaws.createKnowledgeGraph({ id: 'fandaws:graph/ers-demo', concepts });
+
+  // Build restriction
+  const restriction = {
+    '@id': `fandaws:property/ers-demo/${property}`,
+    '@type': 'owl:Restriction',
+    'owl:onProperty': property,
+    'fandaws:attachedTo': conceptId,
+    'fandaws:restrictionKind': 'property',
+  };
+
+  // Build context
+  const context = { graph, utterance };
+  if (domain) {
+    context.session = { 'fandaws:domain': domain };
+  }
+
+  // Route
+  const result = Fandaws.routeToRegister(restriction, context);
+
+  // Display result
+  renderErsResult(result, bfo, domain, utterance);
+}
+
+function renderErsResult(result, bfo, domain, utterance) {
+  if (!result) {
+    document.getElementById('ers-result-badge').innerHTML =
+      '<span style="color: var(--text-muted);">ERS disabled (config gate)</span>';
+    return;
+  }
+
+  // Register badge
+  const registerName = result.register.split('/').pop();
+  const badgeClass = `register-badge--${registerName}`;
+  const registerLabel = registerName === 'axiomatic' ? 'R1 Axiomatic' : registerName === 'normative' ? 'R2 Normative' : 'R3 Aspirational';
+  const method = result.routingRecord['fandaws:routingMethod'].split('/').pop().toUpperCase();
+  const trigger = result.routingRecord['fandaws:trigger'] || '';
+
+  document.getElementById('ers-result-badge').innerHTML =
+    `<span class="register-badge ${badgeClass}">${escapeHtml(registerLabel)}</span>` +
+    `<span style="margin-left: 12px; font-size: 0.82rem; color: var(--text-muted);">Method: ${escapeHtml(method)} | Trigger: ${escapeHtml(trigger)}</span>`;
+
+  // Pipeline trace
+  const bfoLabel = bfo ? BFO_LABEL_MAP[bfo] || bfo : null;
+  const trace = buildPipelineTrace(result, bfoLabel, domain, utterance);
+  document.getElementById('ers-pipeline-trace').innerHTML = trace;
+
+  // Flags
+  const flagsEl = document.getElementById('ers-flags');
+  if (result.flags.length > 0) {
+    flagsEl.innerHTML = result.flags.map((f) =>
+      `<span class="badge badge--yellow" style="margin-right: 6px;">${escapeHtml(f)}</span>`,
+    ).join('');
+  } else {
+    flagsEl.textContent = 'None';
+  }
+
+  // Routing record JSON-LD
+  document.getElementById('ers-routing-record').textContent =
+    JSON.stringify(result.routingRecord, null, 2);
+}
+
+function buildPipelineTrace(result, bfoLabel, domain, utterance) {
+  const method = result.routingRecord['fandaws:routingMethod'];
+  const register = result.register;
+  const registerShort = register.split('/').pop();
+
+  const steps = [];
+
+  // Step 1: APS
+  steps.push({ num: 1, name: 'APS Precedent', cls: 'skip', text: 'skipped (stub)' });
+
+  // Step 2: Session Domain
+  if (domain) {
+    const axiomaticDomains = Fandaws.AXIOMATIC_DOMAINS || ['mathematics', 'geometry', 'logic', 'set theory'];
+    const isAxiomatic = axiomaticDomains.includes(domain.toLowerCase());
+    const candidateReg = isAxiomatic ? 'R1' : 'R2';
+    if (method === 'fandaws:method/domain') {
+      steps.push({ num: 2, name: 'Session Domain', cls: 'match', text: `MATCH: ${domain} → ${candidateReg} ${registerShort}` });
+    } else {
+      steps.push({ num: 2, name: 'Session Domain', cls: 'skip', text: `candidate: ${candidateReg} (${domain}) — overridden by BFO` });
+    }
+  } else {
+    steps.push({ num: 2, name: 'Session Domain', cls: 'skip', text: 'skipped (no session)' });
+  }
+
+  // Step 3: BFO Alignment
+  if (method === 'fandaws:method/structural') {
+    const retarget = result.flags.includes('bearer-retarget') ? ' (Bearer retarget)' : '';
+    const sensitivity = result.flags.includes('role-heightened-sensitivity') ? ' + heightened sensitivity' : '';
+    steps.push({ num: 3, name: 'BFO Alignment', cls: 'match', text: `MATCH: ${bfoLabel || 'BFO'} → ${registerShort === 'axiomatic' ? 'R1' : 'R2'}${retarget}${sensitivity}` });
+  } else if (bfoLabel) {
+    steps.push({ num: 3, name: 'BFO Alignment', cls: 'skip', text: `no match (${bfoLabel})` });
+  } else {
+    steps.push({ num: 3, name: 'BFO Alignment', cls: 'skip', text: 'skipped (no BFO category)' });
+  }
+
+  // Step 4: Domain Whitelist
+  steps.push({ num: 4, name: 'Domain Whitelist', cls: 'skip', text: 'skipped (covered by Step 2)' });
+
+  // Step 5: Teleological
+  if (result.flags.includes('teleological-signal')) {
+    const keywords = [];
+    if (utterance) {
+      const teleResult = Fandaws.detectTeleological(utterance);
+      if (teleResult.keywords.length) keywords.push(...teleResult.keywords);
+    }
+    const kwText = keywords.length > 0 ? ` "${keywords.join('", "')}"` : '';
+    const deontic = result.flags.includes('deontic-role-definition') ? ' + deontic-role-definition' : '';
+    steps.push({ num: 5, name: 'Teleological', cls: 'flag', text: `FLAG:${kwText} detected${deontic}` });
+  } else if (utterance) {
+    steps.push({ num: 5, name: 'Teleological', cls: 'skip', text: 'skipped (no keywords)' });
+  } else {
+    steps.push({ num: 5, name: 'Teleological', cls: 'skip', text: 'skipped (no utterance)' });
+  }
+
+  // Step 6: Fallback
+  if (method === 'fandaws:method/fallback') {
+    steps.push({ num: 6, name: 'Fallback', cls: 'match', text: 'MATCH: R2 Normative (default)' });
+  } else {
+    steps.push({ num: 6, name: 'Fallback', cls: 'skip', text: `skipped (resolved at Step ${method === 'fandaws:method/structural' ? '3' : '2'})` });
+  }
+
+  return steps.map((s) =>
+    `<div class="ers-step">` +
+    `<span class="ers-step-num">${s.num}</span>` +
+    `<span class="ers-step-name">${escapeHtml(s.name)}</span>` +
+    `<span class="ers-step-result ers-step-result--${s.cls}">${escapeHtml(s.text)}</span>` +
+    `</div>`,
+  ).join('');
+}
+
+function runErsOverride() {
+  const target = document.getElementById('ers-override-register').value;
+  const worldview = document.getElementById('ers-override-worldview').value.trim() || null;
+
+  const result = Fandaws.validateRegisterOverride(target, { worldviewContext: worldview });
+  const el = document.getElementById('ers-override-result');
+
+  if (result.accepted) {
+    el.innerHTML = `<div class="ers-override-result ers-override-result--accepted">Accepted — override to ${target.split('/').pop()} permitted.</div>`;
+  } else {
+    el.innerHTML = `<div class="ers-override-result ers-override-result--rejected">Rejected — ${escapeHtml(result.error)}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -1333,4 +1591,5 @@ initPropertyDemo();
 initDescriptionDemo();
 initRelationshipDemo();
 initExportDemo();
+initErsDemo();
 initConversationDemo();

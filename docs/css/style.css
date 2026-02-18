@@ -552,6 +552,40 @@ body {
 
 .desc-tag-remove:hover { background: rgba(255, 255, 255, 0.4); }
 
+/* ERS Register Badges */
+.register-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 14px;
+  letter-spacing: 0.02em;
+}
+
+.register-badge--axiomatic { background: rgba(108, 138, 255, 0.15); color: var(--accent); }
+.register-badge--normative { background: var(--green-bg); color: var(--green); }
+.register-badge--aspirational { background: var(--yellow-bg); color: var(--yellow); }
+
+.ers-step { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; font-size: 0.8rem; }
+.ers-step-num { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--accent-dim); min-width: 18px; }
+.ers-step-name { color: var(--text-muted); min-width: 130px; font-size: 0.75rem; }
+.ers-step-result { font-family: var(--font-mono); font-size: 0.78rem; }
+.ers-step-result--match { color: var(--green); }
+.ers-step-result--skip { color: var(--text-muted); }
+.ers-step-result--flag { color: var(--yellow); }
+
+.ers-override-result {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.ers-override-result--accepted { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+.ers-override-result--rejected { background: rgba(255, 107, 107, 0.12); color: var(--red); border: 1px solid var(--red); }
+
 /* Nav dropdown (ADR-004) */
 .nav-dropdown {
   position: relative;

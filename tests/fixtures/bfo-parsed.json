@@ -1,0 +1,205 @@
+{
+  "ontologyIRI": "http://purl.obolibrary.org/obo/bfo.owl",
+  "classes": [
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000001",
+      "annotations": [{ "property": "rdfs:label", "value": "entity", "language": "en" }],
+      "parents": []
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000002",
+      "annotations": [{ "property": "rdfs:label", "value": "continuant", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000001"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000003",
+      "annotations": [{ "property": "rdfs:label", "value": "occurrent", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000001"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000004",
+      "annotations": [{ "property": "rdfs:label", "value": "independent continuant", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000002"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000020",
+      "annotations": [{ "property": "rdfs:label", "value": "specifically dependent continuant", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000002"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000031",
+      "annotations": [{ "property": "rdfs:label", "value": "generically dependent continuant", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000002"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000040",
+      "annotations": [{ "property": "rdfs:label", "value": "material entity", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000004"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000141",
+      "annotations": [{ "property": "rdfs:label", "value": "immaterial entity", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000004"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000024",
+      "annotations": [{ "property": "rdfs:label", "value": "fiat object part", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000040"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000027",
+      "annotations": [{ "property": "rdfs:label", "value": "object aggregate", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000040"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000030",
+      "annotations": [{ "property": "rdfs:label", "value": "object", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000040"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000006",
+      "annotations": [{ "property": "rdfs:label", "value": "spatial region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000141"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000029",
+      "annotations": [{ "property": "rdfs:label", "value": "site", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000141"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000028",
+      "annotations": [{ "property": "rdfs:label", "value": "three-dimensional spatial region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000006"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000009",
+      "annotations": [{ "property": "rdfs:label", "value": "two-dimensional spatial region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000006"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000018",
+      "annotations": [{ "property": "rdfs:label", "value": "zero-dimensional spatial region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000006"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000019",
+      "annotations": [{ "property": "rdfs:label", "value": "quality", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000020"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000145",
+      "annotations": [{ "property": "rdfs:label", "value": "relational quality", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000019"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000023",
+      "annotations": [{ "property": "rdfs:label", "value": "role", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000017"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000016",
+      "annotations": [{ "property": "rdfs:label", "value": "disposition", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000017"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000017",
+      "annotations": [{ "property": "rdfs:label", "value": "realizable entity", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000020"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000034",
+      "annotations": [{ "property": "rdfs:label", "value": "function", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000016"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000015",
+      "annotations": [{ "property": "rdfs:label", "value": "process", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000003"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000035",
+      "annotations": [{ "property": "rdfs:label", "value": "process boundary", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000003"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000011",
+      "annotations": [{ "property": "rdfs:label", "value": "spatiotemporal region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000003"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000008",
+      "annotations": [{ "property": "rdfs:label", "value": "temporal region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000003"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000038",
+      "annotations": [{ "property": "rdfs:label", "value": "one-dimensional temporal region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000008"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000148",
+      "annotations": [{ "property": "rdfs:label", "value": "zero-dimensional temporal region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000008"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000026",
+      "annotations": [{ "property": "rdfs:label", "value": "one-dimensional spatial region", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000006"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000142",
+      "annotations": [{ "property": "rdfs:label", "value": "continuant fiat boundary", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000141"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000140",
+      "annotations": [{ "property": "rdfs:label", "value": "zero-dimensional continuant fiat boundary", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000142"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000146",
+      "annotations": [{ "property": "rdfs:label", "value": "one-dimensional continuant fiat boundary", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000142"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000147",
+      "annotations": [{ "property": "rdfs:label", "value": "two-dimensional continuant fiat boundary", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000142"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000144",
+      "annotations": [{ "property": "rdfs:label", "value": "process profile", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000015"]
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000182",
+      "annotations": [{ "property": "rdfs:label", "value": "history", "language": "en" }],
+      "parents": ["http://purl.obolibrary.org/obo/BFO_0000015"]
+    }
+  ],
+  "properties": [
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000050",
+      "annotations": [{ "property": "rdfs:label", "value": "part of", "language": "en" }],
+      "domain": "http://purl.obolibrary.org/obo/BFO_0000001",
+      "range": "http://purl.obolibrary.org/obo/BFO_0000001"
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/BFO_0000051",
+      "annotations": [{ "property": "rdfs:label", "value": "has part", "language": "en" }],
+      "domain": "http://purl.obolibrary.org/obo/BFO_0000001",
+      "range": "http://purl.obolibrary.org/obo/BFO_0000001",
+      "inverseOf": "http://purl.obolibrary.org/obo/BFO_0000050"
+    }
+  ],
+  "restrictions": [],
+  "disjointness": [
+    { "type": "DisjointWith", "class1": "http://purl.obolibrary.org/obo/BFO_0000002", "class2": "http://purl.obolibrary.org/obo/BFO_0000003" },
+    { "type": "DisjointWith", "class1": "http://purl.obolibrary.org/obo/BFO_0000004", "class2": "http://purl.obolibrary.org/obo/BFO_0000020" },
+    { "type": "DisjointWith", "class1": "http://purl.obolibrary.org/obo/BFO_0000004", "class2": "http://purl.obolibrary.org/obo/BFO_0000031" },
+    { "type": "DisjointWith", "class1": "http://purl.obolibrary.org/obo/BFO_0000020", "class2": "http://purl.obolibrary.org/obo/BFO_0000031" },
+    { "type": "DisjointWith", "class1": "http://purl.obolibrary.org/obo/BFO_0000040", "class2": "http://purl.obolibrary.org/obo/BFO_0000141" }
+  ],
+  "equivalences": [],
+  "expressions": []
+}

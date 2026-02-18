@@ -35,3 +35,12 @@ export {
   ROUTING_METHODS,
   ROUTING_STRENGTHS,
 } from './routing-record.js';
+
+// IVNE Type Factories (Phase 14)
+export {
+  createIVNEConfiguration,
+  createOntologyImportResult,
+  createSemanticLossRecord,
+  createReductionManifest,
+  createCardinalityConstraint,
+} from './ivne-types.js';

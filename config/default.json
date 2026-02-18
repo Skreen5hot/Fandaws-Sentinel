@@ -46,5 +46,19 @@
   "fandaws:autoPromotionCooldown": "P7D",
   "fandaws:epistemicRegisterEnabled": true,
   "fandaws:axiomaticDomains": ["mathematics", "geometry", "formal logic"],
-  "fandaws:teleologicalKeywords": ["should", "meant to", "purpose", "duty", "ought", "supposed to", "designed to", "intended to"]
+  "fandaws:teleologicalKeywords": ["should", "meant to", "purpose", "duty", "ought", "supposed to", "designed to", "intended to"],
+
+  "ivne:locale": "en",
+  "ivne:abbreviationTable": {},
+  "ivne:labelExtractionPriority": ["rdfs:label", "skos:prefLabel", "uriFragment"],
+  "ivne:hashPrefixLength": 12,
+  "ivne:chainComplexityThreshold": 3,
+  "ivne:defaultTrustLevel": "experimental",
+  "ivne:defaultStaleCopyAction": "fork",
+  "ivne:importRoots": null,
+  "ivne:excludePatterns": [],
+  "ivne:bfoAlignmentMode": "auto",
+  "ivne:maxConcepts": 50000,
+  "ivne:fnsrChainSupport": false,
+  "ivne:oceChainSupport": false
 }

@@ -20,6 +20,8 @@ export const FANDAWS_CONTEXT = {
     xsd: 'http://www.w3.org/2001/XMLSchema#',
     bfo: 'http://purl.obolibrary.org/obo/',
     schema: 'https://schema.org/',
+    ivne: 'https://fandaws.org/schema/ivne/',
+    shml: 'https://fandaws.org/schema/shml/',
 
     // ── Concept field aliases ──
     label: 'rdfs:label',
@@ -39,6 +41,15 @@ export const FANDAWS_CONTEXT = {
     'fandaws:disambiguatedFrom': { '@type': '@id' },
     'fandaws:definitions': { '@container': '@set' },
     'fandaws:resolutionOptions': { '@container': '@set' },
+
+    // ── IVNE (Ingestion, Validation & Normalization Engine, Phase 14) ──
+    'shml:epistemicStatus': { '@type': 'xsd:string' },
+    'fandaws:importedFrom': { '@type': '@id' },
+    'fandaws:generatedFrom': { '@type': 'xsd:string' },
+    'fandaws:ivneVersion': { '@type': 'xsd:string' },
+    'fandaws:sourceOntology': { '@type': '@id' },
+    'fandaws:compiledAt': { '@type': 'xsd:dateTime' },
+    'fandaws:disjuncts': { '@container': '@set', '@type': '@id' },
 
     // ── Epistemic Register Service (ERS Phase 10b) ──
     'fandaws:epistemicRegister': { '@type': '@id' },

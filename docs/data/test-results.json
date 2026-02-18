@@ -1,293 +1,337 @@
 {
-  "generatedAt": "2026-02-17T12:39:26.933Z",
+  "generatedAt": "2026-02-18T13:49:55.208Z",
   "success": true,
-  "totalSuites": 40,
-  "passedSuites": 40,
+  "totalSuites": 81,
+  "passedSuites": 81,
   "failedSuites": 0,
-  "totalTests": 682,
-  "passedTests": 682,
+  "totalTests": 1619,
+  "passedTests": 1619,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
     {
-      "name": "unit/concept-hydrator.test.js",
-      "passed": 22,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 3125
+      "name": "golden/classification-golden.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/types/conflict-report.test.js",
-      "passed": 12,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 3297
-    },
-    {
-      "name": "unit/types/knowledge-graph.test.js",
-      "passed": 7,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 3129
-    },
-    {
-      "name": "unit/type-checks.test.js",
-      "passed": 13,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 3113
+      "name": "golden/description-engine-golden.test.js",
+      "duration": 0
     },
     {
       "name": "golden/identity-simplification-golden.test.js",
-      "passed": 30,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 3415
+      "duration": 0
     },
     {
-      "name": "unit/types/conversation-session.test.js",
-      "passed": 6,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 713
-    },
-    {
-      "name": "unit/types/concept.test.js",
-      "passed": 7,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 3687
-    },
-    {
-      "name": "unit/sanity-check.test.js",
-      "passed": 16,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 773
-    },
-    {
-      "name": "integration/property-pipeline.test.js",
-      "passed": 13,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 885
-    },
-    {
-      "name": "integration/classification-pipeline.test.js",
-      "passed": 24,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 970
-    },
-    {
-      "name": "unit/nl-parser.test.js",
-      "passed": 57,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 760
-    },
-    {
-      "name": "unit/identity-simplification.test.js",
-      "passed": 51,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 679
-    },
-    {
-      "name": "golden/classification-golden.test.js",
-      "passed": 19,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 843
-    },
-    {
-      "name": "golden/property-golden.test.js",
-      "passed": 16,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 970
-    },
-    {
-      "name": "unit/types/scope-configuration.test.js",
-      "passed": 6,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 668
-    },
-    {
-      "name": "unit/validator.test.js",
-      "passed": 26,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 685
-    },
-    {
-      "name": "unit/types/relationship.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 617
-    },
-    {
-      "name": "unit/types/graph-mutation.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 565
-    },
-    {
-      "name": "unit/property-workflow.test.js",
-      "passed": 18,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 902
-    },
-    {
-      "name": "unit/knowledge-engine.test.js",
-      "passed": 23,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 890
-    },
-    {
-      "name": "unit/scope-narrowing.test.js",
-      "passed": 19,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 880
+      "name": "golden/ivne-bfo-golden.test.js",
+      "duration": 0
     },
     {
       "name": "golden/nl-parser-golden.test.js",
-      "passed": 46,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 975
+      "duration": 0
     },
     {
-      "name": "unit/iri-generator.test.js",
-      "passed": 15,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 957
+      "name": "golden/property-golden.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/types/conversation-prompt.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 801
+      "name": "golden/relationship-golden.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/types/context.test.js",
-      "passed": 5,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 684
+      "name": "integration/classification-pipeline.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/types/resolved-from.test.js",
-      "passed": 6,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 533
+      "name": "integration/conversation-simulation.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/types/classification-action.test.js",
-      "passed": 5,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 593
+      "name": "integration/ivne-determinism.test.js",
+      "duration": 0
+    },
+    {
+      "name": "integration/pipeline-contracts.test.js",
+      "duration": 0
+    },
+    {
+      "name": "integration/property-pipeline.test.js",
+      "duration": 0
+    },
+    {
+      "name": "integration/relationship-pipeline.test.js",
+      "duration": 0
     },
     {
       "name": "integration/validator-state-adapter.test.js",
-      "passed": 11,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 685
+      "duration": 0
     },
     {
-      "name": "unit/types/deferred-result.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 593
+      "name": "unit/bearer-role-disambiguator.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/bfo-heuristic.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/bfo-register-map.test.js",
+      "duration": 0
     },
     {
       "name": "unit/classifier.test.js",
-      "passed": 19,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 711
+      "duration": 0
     },
     {
-      "name": "unit/types/validation-result.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 584
+      "name": "unit/concept-hydrator.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/types/shadows-annotation.test.js",
-      "passed": 9,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 654
+      "name": "unit/description-engine.test.js",
+      "duration": 0
     },
     {
-      "name": "unit/input-sanitizer.test.js",
-      "passed": 28,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 699
+      "name": "unit/epistemic-register.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ers-adversarial.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ers-pipeline-integration.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ers-type-layer.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/export-engine.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/export-formats.test.js",
+      "duration": 0
     },
     {
       "name": "unit/governance-check.test.js",
-      "passed": 10,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 670
+      "duration": 0
     },
     {
-      "name": "unit/types/parse-result.test.js",
-      "passed": 6,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 563
-    },
-    {
-      "name": "unit/types/index.test.js",
-      "passed": 4,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 575
-    },
-    {
-      "name": "unit/property-redundancy.test.js",
-      "passed": 13,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 571
-    },
-    {
-      "name": "unit/types/scope-resolution.test.js",
-      "passed": 5,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 456
-    },
-    {
-      "name": "unit/types/property.test.js",
-      "passed": 5,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 459
+      "name": "unit/identity-simplification.test.js",
+      "duration": 0
     },
     {
       "name": "unit/in-memory-state-adapter.test.js",
-      "passed": 90,
-      "failed": 0,
-      "skipped": 0,
-      "duration": 11411
+      "duration": 0
+    },
+    {
+      "name": "unit/input-sanitizer.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/iri-generator.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/adversarial.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/flattener.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/ivne-iri-generator.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/ivne.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/label-extractor.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/normalizer.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/pre-filter.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/reduction-manifest.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/restriction-lifter.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/semantic-loss.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/sha256.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/knowledge-engine.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/nl-parser.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/null-integration-adapter.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/override-safety.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/owl-export.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/property-redundancy.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/property-workflow.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/relationship-validation.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/relationship-workflow.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/routing-record.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/sanity-check.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/scope-narrowing.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/skos-export.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/synchronous-orchestration-adapter.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/teleological-detector.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/termidium.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/triple-extractor.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/type-checks.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/classification-action.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/concept.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/conflict-report.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/context.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/conversation-prompt.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/conversation-session.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/deferred-result.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/graph-mutation.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/index.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/ivne-types.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/knowledge-graph.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/parse-result.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/property.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/relationship.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/resolved-from.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/scope-configuration.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/scope-resolution.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/shadows-annotation.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/validation-result.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/uuid5.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/validator.test.js",
+      "duration": 0
     }
   ]
 }

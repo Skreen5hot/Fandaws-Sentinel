@@ -1579,6 +1579,218 @@ function runErsOverride() {
 }
 
 // ─────────────────────────────────────────────────────────
+// IVNE Compiler Demo
+// ─────────────────────────────────────────────────────────
+
+const IVNE_SCENARIOS = [
+  {
+    label: 'Animal Taxonomy (P1 + P3)',
+    note: 'Perfect fidelity — pure hierarchy + disjointness',
+    ontology: {
+      ontologyIRI: 'http://example.org/animals.owl',
+      classes: [
+        { iri: 'ex:LivingThing', annotations: [{ property: 'rdfs:label', value: 'Living Thing' }], parents: [] },
+        { iri: 'ex:Animal', annotations: [{ property: 'rdfs:label', value: 'Animal' }], parents: ['ex:LivingThing'] },
+        { iri: 'ex:Plant', annotations: [{ property: 'rdfs:label', value: 'Plant' }], parents: ['ex:LivingThing'] },
+        { iri: 'ex:Dog', annotations: [{ property: 'rdfs:label', value: 'Dog' }], parents: ['ex:Animal'] },
+        { iri: 'ex:Cat', annotations: [{ property: 'rdfs:label', value: 'Cat' }], parents: ['ex:Animal'] },
+      ],
+      disjointness: [
+        { type: 'DisjointWith', class1: 'ex:Animal', class2: 'ex:Plant' },
+        { type: 'DisjointWith', class1: 'ex:Dog', class2: 'ex:Cat' },
+      ],
+    },
+  },
+  {
+    label: 'Existential Restrictions (P5)',
+    note: 'Dog hasFur some Fur — restriction inlining',
+    ontology: {
+      ontologyIRI: 'http://example.org/restrictions.owl',
+      classes: [
+        { iri: 'ex:Animal', annotations: [{ property: 'rdfs:label', value: 'Animal' }], parents: [] },
+        { iri: 'ex:Dog', annotations: [{ property: 'rdfs:label', value: 'Dog' }], parents: ['ex:Animal'] },
+        { iri: 'ex:Fur', annotations: [{ property: 'rdfs:label', value: 'Fur' }], parents: [] },
+      ],
+      restrictions: [
+        { type: 'Existential', affectedClass: 'ex:Dog', property: 'hasFur', filler: 'ex:Fur', quantifier: 'existential' },
+      ],
+    },
+  },
+  {
+    label: 'Union Flattening (Lossy)',
+    note: 'Pet = Dog OR Cat — union generalization with loss record',
+    ontology: {
+      ontologyIRI: 'http://example.org/union.owl',
+      classes: [
+        { iri: 'ex:Animal', annotations: [{ property: 'rdfs:label', value: 'Animal' }], parents: [] },
+        { iri: 'ex:Dog', annotations: [{ property: 'rdfs:label', value: 'Dog' }], parents: ['ex:Animal'] },
+        { iri: 'ex:Cat', annotations: [{ property: 'rdfs:label', value: 'Cat' }], parents: ['ex:Animal'] },
+      ],
+      expressions: [
+        { type: 'union', operands: ['ex:Dog', 'ex:Cat'] },
+      ],
+    },
+  },
+  {
+    label: 'P2 Equivalence (Merge Descriptors)',
+    note: 'Alpha EquivalentTo Beta — merge descriptor for Termidium',
+    ontology: {
+      ontologyIRI: 'http://example.org/equivalence.owl',
+      classes: [
+        { iri: 'ex:Alpha', annotations: [{ property: 'rdfs:label', value: 'Alpha' }], parents: [] },
+        { iri: 'ex:Beta', annotations: [{ property: 'rdfs:label', value: 'Beta' }], parents: [] },
+      ],
+      equivalences: [
+        { type: 'EquivalentTo', class1: 'ex:Alpha', class2: 'ex:Beta' },
+      ],
+    },
+  },
+  {
+    label: 'P6 Universal (Degraded)',
+    note: 'Dog eats only Food — universal weakening loss',
+    ontology: {
+      ontologyIRI: 'http://example.org/universal.owl',
+      classes: [
+        { iri: 'ex:Dog', annotations: [{ property: 'rdfs:label', value: 'Dog' }], parents: [] },
+        { iri: 'ex:Food', annotations: [{ property: 'rdfs:label', value: 'Food' }], parents: [] },
+      ],
+      restrictions: [
+        { type: 'Universal', affectedClass: 'ex:Dog', property: 'eats', filler: 'ex:Food', quantifier: 'universal' },
+      ],
+    },
+  },
+];
+
+const IVNE_FIXED_CONFIG = {
+  runTimestamp: '2025-01-01T00:00:00.000Z',
+  scope: 'fandaws:scope/demo',
+};
+
+function initIvneDemo() {
+  const scenariosEl = document.getElementById('ivne-scenarios');
+  const inputEl = document.getElementById('ivne-input');
+  const compileBtn = document.getElementById('ivne-compile');
+  if (!scenariosEl || !inputEl || !compileBtn) return;
+
+  // Render scenario buttons
+  scenariosEl.innerHTML = IVNE_SCENARIOS.map((sc, i) =>
+    `<button class="desc-example-btn" data-idx="${i}"><strong>${escapeHtml(sc.label)}</strong> — <span style="color: var(--text-muted);">${escapeHtml(sc.note)}</span></button>`,
+  ).join('');
+
+  // Scenario click: fill textarea
+  scenariosEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.desc-example-btn');
+    if (!btn) return;
+    const sc = IVNE_SCENARIOS[Number(btn.dataset.idx)];
+    if (!sc) return;
+    inputEl.value = JSON.stringify(sc.ontology, null, 2);
+    runIvneCompile();
+  });
+
+  compileBtn.addEventListener('click', runIvneCompile);
+
+  // Load first scenario by default
+  inputEl.value = JSON.stringify(IVNE_SCENARIOS[0].ontology, null, 2);
+}
+
+function runIvneCompile() {
+  const inputEl = document.getElementById('ivne-input');
+  const statsEl = document.getElementById('ivne-stats');
+  const conceptsEl = document.getElementById('ivne-concepts');
+  const lossEl = document.getElementById('ivne-loss');
+  const manifestEl = document.getElementById('ivne-manifest');
+  const deterEl = document.getElementById('ivne-determinism');
+  const fullEl = document.getElementById('ivne-full-output');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(inputEl.value);
+  } catch (e) {
+    statsEl.innerHTML = `<span style="color: #ff6b6b;">JSON parse error: ${escapeHtml(e.message)}</span>`;
+    return;
+  }
+
+  try {
+    // First compilation
+    const { result, canonicalJson, outputHash } = Fandaws.compile(parsed, IVNE_FIXED_CONFIG);
+
+    // Second compilation for determinism proof
+    const run2 = Fandaws.compile(parsed, IVNE_FIXED_CONFIG);
+    const deterministic = outputHash === run2.outputHash;
+
+    // Stats
+    const manifest = result['fandaws:reductionManifest'];
+    const stats = manifest['fandaws:statistics'];
+    const concepts = result['fandaws:concepts'] || [];
+    const lossRecords = result['fandaws:semanticLossRecords'] || [];
+    const mergeDescs = result['fandaws:mergeDescriptors'] || [];
+    const fidelity = stats.fidelityScore;
+
+    const fidelityColor = fidelity >= 1.0 ? '#3dd68c' : fidelity >= 0.8 ? '#f0c674' : '#ff6b6b';
+    const fidelityLabel = fidelity >= 1.0 ? 'Perfect' : fidelity >= 0.8 ? 'Degraded' : 'Lossy';
+
+    statsEl.innerHTML =
+      `<span class="badge badge--green">${concepts.length} concepts</span> ` +
+      `<span class="badge" style="background: ${fidelityColor}20; color: ${fidelityColor}; border: 1px solid ${fidelityColor}40;">Fidelity: ${(fidelity * 100).toFixed(1)}% (${fidelityLabel})</span> ` +
+      `<span class="badge badge--accent">${lossRecords.length} loss records</span>` +
+      (mergeDescs.length > 0 ? ` <span class="badge badge--yellow">${mergeDescs.length} merge descriptors</span>` : '');
+
+    // Concepts
+    const conceptLines = concepts.map((c) => {
+      const label = c['fandaws:canonicalLabel'] || c['rdfs:label'] || c['@id'];
+      const parent = c['skos:broader'] ? ` -> ${c['skos:broader'].split('/').pop()}` : ' (root)';
+      const props = (c['fandaws:properties'] || []).map((p) => `${p['fandaws:canonicalLabel']}(${p['fandaws:quantifier']})`);
+      const disjoint = c['owl:disjointWith'] ? ` [disjoint: ${c['owl:disjointWith'].map((d) => d.split('/').pop()).join(', ')}]` : '';
+      const equiv = c['owl:equivalentClass'] ? ` [equiv: ${c['owl:equivalentClass'].map((e) => e.split('/').pop()).join(', ')}]` : '';
+      const propsStr = props.length > 0 ? ` {${props.join(', ')}}` : '';
+      return `${label}${parent}${propsStr}${disjoint}${equiv}`;
+    });
+    conceptsEl.textContent = conceptLines.join('\n') || '(none)';
+
+    // Loss records
+    if (lossRecords.length > 0) {
+      const lossLines = lossRecords.map((lr) => {
+        const sev = lr['fandaws:severity'] || '?';
+        const type = lr['fandaws:lossType'] || '?';
+        return `[${sev.toUpperCase()}] ${type}: ${lr['fandaws:lostSemantics'] || ''}`.substring(0, 120);
+      });
+      lossEl.textContent = lossLines.join('\n');
+    } else {
+      lossEl.textContent = 'None — perfect import (no information lost)';
+    }
+
+    // Manifest
+    const manifestSummary = {
+      fidelityScore: stats.fidelityScore,
+      totalSourceAxioms: stats.totalSourceAxioms,
+      totalCompiledConcepts: stats.totalCompiledConcepts,
+      lossBySeverity: stats.lossBySeverity,
+      sourceOntology: manifest['fandaws:sourceOntology'],
+      ivneRunId: manifest['fandaws:ivneRunId'],
+    };
+    if (mergeDescs.length > 0) {
+      manifestSummary.mergeDescriptors = mergeDescs.length;
+    }
+    manifestEl.textContent = JSON.stringify(manifestSummary, null, 2);
+
+    // Determinism
+    deterEl.innerHTML = deterministic
+      ? `<span style="color: #3dd68c;">DETERMINISTIC</span> — SHA-256: <code>${outputHash.substring(0, 24)}...</code> (2 runs identical)`
+      : `<span style="color: #ff6b6b;">NON-DETERMINISTIC</span> — Run 1: ${outputHash.substring(0, 12)}... Run 2: ${run2.outputHash.substring(0, 12)}...`;
+
+    // Full output
+    fullEl.textContent = JSON.stringify(result, null, 2);
+  } catch (e) {
+    statsEl.innerHTML = `<span style="color: #ff6b6b;">Compilation error: ${escapeHtml(e.message)}</span>`;
+    conceptsEl.textContent = '';
+    lossEl.textContent = '';
+    manifestEl.textContent = '';
+    deterEl.textContent = '';
+    fullEl.textContent = e.stack || e.message;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -1592,4 +1804,5 @@ initDescriptionDemo();
 initRelationshipDemo();
 initExportDemo();
 initErsDemo();
+initIvneDemo();
 initConversationDemo();

@@ -1,7 +1,7 @@
 {
   "project": "Fandaws Sentinel",
   "specVersion": "v3.4",
-  "currentPhase": "10b",
+  "currentPhase": "IVNE",
   "tracks": [
     { "id": "A", "theme": "Linguistics & IO", "phases": [2, 10] },
     { "id": "A/B", "theme": "Cross-track", "phases": [7, "10b"] },
@@ -139,6 +139,15 @@
       "depends": [10, 9],
       "description": "Epistemic Register Service — three-register model (Axiomatic/Normative/Aspirational) routing pipeline. BFO-to-register mapping (11 categories), Bearer/Role disambiguation, teleological signal detection (flag-only), ExportEngine register metadata export. Addresses the Normative-Axiomatic Conflation (NAC). 120 new tests.",
       "deliverables": ["epistemic-register.js", "bfo-register-map.js", "bearer-role-disambiguator.js", "teleological-detector.js", "routing-record.js", "ExportEngine register metadata triples", "120 new tests"]
+    },
+    {
+      "id": "IVNE",
+      "name": "IVNE Core Compiler",
+      "status": "complete",
+      "track": null,
+      "depends": [1, "10b"],
+      "description": "Ingestion, Validation & Normalization Engine — deterministic OWL 2 DL compiler. Three-phase pipeline (Flatten, Lift Restrictions, Normalize). Handles P1 SubClassOf, P2 EquivalentTo, P3 DisjointWith, P5 Existential, P6 Universal. Full semantic loss tracking with ReductionManifest and fidelityScore. BFO golden corpus (35 classes). 318 new tests.",
+      "deliverables": ["compile()", "flattener.js", "restriction-lifter.js", "normalizer.js", "semantic-loss.js", "reduction-manifest.js", "BFO golden corpus", "318 new tests"]
     },
     {
       "id": 11,

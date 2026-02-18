@@ -144,6 +144,20 @@ export { lookupBfoRegister, AXIOMATIC_DOMAINS, BFO_REGISTER_MAP } from './core/e
 export { detectTeleological } from './core/epistemic-register/teleological-detector.js';
 export { disambiguateBearerRole } from './core/epistemic-register/bearer-role-disambiguator.js';
 
+// IVNE — Ingestion, Validation & Normalization Engine (Phase 14)
+export { compile } from './core/ivne/ivne.js';
+export { LOSS_TYPES, SEVERITY, LOSS_SEVERITY_MAP, createLoss } from './core/ivne/semantic-loss.js';
+export { sha256Hex } from './core/ivne/sha256.js';
+export { extractLabel, iriToLocalName, splitCamelCase } from './core/ivne/label-extractor.js';
+export { generateHashIri, canonicalizeExpression } from './core/ivne/ivne-iri-generator.js';
+export {
+  createIVNEConfiguration,
+  createOntologyImportResult,
+  createSemanticLossRecord,
+  createReductionManifest,
+  createCardinalityConstraint,
+} from './types/ivne-types.js';
+
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';
 export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';

@@ -30,6 +30,11 @@ describe('types/index barrel export', () => {
       'createParseResult',
       'createClassificationAction',
       'createRoutingRecord',
+      'createIVNEConfiguration',
+      'createOntologyImportResult',
+      'createSemanticLossRecord',
+      'createReductionManifest',
+      'createCardinalityConstraint',
     ];
     for (const name of expectedFactories) {
       expect(typeof types[name]).toBe('function');
@@ -50,7 +55,7 @@ describe('types/index barrel export', () => {
     expect(types.ROUTING_STRENGTHS).toBeDefined();
   });
 
-  it('exports exactly 27 members (1 context + 21 factories + 2 type checks + 3 constants)', () => {
-    expect(Object.keys(types)).toHaveLength(27);
+  it('exports exactly 32 members (1 context + 26 factories + 2 type checks + 3 constants)', () => {
+    expect(Object.keys(types)).toHaveLength(32);
   });
 });

@@ -129,13 +129,14 @@ describe('Bearer/Role Disambiguator', () => {
       expect(result.sensitivity).toBe('heightened');
     });
 
-    it('classifies unknown property as behavioral (default)', () => {
+    it('classifies unknown property as unclassified (BRD-11)', () => {
       const role = makeConcept('fandaws:class/test/role', BFO.role);
       const graph = makeGraph([role]);
       const restriction = makeRestriction('does_something_unusual');
 
       const result = disambiguateBearerRole(restriction, role, graph);
-      expect(result.propertyType).toBe('behavioral');
+      expect(result.propertyType).toBe('unclassified');
+      expect(result.sensitivity).toBe('normal');
     });
   });
 
@@ -172,23 +173,117 @@ describe('Bearer/Role Disambiguator', () => {
     });
   });
 
+  describe('additional behavioral properties (BRD-08)', () => {
+    it('classifies "nurtures" as behavioral (BRD-08)', () => {
+      const mother = makeConcept('fandaws:class/test/mother', BFO.role);
+      const graph = makeGraph([mother]);
+      const restriction = makeRestriction('nurtures');
+
+      const result = disambiguateBearerRole(restriction, mother, graph);
+      expect(result.propertyType).toBe('behavioral');
+      expect(result.sensitivity).toBe('heightened');
+    });
+  });
+
+  describe('additional credential properties', () => {
+    it('classifies "has_degree" as credential (BRD-09)', () => {
+      const doctor = makeConcept('fandaws:class/test/doctor', BFO.role);
+      const graph = makeGraph([doctor]);
+      const restriction = makeRestriction('has_degree');
+
+      const result = disambiguateBearerRole(restriction, doctor, graph);
+      expect(result.propertyType).toBe('credential');
+      expect(result.sensitivity).toBe('normal');
+    });
+
+    it('classifies "certified_in" as credential (BRD-10)', () => {
+      const engineer = makeConcept('fandaws:class/test/engineer', BFO.role);
+      const graph = makeGraph([engineer]);
+      const restriction = makeRestriction('certified_in');
+
+      const result = disambiguateBearerRole(restriction, engineer, graph);
+      expect(result.propertyType).toBe('credential');
+    });
+
+    it('classifies "has_jurisdiction" as credential (BRD-17)', () => {
+      const doctor = makeConcept('fandaws:class/test/doctor', BFO.role);
+      const graph = makeGraph([doctor]);
+      const restriction = makeRestriction('has_jurisdiction');
+
+      const result = disambiguateBearerRole(restriction, doctor, graph);
+      expect(result.propertyType).toBe('credential');
+    });
+  });
+
+  describe('ancestor chain walks (BRD-14, BRD-15)', () => {
+    it('finds Bearer two levels up (BRD-14)', () => {
+      const surgeon = makeConcept('fandaws:class/test/surgeon', BFO.role, 'fandaws:class/test/doctor');
+      const doctor = makeConcept('fandaws:class/test/doctor', null, 'fandaws:class/test/human');
+      const human = makeConcept('fandaws:class/test/human', BFO.materialEntity);
+      const graph = makeGraph([surgeon, doctor, human]);
+      const restriction = makeRestriction('has_arm', 'fandaws:class/test/surgeon');
+
+      const result = disambiguateBearerRole(restriction, surgeon, graph);
+      expect(result.retargeted).toBe(true);
+      expect(result.bfoCategory).toBe(BFO.materialEntity);
+    });
+
+    it('walks through multiple Role ancestors (BRD-15)', () => {
+      const chief = makeConcept('fandaws:class/test/chief-surgeon', BFO.role, 'fandaws:class/test/surgeon');
+      const surgeon = makeConcept('fandaws:class/test/surgeon', BFO.role, 'fandaws:class/test/doctor');
+      const doctor = makeConcept('fandaws:class/test/doctor', null, 'fandaws:class/test/human');
+      const human = makeConcept('fandaws:class/test/human', BFO.materialEntity);
+      const graph = makeGraph([chief, surgeon, doctor, human]);
+      const restriction = makeRestriction('has_arm', 'fandaws:class/test/chief-surgeon');
+
+      const result = disambiguateBearerRole(restriction, chief, graph);
+      expect(result.retargeted).toBe(true);
+    });
+  });
+
+  describe('empty graph (BRD-18)', () => {
+    it('handles empty graph gracefully', () => {
+      const doctor = makeConcept('fandaws:class/test/doctor', BFO.role);
+      const graph = makeGraph([]);
+      const restriction = makeRestriction('has_arm');
+
+      const result = disambiguateBearerRole(restriction, doctor, graph);
+      expect(result.retargeted).toBe(false);
+      expect(result.bfoCategory).toBe(BFO.role);
+    });
+  });
+
+  describe('opaque IRI property (ADV-03)', () => {
+    it('classifies opaque IRI as unclassified without sensitivity', () => {
+      const doctor = makeConcept('fandaws:class/test/doctor', BFO.role);
+      const graph = makeGraph([doctor]);
+      const restriction = makeRestriction('obo:RO_0000086');
+
+      const result = disambiguateBearerRole(restriction, doctor, graph);
+      expect(result.propertyType).toBe('unclassified');
+      expect(result.sensitivity).toBe('normal');
+    });
+  });
+
   describe('edge cases', () => {
-    it('handles null owl:onProperty', () => {
+    it('handles null owl:onProperty → unclassified', () => {
       const role = makeConcept('fandaws:class/test/role', BFO.role);
       const graph = makeGraph([role]);
       const restriction = { '@id': 'r1', '@type': 'owl:Restriction' };
 
       const result = disambiguateBearerRole(restriction, role, graph);
-      expect(result.propertyType).toBe('behavioral');
+      expect(result.propertyType).toBe('unclassified');
+      expect(result.sensitivity).toBe('normal');
     });
 
-    it('handles empty owl:onProperty', () => {
+    it('handles empty owl:onProperty → unclassified', () => {
       const role = makeConcept('fandaws:class/test/role', BFO.role);
       const graph = makeGraph([role]);
       const restriction = makeRestriction('');
 
       const result = disambiguateBearerRole(restriction, role, graph);
-      expect(result.propertyType).toBe('behavioral');
+      expect(result.propertyType).toBe('unclassified');
+      expect(result.sensitivity).toBe('normal');
     });
 
     it('avoids infinite loop in circular ancestor chains', () => {

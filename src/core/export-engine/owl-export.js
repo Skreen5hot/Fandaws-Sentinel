@@ -35,6 +35,11 @@ const OWL_NS = 'http://www.w3.org/2002/07/owl#';
 const RDFS_LABEL = expandIri('rdfs:label');
 const RDFS_SUBCLASS_OF = expandIri('rdfs:subClassOf');
 const RDFS_NS = 'http://www.w3.org/2000/01/rdf-schema#';
+const FANDAWS_NS = 'https://fandaws.org/schema/';
+
+// ── Register metadata predicates (ERS Phase 10b) ──
+const FANDAWS_EPISTEMIC_REGISTER = expandIri('fandaws:epistemicRegister');
+const FANDAWS_ROUTING_FLAGS = expandIri('fandaws:routingFlags');
 
 // ── Filters ──
 
@@ -49,7 +54,9 @@ function isOwlPredicate(predicate) {
   return (
     predicate.startsWith(OWL_NS) ||
     predicate === RDFS_LABEL ||
-    predicate === RDFS_SUBCLASS_OF
+    predicate === RDFS_SUBCLASS_OF ||
+    predicate === FANDAWS_EPISTEMIC_REGISTER ||
+    predicate === FANDAWS_ROUTING_FLAGS
   );
 }
 

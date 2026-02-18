@@ -8,6 +8,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { exportTurtle } from '../../src/core/export-engine/turtle-export.js';
 import { exportRDF } from '../../src/core/export-engine/rdf-xml-export.js';
+import { exportOWL } from '../../src/core/export-engine/owl-export.js';
 import { createConcept } from '../../src/types/concept.js';
 import { createProperty } from '../../src/types/property.js';
 import { createRelationship } from '../../src/types/relationship.js';
@@ -288,6 +289,45 @@ describe('Export Formats', () => {
       const graph = makeGraph([dog]);
       const result = exportTurtle(graph);
       expect(result).toContain('fandaws:epistemicRegister');
+      expect(result).toContain('fandaws:register/axiomatic');
+    });
+
+    it('OWL export includes register metadata (EXP-03)', () => {
+      const graph = makeConceptWithRegisterProperty();
+      const result = exportOWL(graph);
+      expect(result).toContain('epistemicRegister');
+      expect(result).toContain('register/normative');
+    });
+
+    it('routing record internals NOT exported in annotation-only profile (EXP-07)', () => {
+      const graph = makeConceptWithRegisterProperty();
+      const result = exportTurtle(graph);
+      // Register and flags are exported, but routing record method/trigger are NOT
+      expect(result).toContain('fandaws:epistemicRegister');
+      expect(result).not.toContain('fandaws:routingMethod');
+      expect(result).not.toContain('fandaws:trigger');
+    });
+
+    it('multiple restrictions with different registers (EXP-08)', () => {
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
+      const prop1 = createProperty({
+        id: 'fandaws:restriction/test/dog--fur',
+        propertyIri: 'fandaws:property/test/fur',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        value: 'yes',
+        epistemicRegister: REGISTERS.NORMATIVE,
+      });
+      const prop2 = createProperty({
+        id: 'fandaws:restriction/test/dog--sides',
+        propertyIri: 'fandaws:property/test/sides',
+        attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        value: '4',
+        epistemicRegister: REGISTERS.AXIOMATIC,
+      });
+      dog['rdfs:subClassOf'] = [prop1, prop2];
+      const graph = makeGraph([dog]);
+      const result = exportTurtle(graph);
+      expect(result).toContain('fandaws:register/normative');
       expect(result).toContain('fandaws:register/axiomatic');
     });
   });

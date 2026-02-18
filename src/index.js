@@ -139,7 +139,7 @@ export { exportTurtle } from './core/export-engine/turtle-export.js';
 export { extractTriples, expandIri } from './core/export-engine/triple-extractor.js';
 
 // Epistemic Register Service (Phase 10b)
-export { routeToRegister } from './core/epistemic-register/epistemic-register.js';
+export { routeToRegister, validateRegisterOverride } from './core/epistemic-register/epistemic-register.js';
 export { lookupBfoRegister, AXIOMATIC_DOMAINS, BFO_REGISTER_MAP } from './core/epistemic-register/bfo-register-map.js';
 export { detectTeleological } from './core/epistemic-register/teleological-detector.js';
 export { disambiguateBearerRole } from './core/epistemic-register/bearer-role-disambiguator.js';

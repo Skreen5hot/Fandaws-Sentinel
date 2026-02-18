@@ -98,24 +98,35 @@ function buildResult(restriction, register, method, trigger, flags, scope) {
  */
 export function routeToRegister(restriction, context = {}) {
   const { graph, session, config, utterance, scope = DEFAULT_SCOPE } = context;
+
+  // ── Config gate: ERS can be disabled ──
+  if (config && config.epistemicRegisterEnabled === false) {
+    return null;
+  }
+
   const flags = [];
 
   // ── Step 1: APS precedent lookup (stub — Phase 14+) ──
   // Always returns null. Extension point for Analogical Precedent Service.
 
-  // ── Step 2: Session domain check ──
+  // ── Step 2: Session domain check (produces CANDIDATE, does not return) ──
+  let domainCandidate = null;
+  let domainTrigger = null;
   if (session && session['fandaws:domain']) {
     const domain = session['fandaws:domain'].toLowerCase();
     const axiomaticDomains = config?.axiomaticDomains || AXIOMATIC_DOMAINS;
     if (axiomaticDomains.includes(domain)) {
-      return buildResult(
-        restriction, REGISTERS.AXIOMATIC, ROUTING_METHODS.DOMAIN,
-        `session-domain:${domain}`, flags, scope,
-      );
+      domainCandidate = REGISTERS.AXIOMATIC;
+      domainTrigger = `session-domain:${domain}`;
+    } else {
+      // Non-axiomatic domain → R2 via DOMAIN method (not fallback)
+      domainCandidate = REGISTERS.NORMATIVE;
+      domainTrigger = `session-domain:${domain}`;
     }
   }
 
   // ── Step 3: BFO alignment + Bearer/Role disambiguation ──
+  // BFO > Session Domain: if BFO alignment exists, it overrides the domain candidate.
   const attachedTo = restriction['fandaws:attachedTo'];
   const concept = findConcept(attachedTo, graph);
 
@@ -134,6 +145,10 @@ export function routeToRegister(restriction, context = {}) {
         if (disambiguation.retargeted) {
           flags.push('bearer-retarget');
         }
+
+        // ── Step 5 (teleological) always runs, even when BFO matched ──
+        applyTeleologicalFlags(utterance, flags, disambiguation.sensitivity === 'heightened');
+
         return buildResult(
           restriction, lookup.register, ROUTING_METHODS.STRUCTURAL,
           `bfo:${disambiguation.bfoCategory}+${disambiguation.propertyType}`, flags, scope,
@@ -142,6 +157,9 @@ export function routeToRegister(restriction, context = {}) {
     } else if (bfoCategory) {
       const lookup = lookupBfoRegister(bfoCategory);
       if (lookup) {
+        // ── Step 5 (teleological) always runs, even when BFO matched ──
+        applyTeleologicalFlags(utterance, flags, false);
+
         return buildResult(
           restriction, lookup.register, ROUTING_METHODS.STRUCTURAL,
           `bfo:${bfoCategory}`, flags, scope,
@@ -150,23 +168,71 @@ export function routeToRegister(restriction, context = {}) {
     }
   }
 
+  // ── Step 2 fallthrough: use domain candidate if BFO returned null ──
+  if (domainCandidate) {
+    // ── Step 5 (teleological) runs for domain candidates too ──
+    applyTeleologicalFlags(utterance, flags, false);
+
+    return buildResult(
+      restriction, domainCandidate, ROUTING_METHODS.DOMAIN,
+      domainTrigger, flags, scope,
+    );
+  }
+
   // ── Step 4: Domain whitelist ──
   // Currently session-level only (covered by Step 2).
   // Property-level domain whitelisting deferred to Phase 14+.
 
   // ── Step 5: Teleological signal detection ──
-  if (utterance) {
-    const teleological = detectTeleological(utterance);
-    if (teleological.detected) {
-      flags.push('teleological-signal');
-      // Flag only — do NOT auto-route to R3.
-      // IEE (Phase 14+) will evaluate whether to promote to R3.
-    }
-  }
+  applyTeleologicalFlags(utterance, flags, false);
 
   // ── Step 6: Fallback → R2 (Normative) ──
   return buildResult(
     restriction, REGISTERS.NORMATIVE, ROUTING_METHODS.FALLBACK,
     'fallback', flags, scope,
   );
+}
+
+/**
+ * Apply teleological flags from utterance analysis (Step 5).
+ * Mutates the flags array. Never auto-routes to R3.
+ *
+ * @param {string|null} utterance - Raw utterance
+ * @param {string[]} flags - Flags array to mutate
+ * @param {boolean} hasRoleSensitivity - Whether role-heightened-sensitivity is already set
+ */
+function applyTeleologicalFlags(utterance, flags, hasRoleSensitivity) {
+  if (!utterance) return;
+  const teleological = detectTeleological(utterance);
+  if (teleological.detected) {
+    flags.push('teleological-signal');
+    // Deontic flag: when deontic keyword + role heightened sensitivity
+    if (teleological.deontic && hasRoleSensitivity) {
+      flags.push('deontic-role-definition');
+    }
+  }
+}
+
+/**
+ * Validate a user-initiated register override.
+ *
+ * R3 (Aspirational) requires a non-null worldviewContext tag.
+ * R1/R2 overrides are always accepted.
+ *
+ * @param {string} targetRegister - Target register IRI
+ * @param {object} [options={}]
+ * @param {string|null} [options.worldviewContext] - Required for R3
+ * @returns {{ accepted: boolean, error?: string }}
+ */
+export function validateRegisterOverride(targetRegister, options = {}) {
+  const { worldviewContext = null } = options;
+
+  if (targetRegister === REGISTERS.ASPIRATIONAL && !worldviewContext) {
+    return {
+      accepted: false,
+      error: 'Register 3 (Aspirational) requires a non-null fandaws:worldviewContext tag.',
+    };
+  }
+
+  return { accepted: true };
 }

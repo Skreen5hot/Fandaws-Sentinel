@@ -85,8 +85,8 @@ describe('Teleological Detector', () => {
   });
 
   describe('no false positives', () => {
-    it('does not detect in neutral statements', () => {
-      const result = detectTeleological('Dogs have four legs');
+    it('does not detect in neutral statements (TEL-09)', () => {
+      const result = detectTeleological('Humans have two arms');
       expect(result.detected).toBe(false);
       expect(result.keywords).toHaveLength(0);
     });
@@ -101,6 +101,45 @@ describe('Teleological Detector', () => {
       const result = detectTeleological('Triangles have three sides');
       expect(result.detected).toBe(false);
       expect(result.keywords).toHaveLength(0);
+    });
+
+    it('does not false positive on "should" inside "shoulder" (TEL-10)', () => {
+      const result = detectTeleological('The shoulder blade is a bone');
+      expect(result.detected).toBe(false);
+      expect(result.keywords).toHaveLength(0);
+    });
+
+    it('does not false positive on "purpose" inside "multipurpose"', () => {
+      const result = detectTeleological('This is a multipurpose tool');
+      expect(result.detected).toBe(false);
+      expect(result.keywords).toHaveLength(0);
+    });
+  });
+
+  describe('flag-only behavior (TEL-15)', () => {
+    it('return shape has no register field', () => {
+      const result = detectTeleological('Judges should be impartial');
+      expect(result).not.toHaveProperty('register');
+      expect(result).toHaveProperty('detected');
+      expect(result).toHaveProperty('keywords');
+      expect(result).toHaveProperty('deontic');
+    });
+  });
+
+  describe('deontic detection', () => {
+    it('flags deontic for "duty"', () => {
+      const result = detectTeleological('Judges have a duty to adjudicate');
+      expect(result.deontic).toBe(true);
+    });
+
+    it('flags deontic for "ought"', () => {
+      const result = detectTeleological('Mothers ought to nurture children');
+      expect(result.deontic).toBe(true);
+    });
+
+    it('does not flag deontic for non-deontic keywords', () => {
+      const result = detectTeleological('This is designed to cut');
+      expect(result.deontic).toBe(false);
     });
   });
 

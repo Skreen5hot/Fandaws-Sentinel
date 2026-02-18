@@ -118,5 +118,25 @@ describe('Routing Record', () => {
       const record = createRoutingRecord(baseParams);
       expect(record['fandaws:createdBy']).toBe('ers:service');
     });
+
+    it('produces deterministic output for identical inputs (RRF-05)', () => {
+      const r1 = createRoutingRecord(baseParams);
+      const r2 = createRoutingRecord(baseParams);
+      expect(r1['@id']).toBe(r2['@id']);
+      expect(r1['fandaws:assignedRegister']).toBe(r2['fandaws:assignedRegister']);
+    });
+
+    it('produces different records for different registers (RRF-06)', () => {
+      const r1 = createRoutingRecord({ ...baseParams, id: 'fandaws:routing/a', assignedRegister: REGISTERS.NORMATIVE });
+      const r2 = createRoutingRecord({ ...baseParams, id: 'fandaws:routing/b', assignedRegister: REGISTERS.AXIOMATIC });
+      expect(r1['fandaws:assignedRegister']).not.toBe(r2['fandaws:assignedRegister']);
+    });
+
+    it('accepts all valid routing methods (RRF-08)', () => {
+      for (const method of Object.values(ROUTING_METHODS)) {
+        const record = createRoutingRecord({ ...baseParams, routingMethod: method });
+        expect(record['fandaws:routingMethod']).toBe(method);
+      }
+    });
   });
 });

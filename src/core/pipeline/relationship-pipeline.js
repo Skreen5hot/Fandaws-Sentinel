@@ -136,20 +136,24 @@ export function runRelationshipPipeline(utterance, context, options = {}) {
   }
 
   // ── Step 4b: Epistemic Register Routing ──
-  const ersAdditions = engineResult.mutation['fandaws:additions'] || [];
-  for (const node of ersAdditions) {
-    if (isRestrictionNode(node)) {
-      const ersResult = routeToRegister(node, {
-        graph,
-        session: context.session,
-        config: options.ersConfig,
-        utterance,
-        scope: options.scope,
-      });
-      node['fandaws:epistemicRegister'] = ersResult.register;
-      node['fandaws:routingRecord'] = ersResult.routingRecord;
-      if (ersResult.flags.length > 0) {
-        node['fandaws:routingFlags'] = ersResult.flags;
+  if (options.ersConfig?.epistemicRegisterEnabled !== false) {
+    const ersAdditions = engineResult.mutation['fandaws:additions'] || [];
+    for (const node of ersAdditions) {
+      if (isRestrictionNode(node)) {
+        const ersResult = routeToRegister(node, {
+          graph,
+          session: context.session,
+          config: options.ersConfig,
+          utterance,
+          scope: options.scope,
+        });
+        if (ersResult) {
+          node['fandaws:epistemicRegister'] = ersResult.register;
+          node['fandaws:routingRecord'] = ersResult.routingRecord;
+          if (ersResult.flags.length > 0) {
+            node['fandaws:routingFlags'] = ersResult.flags;
+          }
+        }
       }
     }
   }

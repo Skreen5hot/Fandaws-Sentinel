@@ -230,3 +230,36 @@ describe('generateRelationshipIri', () => {
     expect(() => generateRelationshipIri('dog', 'chase', null)).toThrow();
   });
 });
+
+describe('generateRoutingRecordIri', () => {
+  let generateRoutingRecordIri;
+  beforeAll(async () => {
+    const mod = await import('../../src/core/knowledge-engine/iri-generator.js');
+    generateRoutingRecordIri = mod.generateRoutingRecordIri;
+  });
+
+  it('is deterministic (IRI-01)', () => {
+    const a = generateRoutingRecordIri('fandaws:restriction/test/r1');
+    const b = generateRoutingRecordIri('fandaws:restriction/test/r1');
+    expect(a).toBe(b);
+  });
+
+  it('different inputs produce different IRIs (IRI-02)', () => {
+    const a = generateRoutingRecordIri('fandaws:restriction/test/r1');
+    const b = generateRoutingRecordIri('fandaws:restriction/test/r2');
+    expect(a).not.toBe(b);
+  });
+
+  it('IRI has fandaws:routing/ prefix (IRI-03)', () => {
+    const iri = generateRoutingRecordIri('fandaws:restriction/test/r1');
+    expect(iri).toMatch(/^fandaws:routing\//);
+  });
+
+  it('throws on empty restriction IRI (IRI-04)', () => {
+    expect(() => generateRoutingRecordIri('')).toThrow();
+  });
+
+  it('throws on null restriction IRI', () => {
+    expect(() => generateRoutingRecordIri(null)).toThrow();
+  });
+});

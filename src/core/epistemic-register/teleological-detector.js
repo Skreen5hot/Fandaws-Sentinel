@@ -18,22 +18,35 @@ const TELEOLOGICAL_KEYWORDS = [
   'intended to',
 ];
 
+// Deontic subset — keywords indicating moral/ethical obligation
+const DEONTIC_KEYWORDS = ['duty', 'ought'];
+
+// Pre-compiled word-boundary regex for each keyword (prevents
+// false positives like "shoulder" matching "should").
+const KEYWORD_PATTERNS = TELEOLOGICAL_KEYWORDS.map(
+  (kw) => ({ keyword: kw, regex: new RegExp(`\\b${kw}\\b`, 'i') }),
+);
+
 /**
  * Detect teleological signals in an utterance.
  *
  * Pure function: deterministic, no state, no I/O.
  *
  * @param {string} utterance - Raw user input
- * @returns {{ detected: boolean, keywords: string[] }}
- *   detected = true if any keyword found; keywords = matched keywords
+ * @returns {{ detected: boolean, keywords: string[], deontic: boolean }}
+ *   detected = true if any keyword found; keywords = matched keywords;
+ *   deontic = true if a deontic keyword (duty, ought) was found.
  */
 export function detectTeleological(utterance) {
   if (!utterance || typeof utterance !== 'string') {
-    return { detected: false, keywords: [] };
+    return { detected: false, keywords: [], deontic: false };
   }
 
-  const lower = utterance.toLowerCase();
-  const found = TELEOLOGICAL_KEYWORDS.filter((kw) => lower.includes(kw));
+  const found = KEYWORD_PATTERNS
+    .filter(({ regex }) => regex.test(utterance))
+    .map(({ keyword }) => keyword);
 
-  return { detected: found.length > 0, keywords: found };
+  const deontic = found.some((kw) => DEONTIC_KEYWORDS.includes(kw));
+
+  return { detected: found.length > 0, keywords: found, deontic };
 }

@@ -107,6 +107,21 @@ describe('BFO Register Map', () => {
     it('includes formal logic', () => {
       expect(AXIOMATIC_DOMAINS).toContain('formal logic');
     });
+
+    it('does not include biology or medicine (BFO-13)', () => {
+      expect(AXIOMATIC_DOMAINS).not.toContain('biology');
+      expect(AXIOMATIC_DOMAINS).not.toContain('medicine');
+    });
+  });
+
+  describe('explicit entries (BFO-14)', () => {
+    it('Function is explicitly listed, not inherited from RealizableEntity', () => {
+      // Both must exist as separate entries
+      expect(BFO_REGISTER_MAP).toHaveProperty(BFO.function);
+      expect(BFO_REGISTER_MAP).toHaveProperty(BFO.realizableEntity);
+      // Verify they are distinct keys (different BFO IRIs)
+      expect(BFO.function).not.toBe(BFO.realizableEntity);
+    });
   });
 
   describe('lookupBfoRegister()', () => {

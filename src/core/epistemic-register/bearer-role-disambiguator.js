@@ -29,30 +29,49 @@ const STRUCTURAL_PATTERNS = [
   /^(tall|short|heavy|light|large|small)/i,
 ];
 
+// Credential patterns checked before structural to prevent "has_jurisdiction"
+// matching structural "has_" prefix (BRD-17, ADV-06).
 const CREDENTIAL_PATTERNS = [
-  /^has[_ ]?(degree|certification|license|credential|diploma|permit|accreditation)/i,
+  /^has[_ ]?(degree|certification|license|credential|diploma|permit|accreditation|jurisdiction)/i,
   /^(certified|licensed|qualified|authorized|accredited|registered|enrolled)/i,
   /^(works[_ ]?at|reports[_ ]?to|employed[_ ]?by|affiliated[_ ]?with)/i,
+  // Catch credential keywords appearing after an intermediate qualifier (ADV-06):
+  // e.g., "has_surgical_certification" — "certification" is inherently credential.
+  /(certification|accreditation|credential|diploma|jurisdiction)[_ ]?$/i,
+];
+
+const BEHAVIORAL_PATTERNS = [
+  /^(diagnoses|treats|heals|protects|nurtures|teaches|educates|adjudicates|guards|serves|advises|manages|leads|supervises)/i,
 ];
 
 /**
- * Classify a property label as structural, credential, or behavioral.
+ * Classify a property label as structural, credential, behavioral, or unclassified.
+ *
+ * Unknown properties default to 'unclassified' (not 'behavioral') to avoid
+ * generating false IEE review noise. Sensitivity is a positive signal, not
+ * a default state (BRD-11).
  *
  * @param {string} propertyLabel - Property label (owl:onProperty value)
- * @returns {'structural' | 'credential' | 'behavioral'}
+ * @returns {'structural' | 'credential' | 'behavioral' | 'unclassified'}
  */
 function classifyPropertyType(propertyLabel) {
-  if (!propertyLabel || typeof propertyLabel !== 'string') return 'behavioral';
+  if (!propertyLabel || typeof propertyLabel !== 'string') return 'unclassified';
+
+  // Credential checked before structural to prevent "has_jurisdiction"
+  // matching structural "has_" prefix (BRD-17, ADV-06).
+  for (const pattern of CREDENTIAL_PATTERNS) {
+    if (pattern.test(propertyLabel)) return 'credential';
+  }
 
   for (const pattern of STRUCTURAL_PATTERNS) {
     if (pattern.test(propertyLabel)) return 'structural';
   }
 
-  for (const pattern of CREDENTIAL_PATTERNS) {
-    if (pattern.test(propertyLabel)) return 'credential';
+  for (const pattern of BEHAVIORAL_PATTERNS) {
+    if (pattern.test(propertyLabel)) return 'behavioral';
   }
 
-  return 'behavioral';
+  return 'unclassified';
 }
 
 /**
@@ -137,11 +156,21 @@ export function disambiguateBearerRole(restriction, concept, graph) {
     };
   }
 
-  // behavioral (default for Role)
+  if (kind === 'behavioral') {
+    // Positively-identified behavioral property → heightened sensitivity
+    return {
+      bfoCategory: BFO.role,
+      retargeted: false,
+      propertyType: 'behavioral',
+      sensitivity: 'heightened',
+    };
+  }
+
+  // unclassified — unknown property on Role: no sensitivity (BRD-11)
   return {
     bfoCategory: BFO.role,
     retargeted: false,
-    propertyType: 'behavioral',
-    sensitivity: 'heightened',
+    propertyType: 'unclassified',
+    sensitivity: 'normal',
   };
 }

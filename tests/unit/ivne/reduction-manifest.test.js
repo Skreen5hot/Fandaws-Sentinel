@@ -49,21 +49,28 @@ describe('ManifestBuilder — fidelityScore', () => {
     expect(builder.computeFidelityScore()).toBe(0.0);
   });
 
-  it('returns correct ratio for mixed losses', () => {
+  it('returns correct weighted score for mixed losses', () => {
     const builder = createBuilder();
     builder.recordLoss(makeLoss('informational'));
     builder.recordLoss(makeLoss('degraded'));
     builder.recordLoss(makeLoss('lossy'));
-    // 1 informational / 3 total = 0.333...
-    expect(builder.computeFidelityScore()).toBeCloseTo(1 / 3);
+    // 1 - (0 + 0.5 + 1.0) / 3 = 1 - 0.5 = 0.5
+    expect(builder.computeFidelityScore()).toBe(0.5);
   });
 
-  it('counts degraded as non-informational', () => {
+  it('returns 0.5 when all losses are degraded', () => {
+    const builder = createBuilder();
+    builder.recordLoss(makeLoss('degraded'));
+    // 1 - 0.5/1 = 0.5
+    expect(builder.computeFidelityScore()).toBe(0.5);
+  });
+
+  it('treats degraded as half-penalty, not full penalty', () => {
     const builder = createBuilder();
     builder.recordLoss(makeLoss('informational'));
     builder.recordLoss(makeLoss('degraded'));
-    // 1 informational / 2 total = 0.5
-    expect(builder.computeFidelityScore()).toBe(0.5);
+    // 1 - (0 + 0.5) / 2 = 1 - 0.25 = 0.75
+    expect(builder.computeFidelityScore()).toBe(0.75);
   });
 });
 

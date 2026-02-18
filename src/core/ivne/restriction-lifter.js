@@ -244,7 +244,7 @@ export function liftRestrictions(restrictions, conceptMap, lossRecords, config, 
       newLossRecords.push(
         createLoss(LOSS_TYPES.universalWeakening, {
           affectedConcepts: [restriction.classIri],
-          sourceAxiom: restriction.sourceAxiom || '',
+          sourceAxiom: restriction.sourceAxiom || `${restriction.classIri} SubClassOf (${restriction.property} only ${restriction.filler})`,
           compiledForm: `${restriction.classIri} fandaws:Property(${restriction.property}, universal, ${restriction.filler})`,
           lostSemantics: 'Universal quantifier weakened. OWL "only" constraint compiled as advisory universal property; open-world assumption not enforceable in Fandaws single-tree model.',
           sourceOntology: runContext.sourceOntology || '',

@@ -213,7 +213,7 @@ function flattenIntersection(expr, state, visited) {
       importedFrom: null,
       sourceOntology: context.sourceOntology,
       generatedFrom: expression,
-      allowRoot: false,
+      allowRoot: true,
     });
 
     state.concepts.set(iri, concept);
@@ -270,7 +270,7 @@ function flattenUnion(expr, state, visited) {
       importedFrom: null,
       sourceOntology: context.sourceOntology,
       generatedFrom: expression,
-      allowRoot: false,
+      allowRoot: true,
     });
 
     // Store disjunct list for downstream CSS consumption

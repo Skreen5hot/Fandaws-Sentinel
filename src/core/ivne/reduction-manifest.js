@@ -5,7 +5,8 @@
  * and computes the fidelityScore when .build() is called.
  *
  * fidelityScore = 1.0 when total losses = 0 (perfect import).
- * Otherwise: informational count / total loss count.
+ * Otherwise: 1.0 - (weighted penalty / total losses).
+ * Weights: informational=0, degraded=0.5, lossy=1.0.
  *
  * @see docs/architecture/IVNE_v2.1_Specification.md Section 11
  */
@@ -122,7 +123,10 @@ export class ManifestBuilder {
    * Compute fidelity score.
    *
    * fidelityScore = 1.0 when total losses = 0
-   * Otherwise: count(informational) / count(total losses)
+   * Otherwise: 1.0 - (weighted penalty / total losses) where:
+   *   - informational = 0 weight (no penalty)
+   *   - degraded = 0.5 weight (partial penalty — semantics preserved but weakened)
+   *   - lossy = 1.0 weight (full penalty — information irreversibly lost)
    *
    * @returns {number} Score between 0.0 and 1.0
    */
@@ -130,11 +134,14 @@ export class ManifestBuilder {
     const total = this._lossRecords.length;
     if (total === 0) return 1.0;
 
-    const informational = this._lossRecords.filter(
-      (lr) => lr['fandaws:severity'] === SEVERITY.informational,
-    ).length;
+    const SEVERITY_WEIGHT = { informational: 0, degraded: 0.5, lossy: 1.0 };
+    let weightedPenalty = 0;
+    for (const lr of this._lossRecords) {
+      const sev = lr['fandaws:severity'] || 'lossy';
+      weightedPenalty += SEVERITY_WEIGHT[sev] ?? 1.0;
+    }
 
-    return informational / total;
+    return Math.max(0, 1.0 - weightedPenalty / total);
   }
 
   /**

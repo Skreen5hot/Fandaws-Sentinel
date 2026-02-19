@@ -1659,6 +1659,22 @@ const IVNE_SCENARIOS = [
       ],
     },
   },
+  {
+    label: 'P8 Cardinality (Structural Shift)',
+    note: 'Dog hasLeg min 4 Leg — existential floor + constraint + degraded loss',
+    ontology: {
+      ontologyIRI: 'http://example.org/cardinality.owl',
+      classes: [
+        { iri: 'ex:Dog', annotations: [{ property: 'rdfs:label', value: 'Dog' }], parents: [] },
+        { iri: 'ex:Leg', annotations: [{ property: 'rdfs:label', value: 'Leg' }], parents: [] },
+        { iri: 'ex:Eye', annotations: [{ property: 'rdfs:label', value: 'Eye' }], parents: [] },
+      ],
+      restrictions: [
+        { type: 'Cardinality', affectedClass: 'ex:Dog', property: 'hasLeg', filler: 'ex:Leg', minCardinality: 4, quantifier: 'existential', sourceAxiom: 'Dog SubClassOf (hasLeg min 4 Leg)' },
+        { type: 'Cardinality', affectedClass: 'ex:Dog', property: 'hasEye', filler: 'ex:Eye', maxCardinality: 2, quantifier: 'existential', sourceAxiom: 'Dog SubClassOf (hasEye max 2 Eye)' },
+      ],
+    },
+  },
 ];
 
 const IVNE_FIXED_CONFIG = {
@@ -1726,6 +1742,7 @@ function runIvneCompile() {
     const mergeDescs = result['fandaws:mergeDescriptors'] || [];
     const fidelity = stats.fidelityScore;
 
+    const cardConstraints = result['fandaws:cardinalityConstraints'] || [];
     const fidelityColor = fidelity >= 1.0 ? '#3dd68c' : fidelity >= 0.8 ? '#f0c674' : '#ff6b6b';
     const fidelityLabel = fidelity >= 1.0 ? 'Perfect' : fidelity >= 0.8 ? 'Degraded' : 'Lossy';
 
@@ -1733,6 +1750,7 @@ function runIvneCompile() {
       `<span class="badge badge--green">${concepts.length} concepts</span> ` +
       `<span class="badge" style="background: ${fidelityColor}20; color: ${fidelityColor}; border: 1px solid ${fidelityColor}40;">Fidelity: ${(fidelity * 100).toFixed(1)}% (${fidelityLabel})</span> ` +
       `<span class="badge badge--accent">${lossRecords.length} loss records</span>` +
+      (cardConstraints.length > 0 ? ` <span class="badge badge--yellow">${cardConstraints.length} cardinality constraints</span>` : '') +
       (mergeDescs.length > 0 ? ` <span class="badge badge--yellow">${mergeDescs.length} merge descriptors</span>` : '');
 
     // Concepts
@@ -1752,7 +1770,8 @@ function runIvneCompile() {
       const lossLines = lossRecords.map((lr) => {
         const sev = lr['fandaws:severity'] || '?';
         const type = lr['fandaws:lossType'] || '?';
-        return `[${sev.toUpperCase()}] ${type}: ${lr['fandaws:lostSemantics'] || ''}`.substring(0, 120);
+        const txType = lr['fandaws:transformationType'] || '?';
+        return `[${sev.toUpperCase()}] ${type} (${txType}): ${lr['fandaws:lostSemantics'] || ''}`.substring(0, 150);
       });
       lossEl.textContent = lossLines.join('\n');
     } else {

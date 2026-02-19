@@ -8,14 +8,14 @@
  * @see docs/architecture/IVNE_v2.1_Specification.md Section 4
  */
 
-import { createSemanticLossRecord } from '../../types/ivne-types.js';
+import { createSemanticLossRecord, TRANSFORMATION_TYPE } from '../../types/ivne-types.js';
 
 // ── Loss Type Enumeration ──
 
 export const LOSS_TYPES = {
   intersectionFlattening: 'intersectionFlattening',
   unionGeneralization: 'unionGeneralization',
-  cardinalityDowngrade: 'cardinalityDowngrade',
+  cardinalityWeakening: 'cardinalityWeakening',
   complementDrop: 'complementDrop',
   enumerationDrop: 'enumerationDrop',
   vacuousDrop: 'vacuousDrop',
@@ -37,13 +37,27 @@ export const SEVERITY = {
 export const LOSS_SEVERITY_MAP = {
   [LOSS_TYPES.intersectionFlattening]: SEVERITY.informational,
   [LOSS_TYPES.unionGeneralization]: SEVERITY.lossy,
-  [LOSS_TYPES.cardinalityDowngrade]: SEVERITY.degraded,
+  [LOSS_TYPES.cardinalityWeakening]: SEVERITY.degraded,
   [LOSS_TYPES.complementDrop]: SEVERITY.lossy,
   [LOSS_TYPES.enumerationDrop]: SEVERITY.lossy,
   [LOSS_TYPES.vacuousDrop]: SEVERITY.informational,
   [LOSS_TYPES.universalWeakening]: SEVERITY.degraded,
   [LOSS_TYPES.chainComplexityFlag]: SEVERITY.degraded,
   [LOSS_TYPES.cycleDrop]: SEVERITY.lossy,
+};
+
+// ── Transformation Type Mapping ──
+
+export const TRANSFORMATION_MAP = {
+  [LOSS_TYPES.intersectionFlattening]: TRANSFORMATION_TYPE.MONOTONIC_REDUCTION,
+  [LOSS_TYPES.unionGeneralization]: TRANSFORMATION_TYPE.GENERALIZATION,
+  [LOSS_TYPES.cardinalityWeakening]: TRANSFORMATION_TYPE.STRUCTURAL_SHIFT,
+  [LOSS_TYPES.complementDrop]: TRANSFORMATION_TYPE.REJECTION,
+  [LOSS_TYPES.enumerationDrop]: TRANSFORMATION_TYPE.REJECTION,
+  [LOSS_TYPES.vacuousDrop]: TRANSFORMATION_TYPE.CONSERVATIVE_EXTENSION,
+  [LOSS_TYPES.universalWeakening]: TRANSFORMATION_TYPE.STRUCTURAL_SHIFT,
+  [LOSS_TYPES.chainComplexityFlag]: TRANSFORMATION_TYPE.STRUCTURAL_SHIFT,
+  [LOSS_TYPES.cycleDrop]: TRANSFORMATION_TYPE.REJECTION,
 };
 
 // ── Downstream Impact Templates ──
@@ -61,7 +75,7 @@ const IMPACT_TEMPLATES = {
     iee: 'flagAsWeaklyGrounded',
     shml: 'markProvisional',
   },
-  [LOSS_TYPES.cardinalityDowngrade]: {
+  [LOSS_TYPES.cardinalityWeakening]: {
     fnsr: { des: 'useCardinalityConstraint', css: 'useCardinalityConstraint', aps: 'noImpact', mdre: 'noImpact' },
     oce: 'useCardinalityConstraint',
     iee: 'useCardinalityConstraint',
@@ -144,9 +158,16 @@ export function createLoss(lossType, params) {
     throw new Error(`Unknown loss type: ${lossType}`);
   }
 
+  let transformationType = TRANSFORMATION_MAP[lossType];
+  if (transformationType === undefined) {
+    console.warn(`[IVNE] Unknown lossType '${lossType}' — defaulting transformationType to 'rejection'`);
+    transformationType = TRANSFORMATION_TYPE.REJECTION;
+  }
+
   return createSemanticLossRecord({
     lossType,
     severity,
+    transformationType,
     downstreamImpact: defaultDownstreamImpact(lossType),
     ...params,
   });

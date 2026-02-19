@@ -146,7 +146,7 @@ export { disambiguateBearerRole } from './core/epistemic-register/bearer-role-di
 
 // IVNE — Ingestion, Validation & Normalization Engine (Phase 14)
 export { compile } from './core/ivne/ivne.js';
-export { LOSS_TYPES, SEVERITY, LOSS_SEVERITY_MAP, createLoss } from './core/ivne/semantic-loss.js';
+export { LOSS_TYPES, SEVERITY, LOSS_SEVERITY_MAP, TRANSFORMATION_MAP, createLoss } from './core/ivne/semantic-loss.js';
 export { sha256Hex } from './core/ivne/sha256.js';
 export { extractLabel, iriToLocalName, splitCamelCase } from './core/ivne/label-extractor.js';
 export { generateHashIri, canonicalizeExpression } from './core/ivne/ivne-iri-generator.js';
@@ -156,6 +156,7 @@ export {
   createSemanticLossRecord,
   createReductionManifest,
   createCardinalityConstraint,
+  TRANSFORMATION_TYPE,
 } from './types/ivne-types.js';
 
 // Adapter base classes

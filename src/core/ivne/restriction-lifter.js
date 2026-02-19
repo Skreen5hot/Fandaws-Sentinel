@@ -236,7 +236,53 @@ export function liftRestrictions(restrictions, conceptMap, lossRecords, config, 
       if (cc) {
         cardinalityConstraints.push(cc);
       }
-      // The existential component is still processed below as a normal restriction
+
+      // Emit per-type cardinalityWeakening loss record
+      const { min, max, exact } = restriction.cardinality;
+      const isMaxOnly = max !== null && min === null && exact === null;
+
+      const lossParams = {
+        affectedConcepts: [restriction.classIri],
+        sourceAxiom: restriction.sourceAxiom || '',
+        compiledForm: `CardinalityConstraint(${restriction.property}, ${restriction.classIri})`,
+        sourceOntology: runContext.sourceOntology || '',
+        ivneRunId: runContext.ivneRunId || '',
+      };
+
+      if (exact !== null) {
+        lossParams.lostSemantics = `Exact cardinality ${exact} shifted to validation metadata. Logical layer sees existential only.`;
+      } else if (isMaxOnly) {
+        lossParams.lostSemantics = `Maximum cardinality ${max} shifted to validation metadata. No existential floor — logical layer has no representation.`;
+        lossParams.severity = 'lossy';
+      } else {
+        lossParams.lostSemantics = `Minimum cardinality ${min} shifted to validation metadata. Logical layer sees existential only.`;
+      }
+
+      newLossRecords.push(createLoss(LOSS_TYPES.cardinalityWeakening, lossParams));
+
+      // max-only: skip existential floor entirely — only the constraint is emitted
+      if (isMaxOnly) {
+        continue;
+      }
+
+      // min or exactly: check for duplicate existential before creating
+      const scope = runContext.scope || 'fandaws:scope/default';
+      const { canonicalLabel: propLabel } = simplify(restriction.property, {
+        locale: config.locale || 'en',
+      });
+      const propIri = generatePropertyIri(propLabel, scope);
+      const concept = conceptMap.get(restriction.classIri);
+
+      if (concept) {
+        const alreadyHasProp = concept['fandaws:properties'].some(
+          (p) => p['@id'] === propIri && p['fandaws:value'] === restriction.filler,
+        );
+        if (alreadyHasProp) {
+          // Existential already exists — skip, constraint already emitted above
+          continue;
+        }
+      }
+      // Fall through to normal inline/name processing for the existential component
     }
 
     // Emit universalWeakening loss for P6 universal restrictions

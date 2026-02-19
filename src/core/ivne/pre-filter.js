@@ -157,17 +157,9 @@ export function gateCardinality(axiom, context = {}) {
     );
   }
 
-  // Dual representation for all other cardinality restrictions
-  return dual(
-    createLoss(LOSS_TYPES.cardinalityDowngrade, {
-      affectedConcepts: axiom.affectedClass ? [axiom.affectedClass] : [],
-      sourceAxiom: axiom.sourceAxiom || formatCardinalityAxiom(axiom),
-      compiledForm: `P5 existential (${axiom.property || '?'} some ${axiom.filler || '?'}) + CardinalityConstraint`,
-      lostSemantics: 'Cardinality constraint compiled to existential-only in the logical layer. Full constraint preserved as CardinalityConstraint for OCE/IEE consumption.',
-      sourceOntology: context.sourceOntology || '',
-      ivneRunId: context.ivneRunId || '',
-    }),
-  );
+  // Dual representation for all other cardinality restrictions.
+  // Loss record is emitted by the restriction-lifter, not the pre-filter.
+  return dual(null);
 }
 
 /**

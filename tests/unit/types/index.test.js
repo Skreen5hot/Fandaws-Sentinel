@@ -55,7 +55,7 @@ describe('types/index barrel export', () => {
     expect(types.ROUTING_STRENGTHS).toBeDefined();
   });
 
-  it('exports exactly 32 members (1 context + 26 factories + 2 type checks + 3 constants)', () => {
-    expect(Object.keys(types)).toHaveLength(32);
+  it('exports exactly 33 members (1 context + 26 factories + 2 type checks + 4 constants)', () => {
+    expect(Object.keys(types)).toHaveLength(33);
   });
 });

@@ -31,7 +31,7 @@ describe('LOSS_TYPES', () => {
     const expected = [
       'intersectionFlattening',
       'unionGeneralization',
-      'cardinalityDowngrade',
+      'cardinalityWeakening',
       'complementDrop',
       'enumerationDrop',
       'vacuousDrop',
@@ -77,8 +77,8 @@ describe('LOSS_SEVERITY_MAP', () => {
     expect(LOSS_SEVERITY_MAP[LOSS_TYPES.unionGeneralization]).toBe(SEVERITY.lossy);
   });
 
-  it('maps cardinalityDowngrade to degraded', () => {
-    expect(LOSS_SEVERITY_MAP[LOSS_TYPES.cardinalityDowngrade]).toBe(SEVERITY.degraded);
+  it('maps cardinalityWeakening to degraded', () => {
+    expect(LOSS_SEVERITY_MAP[LOSS_TYPES.cardinalityWeakening]).toBe(SEVERITY.degraded);
   });
 
   it('maps cycleDrop to lossy', () => {

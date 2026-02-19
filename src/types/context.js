@@ -49,6 +49,7 @@ export const FANDAWS_CONTEXT = {
     'fandaws:ivneVersion': { '@type': 'xsd:string' },
     'fandaws:sourceOntology': { '@type': '@id' },
     'fandaws:compiledAt': { '@type': 'xsd:dateTime' },
+    'fandaws:transformationType': { '@type': 'xsd:string' },
     'fandaws:disjuncts': { '@container': '@set', '@type': '@id' },
 
     // ── Epistemic Register Service (ERS Phase 10b) ──

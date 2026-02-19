@@ -156,7 +156,7 @@ describe('gateCardinality', () => {
     expect(result.lossRecord['fandaws:severity']).toBe('informational');
   });
 
-  it('returns dual for min-cardinality > 0', () => {
+  it('returns dual with null lossRecord for min-cardinality > 0', () => {
     const result = gateCardinality({
       type: 'Cardinality',
       minCardinality: 1,
@@ -165,8 +165,8 @@ describe('gateCardinality', () => {
       filler: 'ex:Wheel',
     });
     expect(result.action).toBe('dual');
-    expect(result.lossRecord['fandaws:lossType']).toBe('cardinalityDowngrade');
-    expect(result.lossRecord['fandaws:severity']).toBe('degraded');
+    // Loss record is now emitted by restriction-lifter, not pre-filter
+    expect(result.lossRecord).toBeNull();
   });
 
   it('returns dual for exactCardinality', () => {

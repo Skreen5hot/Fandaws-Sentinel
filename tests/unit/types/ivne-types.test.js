@@ -315,12 +315,21 @@ describe('createCardinalityConstraint', () => {
     ).toThrow('invariant violated');
   });
 
-  it('throws if maxCardinality is less than 1', () => {
+  it('allows maxCardinality of 0 (prohibition semantics)', () => {
+    const cc = createCardinalityConstraint({
+      property: 'fandaws:property/x',
+      constrainedClass: 'fandaws:class/y',
+      maxCardinality: 0,
+    });
+    expect(cc['fandaws:maxCardinality']).toBe(0);
+  });
+
+  it('throws if maxCardinality is negative', () => {
     expect(() =>
       createCardinalityConstraint({
         property: 'fandaws:property/x',
         constrainedClass: 'fandaws:class/y',
-        maxCardinality: 0,
+        maxCardinality: -1,
       }),
     ).toThrow('invariant violated');
   });

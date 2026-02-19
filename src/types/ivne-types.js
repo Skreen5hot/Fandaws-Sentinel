@@ -7,6 +7,16 @@
  * @see docs/architecture/IVNE_v2.1_Specification.md
  */
 
+// ── Transformation Type Enumeration ──
+
+export const TRANSFORMATION_TYPE = Object.freeze({
+  CONSERVATIVE_EXTENSION: 'conservativeExtension',
+  MONOTONIC_REDUCTION: 'monotonicReduction',
+  GENERALIZATION: 'generalization',
+  STRUCTURAL_SHIFT: 'structuralShift',
+  REJECTION: 'rejection',
+});
+
 // ── IVNE Configuration Defaults ──
 
 const IVNE_DEFAULTS = {
@@ -106,11 +116,13 @@ export function createSemanticLossRecord({
   downstreamImpact = {},
   sourceOntology = '',
   ivneRunId = '',
+  transformationType = null,
 }) {
   return {
     '@type': 'fandaws:SemanticLossRecord',
     'fandaws:lossType': lossType,
     'fandaws:severity': severity,
+    'fandaws:transformationType': transformationType,
     'fandaws:affectedConcepts': affectedConcepts,
     'fandaws:sourceAxiom': sourceAxiom,
     'fandaws:compiledForm': compiledForm,
@@ -227,9 +239,10 @@ export function createCardinalityConstraint({
       `CardinalityConstraint invariant violated: minCardinality=${minCardinality} < 0`,
     );
   }
-  if (maxCardinality !== null && maxCardinality < 1) {
+  // max 0 = prohibition (no instances of this property allowed). See TB-03.
+  if (maxCardinality !== null && maxCardinality < 0) {
     throw new Error(
-      `CardinalityConstraint invariant violated: maxCardinality=${maxCardinality} < 1`,
+      `CardinalityConstraint invariant violated: maxCardinality=${maxCardinality} < 0`,
     );
   }
 

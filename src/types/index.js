@@ -43,4 +43,5 @@ export {
   createSemanticLossRecord,
   createReductionManifest,
   createCardinalityConstraint,
+  TRANSFORMATION_TYPE,
 } from './ivne-types.js';

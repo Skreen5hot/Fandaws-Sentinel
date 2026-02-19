@@ -486,13 +486,14 @@ function processRestriction(axiom, state) {
   if (axiom.type === 'Cardinality') {
     const gate = gateCardinality(axiom, state.context);
     if (gate.action === 'reject') {
+      // Only vacuous-drop (min 0) emits a loss record at the flattener level
       state.lossRecords.push(gate.lossRecord);
       state.rejectedAxioms.push({ axiom, reason: 'vacuousDrop' });
       return;
     }
-    if (gate.lossRecord) {
-      state.lossRecords.push(gate.lossRecord);
-    }
+    // action === 'dual': fall through to create restriction descriptor.
+    // NO loss record pushed here — the restriction-lifter emits per-type
+    // cardinalityWeakening loss records when it processes the descriptor.
   }
 
   const classIri = resolveSourceIri(axiom.affectedClass, state);

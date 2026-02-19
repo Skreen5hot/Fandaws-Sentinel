@@ -1,11 +1,11 @@
 {
   "generatedAt": "2026-02-18T13:49:55.208Z",
   "success": true,
-  "totalSuites": 81,
-  "passedSuites": 81,
+  "totalSuites": 83,
+  "passedSuites": 83,
   "failedSuites": 0,
-  "totalTests": 1620,
-  "passedTests": 1620,
+  "totalTests": 1661,
+  "passedTests": 1661,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -138,6 +138,10 @@
       "duration": 0
     },
     {
+      "name": "unit/ivne/cardinality.test.js",
+      "duration": 0
+    },
+    {
       "name": "unit/ivne/flattener.test.js",
       "duration": 0
     },
@@ -175,6 +179,10 @@
     },
     {
       "name": "unit/ivne/sha256.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/ivne/transformation-type.test.js",
       "duration": 0
     },
     {

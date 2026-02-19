@@ -1,0 +1,718 @@
+/* Fandaws Sentinel Workbench — Three-Panel Layout
+ * All selectors prefixed wb- to avoid collisions with style.css.
+ * Reuses CSS custom properties from :root in style.css.
+ */
+
+/* ── Layout Variables ── */
+:root {
+  --wb-header-h: 56px;
+  --wb-switcher-h: 40px;
+  --wb-status-h: 32px;
+  --wb-left-w: 260px;
+  --wb-right-w: 320px;
+}
+
+/* ── Body override for Workbench ── */
+body.workbench {
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+.wb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--wb-header-h);
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wb-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wb-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.wb-title-accent { color: var(--accent); }
+
+.wb-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.wb-btn-reset {
+  color: var(--red);
+  border-color: rgba(255, 107, 107, 0.3);
+}
+.wb-btn-reset:hover {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--red);
+}
+
+/* ── Mode Switcher ── */
+.wb-mode-switcher {
+  display: flex;
+  gap: 0;
+  height: var(--wb-switcher-h);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.wb-mode {
+  padding: 0 18px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.wb-mode:hover { color: var(--text); }
+.wb-mode.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Three-Panel Grid ── */
+.wb-layout {
+  display: grid;
+  grid-template-columns: var(--wb-left-w) 1fr var(--wb-right-w);
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Panels (shared) ── */
+.wb-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.wb-panel--left {
+  border-right: 1px solid var(--border);
+}
+
+.wb-panel--right {
+  border-left: 1px solid var(--border);
+}
+
+.wb-panel--center {
+  overflow-y: auto;
+}
+
+.wb-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Graph Tree (Left Panel) ── */
+.wb-tree-filter {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  margin-top: 8px;
+}
+
+.wb-tree-filter:focus { border-color: var(--accent); }
+
+.wb-panel--left .wb-panel-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.wb-tree-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.wb-tree-empty {
+  padding: 24px 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.wb-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.wb-tree-node:hover { background: var(--surface-alt); }
+.wb-tree-node--selected { background: rgba(108, 138, 255, 0.12); color: var(--accent); }
+
+.wb-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.wb-tree-toggle--expanded { transform: rotate(90deg); }
+.wb-tree-toggle--leaf { visibility: hidden; }
+
+.wb-tree-bfo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wb-tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* BFO category colors */
+.wb-bfo-entity { background: var(--accent); }
+.wb-bfo-continuant { background: #6cd6b3; }
+.wb-bfo-occurrent { background: #ff8a65; }
+.wb-bfo-material { background: #3dd68c; }
+.wb-bfo-immaterial { background: #a78bfa; }
+.wb-bfo-process { background: #ffd43b; }
+.wb-bfo-quality { background: #f472b6; }
+.wb-bfo-role { background: #38bdf8; }
+.wb-bfo-disposition { background: #fb923c; }
+.wb-bfo-default { background: var(--text-muted); }
+
+/* ── Converse Panel (Center — Converse mode) ── */
+.wb-converse {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.wb-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wb-chat-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.wb-chat-msg--user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.wb-chat-msg--system {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.wb-chat-msg--error {
+  align-self: flex-start;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: var(--red);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.wb-chat-msg--scope-prompt {
+  align-self: flex-start;
+  background: var(--yellow-bg);
+  border: 1px solid rgba(255, 212, 59, 0.3);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.wb-chat-msg--onboarding {
+  align-self: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 90%;
+}
+
+.wb-scope-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.wb-scope-btn {
+  padding: 4px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.wb-scope-btn:hover { background: var(--surface-alt); }
+.wb-scope-btn--yes { border-color: var(--green); color: var(--green); }
+.wb-scope-btn--no { border-color: var(--red); color: var(--red); }
+
+/* Pipeline trace (collapsed under system bubble) */
+.wb-trace-toggle {
+  display: inline-block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-top: 6px;
+  user-select: none;
+}
+
+.wb-trace-toggle:hover { color: var(--text); }
+
+.wb-trace-details {
+  display: none;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.wb-trace-details.open { display: block; }
+
+.wb-trace-row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.wb-trace-check { color: var(--green); }
+.wb-trace-fail { color: var(--red); }
+
+/* Chat input */
+.wb-chat-input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.wb-chat-input:focus { border-color: var(--accent); }
+
+.wb-chat-input::placeholder { color: var(--text-muted); }
+
+.wb-chat-send {
+  padding: 10px 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.wb-chat-send:hover { background: #5a7aef; }
+.wb-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Inspector Panel (Right) ── */
+.wb-inspector {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.wb-inspector-section {
+  margin-bottom: 20px;
+}
+
+.wb-inspector-section-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.wb-inspector-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.wb-inspector-iri {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.wb-inspector-description {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.wb-inspector-auto-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  padding: 2px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.wb-inspector-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.78rem;
+}
+
+.wb-inspector-breadcrumb-item {
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.wb-inspector-breadcrumb-item:hover { color: var(--accent); }
+.wb-inspector-breadcrumb-sep { color: var(--border); }
+
+.wb-inspector-prop,
+.wb-inspector-rel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wb-inspector-prop:last-child,
+.wb-inspector-rel:last-child { border-bottom: none; }
+
+.wb-inspector-jsonld {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  color: var(--text-muted);
+}
+
+.wb-inspector-jsonld-toggle {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-bottom: 6px;
+  user-select: none;
+}
+
+.wb-inspector-jsonld-toggle:hover { color: var(--text); }
+
+/* Inspector — Graph Dashboard (nothing selected) */
+.wb-dashboard-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.wb-dashboard-stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.wb-dashboard-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.wb-dashboard-dist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.wb-dashboard-dist-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.wb-dashboard-root {
+  padding: 4px 0;
+  font-size: 0.82rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.wb-dashboard-root:hover { color: var(--accent); }
+
+/* ── Export Panel (Center — Export mode) ── */
+.wb-export {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+}
+
+.wb-export-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.wb-export-select {
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.wb-export-select:focus { border-color: var(--accent); }
+
+.wb-export-preview {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.wb-export-empty {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-style: italic;
+}
+
+/* ── Status Bar ── */
+.wb-status-bar {
+  display: flex;
+  align-items: center;
+  height: var(--wb-status-h);
+  padding: 0 20px;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+/* ── Mobile Tabs (< 768px) ── */
+.wb-mobile-tabs {
+  display: none;
+  height: 44px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.wb-mobile-tab {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-top: 2px solid transparent;
+  cursor: pointer;
+}
+
+.wb-mobile-tab.active { color: var(--accent); border-top-color: var(--accent); }
+
+/* ── Concept link (clickable concept names in chat) ── */
+.wb-concept-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.wb-concept-link:hover { text-decoration-style: solid; }
+
+/* ── Workflow badge in chat ── */
+.wb-workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.wb-workflow-badge--classification { background: rgba(108, 138, 255, 0.12); color: var(--accent); }
+.wb-workflow-badge--property { background: var(--green-bg); color: var(--green); }
+.wb-workflow-badge--relationship { background: var(--yellow-bg); color: var(--yellow); }
+
+/* Register badge (small, inline) */
+.wb-register-sm {
+  display: inline-flex;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  letter-spacing: 0.02em;
+}
+
+.wb-register-sm--r1 { background: rgba(108, 138, 255, 0.15); color: var(--accent); }
+.wb-register-sm--r2 { background: var(--green-bg); color: var(--green); }
+.wb-register-sm--r3 { background: var(--yellow-bg); color: var(--yellow); }
+
+/* ── Scrollbar styling ── */
+.wb-tree-container::-webkit-scrollbar,
+.wb-chat-log::-webkit-scrollbar,
+.wb-inspector::-webkit-scrollbar,
+.wb-export-preview::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wb-tree-container::-webkit-scrollbar-track,
+.wb-chat-log::-webkit-scrollbar-track,
+.wb-inspector::-webkit-scrollbar-track,
+.wb-export-preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wb-tree-container::-webkit-scrollbar-thumb,
+.wb-chat-log::-webkit-scrollbar-thumb,
+.wb-inspector::-webkit-scrollbar-thumb,
+.wb-export-preview::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* ── Responsive (< 768px) ── */
+@media (max-width: 768px) {
+  .wb-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wb-panel--left,
+  .wb-panel--right {
+    display: none;
+    border: none;
+  }
+
+  .wb-panel--left.wb-panel--visible,
+  .wb-panel--right.wb-panel--visible {
+    display: flex;
+    position: absolute;
+    inset: 0;
+    top: calc(var(--wb-header-h) + var(--wb-switcher-h));
+    bottom: calc(var(--wb-status-h) + 44px);
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .wb-mobile-tabs {
+    display: flex;
+  }
+
+  .wb-badges { display: none; }
+
+  .wb-title { font-size: 0.95rem; }
+}

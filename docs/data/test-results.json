@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-02-19T12:00:00.000Z",
+  "generatedAt": "2026-02-19T18:00:00.000Z",
   "success": true,
-  "totalSuites": 87,
-  "passedSuites": 87,
+  "totalSuites": 88,
+  "passedSuites": 88,
   "failedSuites": 0,
-  "totalTests": 1770,
-  "passedTests": 1770,
+  "totalTests": 1785,
+  "passedTests": 1785,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -239,6 +239,10 @@
     },
     {
       "name": "unit/scope-narrowing.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/state-adapter-serialization.test.js",
       "duration": 0
     },
     {

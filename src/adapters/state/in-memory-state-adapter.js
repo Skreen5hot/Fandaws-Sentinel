@@ -36,6 +36,9 @@ export class InMemoryStateAdapter extends StateAdapter {
      * @type {Map<string, object>}
      */
     this._indices = new Map();
+
+    /** @type {Function[]} Post-commit mutation observers. */
+    this._mutationListeners = [];
   }
 
   // ─────────────────────────────────────────────────────────
@@ -192,6 +195,14 @@ export class InMemoryStateAdapter extends StateAdapter {
     // Commit the draft
     this._graphs.set(id, draft);
     this._rebuildIndices(id, draft);
+
+    // Notify mutation listeners (post-commit, post-index-rebuild).
+    // Listeners are synchronous and block this return. Async listeners
+    // must not be used — v0.2 should evaluate queueMicrotask() if needed.
+    for (const listener of this._mutationListeners) {
+      try { listener(mutation, draft); } catch { /* swallow listener errors */ }
+    }
+
     return draft;
   }
 
@@ -576,5 +587,90 @@ export class InMemoryStateAdapter extends StateAdapter {
     }
 
     return ghosts;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Mutation observers
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Register a callback invoked after every successful applyMutation().
+   *
+   * Listeners fire AFTER the graph is committed and indices rebuilt,
+   * guaranteeing listeners see consistent state. Listeners cannot
+   * prevent mutations (post-commit observers, not pre-commit validators).
+   *
+   * @param {Function} callback - (mutation, updatedGraph) => void
+   * @returns {Function} Unsubscribe function
+   */
+  onMutation(callback) {
+    this._mutationListeners.push(callback);
+    return () => {
+      const idx = this._mutationListeners.indexOf(callback);
+      if (idx !== -1) this._mutationListeners.splice(idx, 1);
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Serialization
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Serialize the adapter's full state to a plain JSON-compatible object.
+   * Indices are NOT serialized — they are derived and rebuilt on deserialize.
+   *
+   * @returns {object} Plain object (safe for JSON.stringify / structuredClone)
+   */
+  serialize() {
+    const graphs = {};
+    for (const [id, graph] of this._graphs) graphs[id] = graph;
+    const sessions = {};
+    for (const [id, session] of this._sessions) sessions[id] = session;
+    const scopeConfigs = {};
+    for (const [id, config] of this._scopeConfigs) scopeConfigs[id] = config;
+    return { graphs, sessions, scopeConfigs };
+  }
+
+  /**
+   * Convenience: serialize to JSON string (debugging, console.log).
+   *
+   * @returns {string} JSON string of the serialized state
+   */
+  toJSON() {
+    return JSON.stringify(this.serialize());
+  }
+
+  /**
+   * Rebuild an InMemoryStateAdapter from a serialized snapshot.
+   * Rebuilds all 5 indices for every graph.
+   *
+   * @param {object} snapshot - Output of serialize()
+   * @returns {InMemoryStateAdapter} Fully hydrated adapter
+   */
+  static deserialize(snapshot) {
+    // Defensive: handle malformed or missing keys gracefully (SER-13)
+    if (!snapshot || typeof snapshot !== 'object') {
+      return new InMemoryStateAdapter();
+    }
+    const adapter = new InMemoryStateAdapter();
+    if (snapshot.graphs) {
+      for (const [id, graph] of Object.entries(snapshot.graphs)) {
+        adapter._graphs.set(id, graph);
+        // Note: cross-graph broader references will not resolve during
+        // deserialization. Phase 12 Federation must handle this.
+        adapter._rebuildIndices(id, graph);
+      }
+    }
+    if (snapshot.sessions) {
+      for (const [id, session] of Object.entries(snapshot.sessions)) {
+        adapter._sessions.set(id, session);
+      }
+    }
+    if (snapshot.scopeConfigs) {
+      for (const [id, config] of Object.entries(snapshot.scopeConfigs)) {
+        adapter._scopeConfigs.set(id, config);
+      }
+    }
+    return adapter;
   }
 }

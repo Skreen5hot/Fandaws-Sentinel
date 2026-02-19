@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fandaws Sentinel Workbench</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="workbench/css/workbench.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="workbench">
+
+  <!-- Header -->
+  <header class="wb-header">
+    <div class="wb-header-left">
+      <h1 class="wb-title">Fandaws Sentinel <span class="wb-title-accent">Workbench</span></h1>
+      <div class="wb-badges">
+        <span class="badge badge--accent">Spec v3.4</span>
+        <span class="badge badge--green" id="wb-badge-tests">1785 Tests</span>
+      </div>
+    </div>
+    <div class="wb-header-right">
+      <button class="btn btn--ghost wb-btn-reset" id="btn-reset-graph" title="Clear graph and start fresh">Reset Graph</button>
+      <a href="index.html" class="btn btn--ghost">Developer View</a>
+    </div>
+  </header>
+
+  <!-- Mode Switcher -->
+  <nav class="wb-mode-switcher">
+    <button class="wb-mode active" data-mode="converse">Converse</button>
+    <button class="wb-mode" data-mode="export">Export</button>
+  </nav>
+
+  <!-- Three-panel layout -->
+  <main class="wb-layout">
+    <!-- Left Panel: Graph Tree -->
+    <aside class="wb-panel wb-panel--left" id="panel-tree">
+      <div class="wb-panel-header">
+        <h2 class="wb-panel-title">Graph</h2>
+        <input type="text" class="wb-tree-filter" id="tree-filter" placeholder="Filter concepts..." />
+      </div>
+      <div class="wb-tree-container" id="tree-container">
+        <div class="wb-tree-empty">No concepts yet. Start conversing to build your graph.</div>
+      </div>
+    </aside>
+
+    <!-- Center Panel: Workspace -->
+    <section class="wb-panel wb-panel--center" id="panel-workspace">
+      <!-- Converse / Export content rendered by JS -->
+    </section>
+
+    <!-- Right Panel: Inspector -->
+    <aside class="wb-panel wb-panel--right" id="panel-inspector">
+      <!-- Inspector content rendered by JS -->
+    </aside>
+  </main>
+
+  <!-- Status Bar -->
+  <footer class="wb-status-bar" id="status-bar">
+    0 concepts | 0 relationships | 0 properties
+  </footer>
+
+  <!-- Mobile panel toggles (visible <768px) -->
+  <nav class="wb-mobile-tabs" id="mobile-tabs">
+    <button class="wb-mobile-tab active" data-panel="center">Work</button>
+    <button class="wb-mobile-tab" data-panel="left">Graph</button>
+    <button class="wb-mobile-tab" data-panel="right">Inspect</button>
+  </nav>
+
+  <script type="module" src="workbench/js/workbench-app.js"></script>
+</body>
+</html>

@@ -52,6 +52,11 @@ export const FANDAWS_CONTEXT = {
     'fandaws:transformationType': { '@type': 'xsd:string' },
     'fandaws:disjuncts': { '@container': '@set', '@type': '@id' },
 
+    // ── Session Lifecycle (Phase 11) ──
+    'fandaws:DialogueTurn': { '@type': '@id' },
+    'fandaws:role': { '@type': 'xsd:string' },
+    'fandaws:turnIndex': { '@type': 'xsd:integer' },
+
     // ── Epistemic Register Service (ERS Phase 10b) ──
     'fandaws:epistemicRegister': { '@type': '@id' },
     'fandaws:routingRecord': { '@type': '@id' },

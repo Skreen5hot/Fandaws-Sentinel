@@ -18,8 +18,8 @@
       <p class="subtitle">Edge-canonical conversational knowledge-building platform</p>
       <div class="badges">
         <span class="badge badge--accent">Spec v3.4</span>
-        <span class="badge badge--green" id="badge-phase">IVNE Complete</span>
-        <span class="badge badge--green" id="badge-tests">1661/1661 Tests Pass</span>
+        <span class="badge badge--green" id="badge-phase">Phase 11 Complete</span>
+        <span class="badge badge--green" id="badge-tests">1770/1770 Tests Pass</span>
       </div>
     </header>
 
@@ -37,6 +37,7 @@
           <button class="nav-dropdown-item" data-tab="export">Export Demo</button>
           <button class="nav-dropdown-item" data-tab="ers">ERS Demo</button>
           <button class="nav-dropdown-item" data-tab="ivne">IVNE Compiler</button>
+          <button class="nav-dropdown-item" data-tab="session">Session Lifecycle</button>
         </div>
       </div>
       <button class="nav-tab" data-tab="roadmap">Roadmap</button>
@@ -589,6 +590,43 @@
 
           <label>Full Output (JSON-LD)</label>
           <div id="ivne-full-output" class="factory-output" style="max-height: 300px;">
+            &mdash;
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: Session Lifecycle Demo (Phase 11) -->
+    <section class="section" id="section-session">
+      <h2 class="section-title">Session Lifecycle Demo</h2>
+      <p class="card-description" style="margin-bottom: 20px;">
+        Phase 11 implements session state machine management: pause/resume, nested negotiation,
+        abandon with cascade, concurrent session limits, and expiration. All lifecycle logic is
+        pure functions &mdash; the OrchestrationAdapter coordinates persistence via the StateAdapter.
+        Run the scenarios below to observe state transitions and dialogue history accumulation.
+      </p>
+
+      <div class="playground">
+        <div class="playground-input">
+          <h3 class="card-title">Scenarios</h3>
+          <div id="session-scenarios" class="desc-examples" style="margin-bottom: 16px;">
+            <!-- Populated by app.js -->
+          </div>
+        </div>
+
+        <div class="playground-output">
+          <label>Session State Machine</label>
+          <div id="session-state-trace" class="factory-output" style="max-height: 220px; margin-bottom: 14px;">
+            Select a scenario to run.
+          </div>
+
+          <label>Dialogue History</label>
+          <div id="session-dialogue" class="factory-output" style="max-height: 200px; margin-bottom: 14px;">
+            &mdash;
+          </div>
+
+          <label>Session JSON-LD</label>
+          <div id="session-json" class="factory-output" style="max-height: 300px;">
             &mdash;
           </div>
         </div>

@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-02-18T13:49:55.208Z",
+  "generatedAt": "2026-02-19T12:00:00.000Z",
   "success": true,
-  "totalSuites": 83,
-  "passedSuites": 83,
+  "totalSuites": 87,
+  "passedSuites": 87,
   "failedSuites": 0,
-  "totalTests": 1661,
-  "passedTests": 1661,
+  "totalTests": 1770,
+  "passedTests": 1770,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -38,6 +38,10 @@
       "duration": 0
     },
     {
+      "name": "golden/session-lifecycle-golden.test.js",
+      "duration": 0
+    },
+    {
       "name": "integration/classification-pipeline.test.js",
       "duration": 0
     },
@@ -59,6 +63,10 @@
     },
     {
       "name": "integration/relationship-pipeline.test.js",
+      "duration": 0
+    },
+    {
+      "name": "integration/session-lifecycle.test.js",
       "duration": 0
     },
     {
@@ -234,6 +242,10 @@
       "duration": 0
     },
     {
+      "name": "unit/session-lifecycle.test.js",
+      "duration": 0
+    },
+    {
       "name": "unit/skos-export.test.js",
       "duration": 0
     },
@@ -279,6 +291,10 @@
     },
     {
       "name": "unit/types/conversation-session.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/types/dialogue-turn.test.js",
       "duration": 0
     },
     {

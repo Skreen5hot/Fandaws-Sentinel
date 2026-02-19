@@ -159,6 +159,28 @@ export {
   TRANSFORMATION_TYPE,
 } from './types/ivne-types.js';
 
+// Session Lifecycle (Phase 11)
+export { createDialogueTurn } from './types/dialogue-turn.js';
+export {
+  SESSION_STATES,
+  TERMINAL_STATES,
+  VALID_TRANSITIONS,
+  validateTransition,
+  transitionSession,
+  isExpired,
+  computeExpiryTimestamp,
+  parseIsoDuration,
+  appendDialogueTurn,
+  findLastUnansweredPrompt,
+  countActiveSessions,
+  checkConcurrentLimit,
+  checkCircularNesting,
+  checkNestingDepth,
+  createNestedSessionParams,
+  findDescendantSessions,
+  computeAbandonCascade,
+} from './core/session/session-lifecycle.js';
+
 // Adapter base classes
 export { StateAdapter } from './adapters/state/state-adapter.js';
 export { InMemoryStateAdapter } from './adapters/state/in-memory-state-adapter.js';

@@ -88,11 +88,13 @@ export class InMemoryStateAdapter extends StateAdapter {
   }
 
   /**
-   * List sessions for a caller, optionally filtered by state.
+   * List sessions for a caller, optionally filtered by state or parent.
    *
    * @param {string} callerId - Caller identity
    * @param {object} [filter] - Optional filter
-   * @param {string} [filter.state] - Filter by session state
+   * @param {string} [filter.state] - Filter by single session state
+   * @param {string[]} [filter.states] - Filter by any of the given states
+   * @param {string|null} [filter.parentSessionId] - Filter by parent session ID
    * @returns {object[]} Array of ConversationSession JSON-LD nodes
    */
   listSessions(callerId, filter) {
@@ -100,6 +102,8 @@ export class InMemoryStateAdapter extends StateAdapter {
     for (const session of this._sessions.values()) {
       if (session['fandaws:callerId'] !== callerId) continue;
       if (filter?.state && session['fandaws:state'] !== filter.state) continue;
+      if (filter?.states && !filter.states.includes(session['fandaws:state'])) continue;
+      if (filter?.parentSessionId !== undefined && session['fandaws:parentSessionId'] !== filter.parentSessionId) continue;
       results.push(session);
     }
     return results;

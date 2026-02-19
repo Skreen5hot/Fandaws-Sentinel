@@ -36,6 +36,9 @@ export {
   ROUTING_STRENGTHS,
 } from './routing-record.js';
 
+// Session Lifecycle (Phase 11)
+export { createDialogueTurn } from './dialogue-turn.js';
+
 // IVNE Type Factories (Phase 14)
 export {
   createIVNEConfiguration,

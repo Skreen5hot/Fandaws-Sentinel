@@ -1810,6 +1810,227 @@ function runIvneCompile() {
 }
 
 // ─────────────────────────────────────────────────────────
+// Session Lifecycle Demo (Phase 11)
+// ─────────────────────────────────────────────────────────
+
+const SESSION_SCENARIOS = [
+  {
+    label: 'Full Lifecycle',
+    note: 'start → run pipeline → pause → resume → complete',
+    run(orch, sa, graphId, config) {
+      const ctx = { stateAdapter: sa, graphId, config };
+      const steps = [];
+
+      const { session } = orch.startSession('demo-user', 'dog', ctx);
+      const sid = session['fandaws:sessionId'];
+      steps.push({ action: 'startSession("dog")', state: session['fandaws:state'], turns: 0 });
+
+      orch.runPipeline('A dog is an animal', { ...ctx, sessionId: sid });
+      const afterRun = sa.loadSession(sid);
+      steps.push({ action: 'runPipeline("A dog is an animal")', state: afterRun['fandaws:state'], turns: afterRun['fandaws:dialogueHistory'].length });
+
+      orch.pauseSession(sid, ctx);
+      const afterPause = sa.loadSession(sid);
+      steps.push({ action: 'pauseSession()', state: afterPause['fandaws:state'], turns: afterPause['fandaws:dialogueHistory'].length });
+
+      const { lastPrompt } = orch.resumeSession(sid, ctx);
+      const afterResume = sa.loadSession(sid);
+      steps.push({ action: `resumeSession() → lastPrompt: ${lastPrompt ? '"' + lastPrompt['fandaws:content'].substring(0, 40) + '..."' : 'null'}`, state: afterResume['fandaws:state'], turns: afterResume['fandaws:dialogueHistory'].length });
+
+      orch.completeSession(sid, ctx);
+      const final = sa.loadSession(sid);
+      steps.push({ action: 'completeSession()', state: final['fandaws:state'], turns: final['fandaws:dialogueHistory'].length });
+
+      return { steps, session: final };
+    },
+  },
+  {
+    label: 'Nested Negotiation',
+    note: '"dog is a canine" triggers child session for unknown parent "canine"',
+    run(orch, sa, graphId, config) {
+      const ctx = { stateAdapter: sa, graphId, config };
+      const steps = [];
+
+      const { session } = orch.startSession('demo-user', 'dog', ctx);
+      const parentId = session['fandaws:sessionId'];
+      steps.push({ action: 'startSession("dog")', state: session['fandaws:state'], turns: 0 });
+
+      const { parentSession, childSession } = orch.nestSession(parentId, 'canine', ctx);
+      steps.push({ action: 'nestSession("canine")', state: `parent=${parentSession['fandaws:state']}, child=${childSession['fandaws:state']}`, turns: parentSession['fandaws:dialogueHistory'].length });
+
+      const childId = childSession['fandaws:sessionId'];
+      orch.runPipeline('A canine is a mammal', { ...ctx, sessionId: childId });
+      const afterChildRun = sa.loadSession(childId);
+      steps.push({ action: 'child: runPipeline("A canine is a mammal")', state: `child=${afterChildRun['fandaws:state']}`, turns: afterChildRun['fandaws:dialogueHistory'].length });
+
+      const { parentSession: resolved } = orch.resolveNestedSession(childId, ctx);
+      steps.push({ action: 'resolveNestedSession()', state: `parent=${resolved['fandaws:state']}, child=${sa.loadSession(childId)['fandaws:state']}`, turns: resolved['fandaws:dialogueHistory'].length });
+
+      orch.completeSession(parentId, ctx);
+      const final = sa.loadSession(parentId);
+      steps.push({ action: 'completeSession()', state: final['fandaws:state'], turns: final['fandaws:dialogueHistory'].length });
+
+      return { steps, session: final };
+    },
+  },
+  {
+    label: 'Abandon Cascade',
+    note: 'Abandon root session cascades to nested child and grandchild',
+    run(orch, sa, graphId, config) {
+      const ctx = { stateAdapter: sa, graphId, config };
+      const steps = [];
+
+      const { session } = orch.startSession('demo-user', 'dog', ctx);
+      const id0 = session['fandaws:sessionId'];
+      steps.push({ action: 'startSession("dog")', state: 'negotiating', turns: 0 });
+
+      const { childSession: child1 } = orch.nestSession(id0, 'canine', ctx);
+      const id1 = child1['fandaws:sessionId'];
+      steps.push({ action: 'nestSession("canine")', state: `root=nested, child=negotiating`, turns: sa.loadSession(id0)['fandaws:dialogueHistory'].length });
+
+      const { childSession: child2 } = orch.nestSession(id1, 'mammal', ctx);
+      const id2 = child2['fandaws:sessionId'];
+      steps.push({ action: 'nestSession("mammal") from child', state: `child=nested, grandchild=negotiating`, turns: sa.loadSession(id1)['fandaws:dialogueHistory'].length });
+
+      const { abandonedIds } = orch.abandonSession(id0, ctx);
+      steps.push({ action: `abandonSession(root) → cascade`, state: `${abandonedIds.length} sessions abandoned`, turns: sa.loadSession(id0)['fandaws:dialogueHistory'].length });
+
+      steps.push({
+        action: 'Final states',
+        state: `root=${sa.loadSession(id0)['fandaws:state']}, child=${sa.loadSession(id1)['fandaws:state']}, grandchild=${sa.loadSession(id2)['fandaws:state']}`,
+        turns: '-',
+      });
+
+      return { steps, session: sa.loadSession(id0) };
+    },
+  },
+  {
+    label: 'Concurrent Limit (5 max)',
+    note: '6th active session rejected — paused sessions do NOT count',
+    run(orch, sa, graphId, config) {
+      const ctx = { stateAdapter: sa, graphId, config };
+      const steps = [];
+
+      for (let i = 1; i <= 5; i++) {
+        const { session } = orch.startSession('demo-user', `term-${i}`, ctx);
+        steps.push({ action: `startSession("term-${i}")`, state: session['fandaws:state'], turns: 0 });
+      }
+
+      const rejected = orch.startSession('demo-user', 'term-6', ctx);
+      steps.push({ action: 'startSession("term-6")', state: `REJECTED: ${rejected.errorReason}`, turns: '-' });
+
+      // Pause one, then retry
+      const allSessions = sa.listSessions('demo-user');
+      const firstId = allSessions[0]['fandaws:sessionId'];
+      orch.pauseSession(firstId, ctx);
+      steps.push({ action: `pauseSession("${allSessions[0]['fandaws:term']}")`, state: 'paused (no longer counts)', turns: sa.loadSession(firstId)['fandaws:dialogueHistory'].length });
+
+      const retry = orch.startSession('demo-user', 'term-6', ctx);
+      steps.push({ action: 'startSession("term-6") retry', state: retry.session ? retry.session['fandaws:state'] : `REJECTED: ${retry.errorReason}`, turns: 0 });
+
+      return { steps, session: retry.session || sa.loadSession(firstId) };
+    },
+  },
+  {
+    label: 'Expiry Guard (SC-1)',
+    note: 'Expired session with recent activity is protected by grace window',
+    run(orch, sa, graphId, config) {
+      const ctx = { stateAdapter: sa, graphId, config };
+      const steps = [];
+
+      // Create a session manually with past expiresAt
+      const expired = Fandaws.createConversationSession({
+        sessionId: 'fandaws:session/demo-expired',
+        callerId: 'demo-user',
+        term: 'stale-concept',
+        workingGraphId: graphId,
+        state: 'paused',
+        expiresAt: '2026-01-01T00:00:00.000Z',
+      });
+      // Old lastActiveAt — outside grace window
+      expired['fandaws:lastActiveAt'] = '2025-12-01T00:00:00.000Z';
+      sa.saveSession('fandaws:session/demo-expired', expired);
+      steps.push({ action: 'Create paused session (expiresAt: Jan 1, lastActive: Dec 1)', state: 'paused', turns: 0 });
+
+      // Check expiry — should expire (lastActiveAt is old)
+      const isExpNow = Fandaws.isExpired(expired, '2026-02-19T12:00:00.000Z', 'PT1H');
+      steps.push({ action: `isExpired(now=Feb 19, grace=PT1H)?`, state: isExpNow ? 'YES — expired (lastActive outside grace)' : 'NO', turns: '-' });
+
+      // Now set recent lastActiveAt — within grace window
+      const recentSession = { ...expired, 'fandaws:lastActiveAt': '2026-02-19T11:30:00.000Z' };
+      const isExpRecent = Fandaws.isExpired(recentSession, '2026-02-19T12:00:00.000Z', 'PT1H');
+      steps.push({ action: `isExpired(same session, lastActive=30min ago)?`, state: isExpRecent ? 'YES — expired' : 'NO — grace window protects (SC-1)', turns: '-' });
+
+      // Actually expire via orchestrator
+      const { expiredIds } = orch.expireStaleSessions('demo-user', ctx);
+      steps.push({ action: `expireStaleSessions()`, state: `${expiredIds.length} expired`, turns: sa.loadSession('fandaws:session/demo-expired')['fandaws:dialogueHistory'].length });
+
+      return { steps, session: sa.loadSession('fandaws:session/demo-expired') };
+    },
+  },
+];
+
+function initSessionDemo() {
+  const scenariosEl = document.getElementById('session-scenarios');
+  const traceEl = document.getElementById('session-state-trace');
+  const dialogueEl = document.getElementById('session-dialogue');
+  const jsonEl = document.getElementById('session-json');
+
+  if (!scenariosEl) return;
+
+  scenariosEl.innerHTML = SESSION_SCENARIOS.map((sc, i) =>
+    `<button class="desc-example-btn" data-idx="${i}"><strong>${escapeHtml(sc.label)}</strong> — <span style="color: var(--text-muted);">${escapeHtml(sc.note)}</span></button>`,
+  ).join('');
+
+  scenariosEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.desc-example-btn');
+    if (!btn) return;
+    const sc = SESSION_SCENARIOS[Number(btn.dataset.idx)];
+    if (!sc) return;
+
+    // Fresh adapter and orchestrator for each run
+    const sa = new Fandaws.InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/demo-session';
+    sa.saveGraph(graphId, Fandaws.createKnowledgeGraph({ id: graphId }));
+    const orch = new Fandaws.SynchronousOrchestrationAdapter();
+
+    const config = {
+      'fandaws:sessionExpiryDuration': 'P7D',
+      'fandaws:maxNestingDepth': 10,
+      'fandaws:maxConcurrentSessions': 5,
+    };
+
+    try {
+      const { steps, session } = sc.run(orch, sa, graphId, config);
+
+      // Render state trace
+      traceEl.textContent = steps.map((s, i) =>
+        `${i + 1}. ${s.action}\n   State: ${s.state}${s.turns !== '-' ? `  |  Turns: ${s.turns}` : ''}`,
+      ).join('\n\n');
+
+      // Render dialogue history
+      const history = session['fandaws:dialogueHistory'] || [];
+      if (history.length > 0) {
+        dialogueEl.textContent = history.map((t) => {
+          const role = t['fandaws:role'].toUpperCase().padEnd(11);
+          const content = (t['fandaws:content'] || '').substring(0, 100);
+          return `[${t['fandaws:turnIndex']}] ${role} ${content}`;
+        }).join('\n');
+      } else {
+        dialogueEl.textContent = '(no dialogue turns recorded)';
+      }
+
+      // Render JSON
+      jsonEl.textContent = JSON.stringify(session, null, 2);
+    } catch (err) {
+      traceEl.textContent = `Error: ${err.message}`;
+      dialogueEl.textContent = '';
+      jsonEl.textContent = err.stack || err.message;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────
 // Initialize
 // ─────────────────────────────────────────────────────────
 
@@ -1825,3 +2046,4 @@ initExportDemo();
 initErsDemo();
 initIvneDemo();
 initConversationDemo();
+initSessionDemo();

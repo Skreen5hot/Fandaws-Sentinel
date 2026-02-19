@@ -55,7 +55,11 @@ describe('types/index barrel export', () => {
     expect(types.ROUTING_STRENGTHS).toBeDefined();
   });
 
-  it('exports exactly 33 members (1 context + 26 factories + 2 type checks + 4 constants)', () => {
-    expect(Object.keys(types)).toHaveLength(33);
+  it('exports createDialogueTurn (Phase 11)', () => {
+    expect(typeof types.createDialogueTurn).toBe('function');
+  });
+
+  it('exports exactly 34 members (1 context + 27 factories + 2 type checks + 4 constants)', () => {
+    expect(Object.keys(types)).toHaveLength(34);
   });
 });

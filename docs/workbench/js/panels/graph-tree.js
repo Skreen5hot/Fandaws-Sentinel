@@ -4,32 +4,18 @@
  * Subscribes to: graph-changed, concept-selected, concept-deselected
  * Emits: concept-selected (via state.selectConcept)
  */
-import { escapeHtml } from '../utils.js';
-
-/** BFO category → CSS class suffix mapping */
-const BFO_CLASS_MAP = {
-  'bfo:Entity': 'entity',
-  'bfo:Continuant': 'continuant',
-  'bfo:IndependentContinuant': 'continuant',
-  'bfo:Occurrent': 'occurrent',
-  'bfo:MaterialEntity': 'material',
-  'bfo:ImmaterialEntity': 'immaterial',
-  'bfo:Process': 'process',
-  'bfo:Quality': 'quality',
-  'bfo:Role': 'role',
-  'bfo:Disposition': 'disposition',
-};
+import { escapeHtml, bfoDotClass } from '../utils.js';
 
 /**
  * Detect BFO category from concept's rdfs:subClassOf entries.
  * @param {object} concept
- * @returns {string|null} CSS class suffix
+ * @returns {string} CSS class suffix
  */
 function detectBfo(concept) {
   const subs = concept['rdfs:subClassOf'] || [];
   for (const entry of subs) {
-    if (typeof entry === 'string' && BFO_CLASS_MAP[entry]) {
-      return BFO_CLASS_MAP[entry];
+    if (typeof entry === 'string' && entry.startsWith('bfo:')) {
+      return bfoDotClass(entry);
     }
   }
   return 'default';

@@ -3,6 +3,7 @@
  *
  * Subscribes to: graph-changed
  */
+import { bfoLabel, ersRegisterInfo } from '../utils.js';
 
 /**
  * Initialize the Status Bar.
@@ -23,19 +24,14 @@ export function initStatusBar(statusBar, state) {
       const subs = c['rdfs:subClassOf'] || [];
       for (const entry of subs) {
         if (typeof entry === 'string' && entry.startsWith('bfo:')) {
-          const label = entry.replace('bfo:', '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+          const label = bfoLabel(entry);
           bfoCounts[label] = (bfoCounts[label] || 0) + 1;
         }
         if (typeof entry === 'object') {
           if (entry['fandaws:restrictionKind'] === 'property') propCount++;
           if (entry['fandaws:restrictionKind'] === 'relationship') relCount++;
-          const rr = entry['fandaws:routingRecord'];
-          if (rr) {
-            const reg = rr['fandaws:register'] || '';
-            if (reg.includes('axiomatic')) ersCounts.R1++;
-            else if (reg.includes('normative')) ersCounts.R2++;
-            else if (reg.includes('aspirational')) ersCounts.R3++;
-          }
+          const info = ersRegisterInfo(entry);
+          if (info) ersCounts[info.label]++;
         }
       }
     }

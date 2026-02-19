@@ -3,34 +3,7 @@
  *
  * Subscribes to: concept-selected, concept-deselected, graph-changed
  */
-import { escapeHtml } from '../utils.js';
-
-/** BFO IRI → display label */
-const BFO_LABELS = {
-  'bfo:Entity': 'Entity',
-  'bfo:Continuant': 'Continuant',
-  'bfo:IndependentContinuant': 'Independent Continuant',
-  'bfo:Occurrent': 'Occurrent',
-  'bfo:MaterialEntity': 'Material Entity',
-  'bfo:ImmaterialEntity': 'Immaterial Entity',
-  'bfo:Process': 'Process',
-  'bfo:Quality': 'Quality',
-  'bfo:Role': 'Role',
-  'bfo:Disposition': 'Disposition',
-};
-
-const BFO_DOT_MAP = {
-  'bfo:Entity': 'entity',
-  'bfo:Continuant': 'continuant',
-  'bfo:IndependentContinuant': 'continuant',
-  'bfo:Occurrent': 'occurrent',
-  'bfo:MaterialEntity': 'material',
-  'bfo:ImmaterialEntity': 'immaterial',
-  'bfo:Process': 'process',
-  'bfo:Quality': 'quality',
-  'bfo:Role': 'role',
-  'bfo:Disposition': 'disposition',
-};
+import { escapeHtml, bfoLabel, bfoDotClass, ersRegisterInfo } from '../utils.js';
 
 /**
  * Initialize the Inspector panel.
@@ -61,8 +34,8 @@ export function initInspector(container, state) {
     const label = concept['rdfs:label'] || '';
     const prefLabel = concept['skos:prefLabel'] || '';
     const bfoEntries = subs.filter((e) => typeof e === 'string' && e.startsWith('bfo:'));
-    const bfoLabel = bfoEntries.length > 0 ? BFO_LABELS[bfoEntries[0]] || bfoEntries[0] : null;
-    const bfoDot = bfoEntries.length > 0 ? BFO_DOT_MAP[bfoEntries[0]] || 'default' : 'default';
+    const bfoLabelText = bfoEntries.length > 0 ? bfoLabel(bfoEntries[0]) : null;
+    const bfoDot = bfoEntries.length > 0 ? bfoDotClass(bfoEntries[0]) : 'default';
 
     // Description
     let description = '';
@@ -107,12 +80,9 @@ export function initInspector(container, state) {
 
     // Register helper
     function registerBadge(restriction) {
-      const rr = restriction['fandaws:routingRecord'];
-      if (!rr) return '';
-      const reg = rr['fandaws:register'] || '';
-      const cls = reg.includes('axiomatic') ? 'r1' : reg.includes('normative') ? 'r2' : reg.includes('aspirational') ? 'r3' : '';
-      const label = cls === 'r1' ? 'R1' : cls === 'r2' ? 'R2' : cls === 'r3' ? 'R3' : '';
-      return cls ? ` <span class="wb-register-sm wb-register-sm--${cls}">${label}</span>` : '';
+      const info = ersRegisterInfo(restriction);
+      if (!info) return '';
+      return ` <span class="wb-register-sm wb-register-sm--${info.cls}">${info.label}</span>`;
     }
 
     let html = '';
@@ -121,7 +91,7 @@ export function initInspector(container, state) {
     html += `<div class="wb-inspector-section">`;
     html += `<div class="wb-inspector-section-title">Identity</div>`;
     html += `<div class="wb-inspector-label">${escapeHtml(label)}`;
-    if (bfoLabel) html += ` <span class="wb-tree-bfo-dot wb-bfo-${bfoDot}" style="display: inline-block; vertical-align: middle;"></span> <span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(bfoLabel)}</span>`;
+    if (bfoLabelText) html += ` <span class="wb-tree-bfo-dot wb-bfo-${bfoDot}" style="display: inline-block; vertical-align: middle;"></span> <span style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(bfoLabelText)}</span>`;
     html += `</div>`;
     html += `<div class="wb-inspector-iri">${escapeHtml(iri)}</div>`;
     if (prefLabel && prefLabel !== label.toLowerCase()) {
@@ -232,19 +202,14 @@ export function initInspector(container, state) {
       const subs = c['rdfs:subClassOf'] || [];
       for (const entry of subs) {
         if (typeof entry === 'string' && entry.startsWith('bfo:')) {
-          bfoCounts[entry] = (bfoCounts[entry] || 0) + 1;
+          const label = bfoLabel(entry);
+          bfoCounts[label] = (bfoCounts[label] || 0) + 1;
         }
         if (typeof entry === 'object') {
           if (entry['fandaws:restrictionKind'] === 'property') propCount++;
           if (entry['fandaws:restrictionKind'] === 'relationship') relCount++;
-
-          const rr = entry['fandaws:routingRecord'];
-          if (rr) {
-            const reg = rr['fandaws:register'] || '';
-            if (reg.includes('axiomatic')) ersCounts.R1++;
-            else if (reg.includes('normative')) ersCounts.R2++;
-            else if (reg.includes('aspirational')) ersCounts.R3++;
-          }
+          const info = ersRegisterInfo(entry);
+          if (info) ersCounts[info.label]++;
         }
       }
     }
@@ -270,9 +235,7 @@ export function initInspector(container, state) {
       html += `<div class="wb-inspector-section-title">BFO Distribution</div>`;
       html += `<div class="wb-dashboard-dist">`;
       for (const key of bfoKeys) {
-        const dot = BFO_DOT_MAP[key] || 'default';
-        const label = BFO_LABELS[key] || key.replace('bfo:', '');
-        html += `<div class="wb-dashboard-dist-item"><span class="wb-tree-bfo-dot wb-bfo-${dot}"></span> ${escapeHtml(label)}: ${bfoCounts[key]}</div>`;
+        html += `<div class="wb-dashboard-dist-item">${escapeHtml(key)}: ${bfoCounts[key]}</div>`;
       }
       html += `</div></div>`;
     }

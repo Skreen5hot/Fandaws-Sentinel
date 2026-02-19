@@ -4,7 +4,7 @@
  * Adapted from docs/js/app.js sendConversation(). Scope-narrowing
  * buttons render inline as chat bubbles, not in a separate container.
  */
-import { escapeHtml } from '../utils.js';
+import { escapeHtml, ersRegisterInfo } from '../utils.js';
 
 /**
  * Initialize the Converse panel.
@@ -81,14 +81,11 @@ export function initConverse(container, state) {
     if (result.mutation) {
       const additions = result.mutation['fandaws:additions'] || [];
       for (const node of additions) {
-        const rr = node['fandaws:routingRecord'];
-        if (rr) {
-          const reg = rr['fandaws:register'] || '';
-          const method = rr['fandaws:method'] || '';
-          const regShort = reg.includes('axiomatic') ? 'R1' : reg.includes('normative') ? 'R2' : reg.includes('aspirational') ? 'R3' : '';
-          if (regShort) {
-            registerInfo = `<span class="wb-register-sm wb-register-sm--${regShort.toLowerCase()}">${regShort}</span> ${escapeHtml(method)}`;
-          }
+        const info = ersRegisterInfo(node);
+        if (info) {
+          const rr = node['fandaws:routingRecord'];
+          const method = rr?.['fandaws:routingMethod'] || '';
+          registerInfo = `<span class="wb-register-sm wb-register-sm--${info.cls}">${info.label}</span> ${escapeHtml(method)}`;
           break;
         }
       }
@@ -187,9 +184,26 @@ export function initConverse(container, state) {
       }
     } else if (result.success) {
       // Success — show workflow badge + description
-      const descText = result.descriptions?.length > 0
+      let descText = result.descriptions?.length > 0
         ? result.descriptions[0].description
         : null;
+
+      // Fallback: if pipeline returned no descriptions (e.g. reclassification
+      // where both concepts already exist), generate one from the subject concept.
+      if (!descText && result.mutation && result.parseResult) {
+        const subjectLabel = result.parseResult['fandaws:subject'];
+        if (subjectLabel) {
+          const graph = state.getGraph();
+          const concepts = graph?.['fandaws:concepts'] || [];
+          const subjectConcept = concepts.find((c) =>
+            (c['skos:prefLabel'] || '').toLowerCase() === subjectLabel.toLowerCase()
+            || (c['rdfs:label'] || '').toLowerCase() === subjectLabel.toLowerCase()
+          );
+          if (subjectConcept) {
+            try { descText = state.Fandaws.describeConcept(subjectConcept, graph); } catch { /* */ }
+          }
+        }
+      }
 
       const workflowClass = workflow === 'classification' ? 'classification'
         : workflow === 'property' ? 'property'

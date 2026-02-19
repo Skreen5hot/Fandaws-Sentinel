@@ -14,7 +14,7 @@ import { initStatusBar } from './panels/status-bar.js';
 // The Fandaws global is loaded via the bundle in dist/fandaws.js.
 // In the HTML, the bundle is loaded as a classic script that attaches to window.
 // We import from the ES module bundle instead.
-const Fandaws = await import('../dist/fandaws.js');
+const Fandaws = await import('../../dist/fandaws.js');
 
 // ── Initialize State ──
 const state = new WorkbenchStateManager(Fandaws);

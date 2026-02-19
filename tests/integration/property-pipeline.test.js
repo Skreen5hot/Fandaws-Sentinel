@@ -59,8 +59,21 @@ describe('runPropertyPipeline', () => {
     expect(result.prompts[0]['fandaws:text']).toContain('classify');
   });
 
-  it('attaches property to root concept (no scope narrowing)', () => {
+  it('returns objectResolution prompt when property term is not a concept', () => {
     setupGraph(adapter, [makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
+    const result = runPropertyPipeline('An animal has cells', context);
+    expect(result.error).toBe(false);
+    expect(result.success).toBe(false);
+    expect(result.prompts.length).toBeGreaterThan(0);
+    expect(result.prompts[0]['fandaws:promptType']).toBe('objectResolution');
+    expect(result.prompts[0]['fandaws:text']).toContain('cells');
+  });
+
+  it('attaches property to root concept when property term is a concept', () => {
+    setupGraph(adapter, [
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells'),
+    ]);
     const result = runPropertyPipeline('An animal has cells', context);
     expect(result.success).toBe(true);
     expect(result.mutation).not.toBeNull();
@@ -74,13 +87,15 @@ describe('runPropertyPipeline', () => {
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
     expect(props).toHaveLength(1);
-    expect(props[0]['owl:onProperty']).toBe('cells');
+    expect(props[0]['owl:onProperty']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells');
+    expect(props[0]['fandaws:propertyLabel']).toBe('cells');
   });
 
   it('returns scope narrowing prompts for non-root subject', () => {
     setupGraph(adapter, [
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', 'Fur'),
     ]);
     const result = runPropertyPipeline('A dog has fur', context);
     expect(result.success).toBe(false);
@@ -92,6 +107,7 @@ describe('runPropertyPipeline', () => {
     setupGraph(adapter, [
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', 'Fur'),
     ]);
     const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', false]]);
     const result = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
@@ -104,13 +120,14 @@ describe('runPropertyPipeline', () => {
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
     expect(props).toHaveLength(1);
-    expect(props[0]['owl:onProperty']).toBe('fur');
+    expect(props[0]['fandaws:propertyLabel']).toBe('fur');
   });
 
   it('completes with scope decision: parent=yes → attach to parent', () => {
     setupGraph(adapter, [
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', 'Fur'),
     ]);
     const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', true]]);
     const result = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
@@ -123,13 +140,14 @@ describe('runPropertyPipeline', () => {
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
     expect(props).toHaveLength(1);
-    expect(props[0]['owl:onProperty']).toBe('fur');
+    expect(props[0]['fandaws:propertyLabel']).toBe('fur');
   });
 
   it('generates descriptions including properties', () => {
     setupGraph(adapter, [
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
       makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
+      makeConcept('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', 'Fur'),
     ]);
     const decisions = new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', true]]);
     const result = runPropertyPipeline('A dog has fur', context, { scopeDecisions: decisions });
@@ -144,7 +162,10 @@ describe('runPropertyPipeline', () => {
   });
 
   it('is idempotent — re-assertion returns no-op', () => {
-    setupGraph(adapter, [makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal')]);
+    setupGraph(adapter, [
+      makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
+      makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells'),
+    ]);
     // First call: attach property
     runPropertyPipeline('An animal has cells', context);
     // Second call: same property — should be no-op
@@ -174,6 +195,7 @@ describe('runPropertyPipeline', () => {
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal', 'fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing'),
       makeConcept('fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal', 'Mammal', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal'),
       makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal'),
+      makeConcept('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', 'Fur'),
     ]);
 
     // First call: should get 2 prompts (parent + root) via Leap Check
@@ -195,18 +217,17 @@ describe('runPropertyPipeline', () => {
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
     expect(props).toHaveLength(1);
-    expect(props[0]['owl:onProperty']).toBe('fur');
+    expect(props[0]['fandaws:propertyLabel']).toBe('fur');
   });
 
   it('handles "have" plural form', () => {
-    // Identity simplification has no depluralization, so use a concept
-    // whose prefLabel matches the plural form "dogs".
     setupGraph(adapter, [
       createConcept({
         id: 'fandaws:class/26e7809b-0d05-53e6-9a07-d6ca0b180f36/dogs',
         label: 'Dogs',
         prefLabel: 'dogs',
       }),
+      makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-legs', 'Four Legs'),
     ]);
     const result = runPropertyPipeline('Dogs have four legs', context);
     // Should parse as property workflow with "have" verb
@@ -223,10 +244,27 @@ describe('runPropertyPipeline', () => {
     const classResult = runClassificationPipeline('A dog is an animal', context);
     expect(classResult.success).toBe(true);
 
-    // Step 2: Add property "A dog has fur" — should find dog
+    // Step 2: Add property "A dog has fur" — should find dog but fur is unknown
     const propResult = runPropertyPipeline('A dog has fur', context);
-    // Should return scope prompt since dog has parent=animal
+    // Should return scope prompt or objectResolution prompt
     expect(propResult.error).toBe(false);
     expect(propResult.prompts.length).toBeGreaterThan(0);
+  });
+
+  it('sequencing: classify property term then attach property', () => {
+    setupGraph(adapter, []);
+
+    // Step 1: Classify "A dog is an animal"
+    runClassificationPipeline('A dog is an animal', context);
+
+    // Step 2: Classify "fur is a material" — creates fur concept
+    runClassificationPipeline('fur is a material', context);
+
+    // Step 3: "A dog has fur" — fur now exists, should get scope prompt
+    const propResult = runPropertyPipeline('A dog has fur', context);
+    expect(propResult.error).toBe(false);
+    expect(propResult.prompts.length).toBeGreaterThan(0);
+    // Should be scope narrowing (not objectResolution) since fur exists
+    expect(propResult.scopeContext).not.toBeNull();
   });
 });

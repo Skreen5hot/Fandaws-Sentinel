@@ -65,7 +65,8 @@ describe('Export Formats', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:prop/dog--fur',
-        propertyIri: 'fur',
+        propertyConceptIri: 'fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur',
+        propertyLabel: 'fur',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
       });
@@ -198,7 +199,8 @@ describe('Export Formats', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:restriction/test/dog--fur',
-        propertyIri: 'fandaws:property/test/fur',
+        propertyConceptIri: 'fandaws:property/test/fur',
+        propertyLabel: 'fur',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
         epistemicRegister: REGISTERS.NORMATIVE,
@@ -212,7 +214,8 @@ describe('Export Formats', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:restriction/test/dog--fur',
-        propertyIri: 'fandaws:property/test/fur',
+        propertyConceptIri: 'fandaws:property/test/fur',
+        propertyLabel: 'fur',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
       });
@@ -258,7 +261,8 @@ describe('Export Formats', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:restriction/test/dog--fur',
-        propertyIri: 'fandaws:property/test/fur',
+        propertyConceptIri: 'fandaws:property/test/fur',
+        propertyLabel: 'fur',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
         epistemicRegister: REGISTERS.NORMATIVE,
@@ -312,14 +316,16 @@ describe('Export Formats', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop1 = createProperty({
         id: 'fandaws:restriction/test/dog--fur',
-        propertyIri: 'fandaws:property/test/fur',
+        propertyConceptIri: 'fandaws:property/test/fur',
+        propertyLabel: 'fur',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
         epistemicRegister: REGISTERS.NORMATIVE,
       });
       const prop2 = createProperty({
         id: 'fandaws:restriction/test/dog--sides',
-        propertyIri: 'fandaws:property/test/sides',
+        propertyConceptIri: 'fandaws:property/test/sides',
+        propertyLabel: 'sides',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: '4',
         epistemicRegister: REGISTERS.AXIOMATIC,

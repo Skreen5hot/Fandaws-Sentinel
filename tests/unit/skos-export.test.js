@@ -86,7 +86,8 @@ describe('SKOS Export', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:prop/dog--fur',
-        propertyIri: 'fur',
+        propertyConceptIri: 'fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur',
+        propertyLabel: 'fur',
         attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         value: 'yes',
       });

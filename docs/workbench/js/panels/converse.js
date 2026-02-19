@@ -15,6 +15,7 @@ export function initConverse(container, state) {
   let pendingUtterance = null;
   let scopeDecisions = new Map();
   let onboardingShown = true;
+  let pendingObjectResolution = null;
 
   // Build DOM
   container.innerHTML = `
@@ -149,38 +150,57 @@ export function initConverse(container, state) {
     const workflow = getWorkflowLabel(result);
 
     if (result.prompts && result.prompts.length > 0 && !result.success && !result.error) {
-      // Scope narrowing — render as chat bubble with buttons
-      pendingUtterance = utterance;
+      // Check if this is an objectResolution prompt (user must classify the term)
+      const objectPrompt = result.prompts.find(
+        (p) => p['fandaws:promptType'] === 'objectResolution',
+      );
 
-      for (const prompt of result.prompts) {
-        const text = prompt['fandaws:text'] || 'Scope question';
-        const ctx = prompt['fandaws:context'] || {};
-        const conceptIri = ctx.conceptIri || '';
+      if (objectPrompt) {
+        // Object resolution — informational bubble, no buttons
+        const text = objectPrompt['fandaws:text'] || 'What is this?';
+        const ctx = objectPrompt['fandaws:context'] || {};
+        pendingObjectResolution = {
+          term: ctx.pendingProperty || '',
+          subject: ctx.pendingSubject || '',
+        };
+        appendMessage('wb-chat-msg--scope-prompt', `<div>${escapeHtml(text)}</div>`);
+        pendingUtterance = null;
+        scopeDecisions = new Map();
+        chatInput.value = '';
+      } else {
+        // Scope narrowing — render as chat bubble with buttons
+        pendingUtterance = utterance;
 
-        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
-          <div>${escapeHtml(text)}</div>
-          <div class="wb-scope-buttons">
-            <button class="wb-scope-btn wb-scope-btn--yes" data-scope-iri="${escapeHtml(conceptIri)}" data-scope-answer="true">Yes</button>
-            <button class="wb-scope-btn wb-scope-btn--no" data-scope-iri="${escapeHtml(conceptIri)}" data-scope-answer="false">No</button>
-          </div>
-        `);
+        for (const prompt of result.prompts) {
+          const text = prompt['fandaws:text'] || 'Scope question';
+          const ctx = prompt['fandaws:context'] || {};
+          const conceptIri = ctx.conceptIri || '';
 
-        // Wire scope buttons
-        msgDiv.querySelectorAll('.wb-scope-btn').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const iri = btn.dataset.scopeIri;
-            const answer = btn.dataset.scopeAnswer === 'true';
-            scopeDecisions.set(iri, answer);
+          const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
+            <div>${escapeHtml(text)}</div>
+            <div class="wb-scope-buttons">
+              <button class="wb-scope-btn wb-scope-btn--yes" data-scope-iri="${escapeHtml(conceptIri)}" data-scope-answer="true">Yes</button>
+              <button class="wb-scope-btn wb-scope-btn--no" data-scope-iri="${escapeHtml(conceptIri)}" data-scope-answer="false">No</button>
+            </div>
+          `);
 
-            // Replace buttons with answer text
-            const buttonsDiv = btn.closest('.wb-scope-buttons');
-            buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${answer ? 'Yes' : 'No'}</em>`;
+          // Wire scope buttons
+          msgDiv.querySelectorAll('.wb-scope-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const iri = btn.dataset.scopeIri;
+              const answer = btn.dataset.scopeAnswer === 'true';
+              scopeDecisions.set(iri, answer);
 
-            // Re-run pipeline with scope decisions
-            chatInput.value = pendingUtterance;
-            sendUtterance();
+              // Replace buttons with answer text
+              const buttonsDiv = btn.closest('.wb-scope-buttons');
+              buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${answer ? 'Yes' : 'No'}</em>`;
+
+              // Re-run pipeline with scope decisions
+              chatInput.value = pendingUtterance;
+              sendUtterance();
+            });
           });
-        });
+        }
       }
     } else if (result.success) {
       // Success — show workflow badge + description
@@ -221,6 +241,23 @@ export function initConverse(container, state) {
       html += buildTraceHtml(result);
 
       appendMessage('wb-chat-msg--system', html);
+
+      // Post-classification UX hint: if this classification resolved a pending object
+      if (pendingObjectResolution && workflow === 'classification') {
+        const classifiedLabel = result.parseResult?.['fandaws:subject'];
+        if (classifiedLabel && classifiedLabel.toLowerCase() === pendingObjectResolution.term.toLowerCase()) {
+          const subj = pendingObjectResolution.subject;
+          const term = pendingObjectResolution.term;
+          appendMessage('wb-chat-msg--scope-prompt',
+            `<div>Got it \u2014 <strong>${escapeHtml(term)}</strong> is now in the graph. You can re-state: "${escapeHtml(subj)} has ${escapeHtml(term)}"</div>`
+          );
+          pendingObjectResolution = null;
+        } else {
+          pendingObjectResolution = null; // context lost — different classification
+        }
+      } else if (pendingObjectResolution) {
+        pendingObjectResolution = null; // non-classification result clears context
+      }
 
       pendingUtterance = null;
       scopeDecisions = new Map();

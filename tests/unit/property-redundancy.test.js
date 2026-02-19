@@ -41,8 +41,13 @@ function makePropertyRestriction(id, propertyIri) {
   };
 }
 
-function makeProperty(id, propertyIri, attachedTo) {
-  return createProperty({ id, propertyIri, attachedTo });
+function makeProperty(id, label, attachedTo) {
+  return createProperty({
+    id,
+    propertyConceptIri: `fandaws:class/test/${label}`,
+    propertyLabel: label,
+    attachedTo,
+  });
 }
 
 // ─────────────────────────────────────────────────────────

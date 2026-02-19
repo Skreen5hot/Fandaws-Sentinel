@@ -529,7 +529,7 @@ function runPropertyDemo() {
 
     // Stage 4: Mutation
     addStage(stages, '4. Mutation Applied',
-      `Property "${attachment?.['owl:onProperty']}" added as ${attachment?.['@id']}`,
+      `Property "${attachment?.['fandaws:propertyLabel'] || attachment?.['owl:onProperty']}" added as ${attachment?.['@id']}`,
       false);
 
     // Stage 5: Description
@@ -715,6 +715,7 @@ function updateDescription() {
     concept['rdfs:subClassOf'].push({
       '@type': 'owl:Restriction',
       'owl:onProperty': prop,
+      'fandaws:propertyLabel': prop,
       'fandaws:restrictionKind': 'property',
     });
   }
@@ -1207,7 +1208,7 @@ function updateConvGraphState() {
     const subs = concept['rdfs:subClassOf'] || [];
     const props = subs
       .filter((r) => r['fandaws:restrictionKind'] === 'property')
-      .map((r) => r['owl:onProperty']);
+      .map((r) => r['fandaws:propertyLabel'] || r['owl:onProperty']);
     const rels = subs
       .filter((r) => r['fandaws:restrictionKind'] === 'relationship')
       .map((r) => {
@@ -1253,11 +1254,11 @@ function buildExportGraph() {
   const cat = Fandaws.createConcept({ id: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', label: 'Cat', prefLabel: 'cat', broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', definition: 'Cat is an Animal that has whiskers.', bfoMapping: BFO_MATERIAL });
 
   // Add property to dog (with ERS register annotation)
-  const furProp = Fandaws.createProperty({ id: 'fandaws:restriction/56de7457-e37d-5b39-80ff-ce18950fce9b/dog--fur', propertyIri: 'fur', attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', value: 'yes', epistemicRegister: Fandaws.REGISTERS.NORMATIVE });
+  const furProp = Fandaws.createProperty({ id: 'fandaws:restriction/56de7457-e37d-5b39-80ff-ce18950fce9b/dog--fur', propertyConceptIri: 'fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', propertyLabel: 'fur', attachedTo: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', value: 'yes', epistemicRegister: Fandaws.REGISTERS.NORMATIVE });
   dog['rdfs:subClassOf'].push(furProp);
 
   // Add property to cat
-  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:restriction/b43ef6bb-6e59-5ca6-b599-8375e8d85550/cat--whiskers', propertyIri: 'whiskers', attachedTo: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', value: 'yes', epistemicRegister: Fandaws.REGISTERS.NORMATIVE });
+  const whiskersProp = Fandaws.createProperty({ id: 'fandaws:restriction/b43ef6bb-6e59-5ca6-b599-8375e8d85550/cat--whiskers', propertyConceptIri: 'fandaws:class/c7f5a8e1-9d3b-5e4a-b2c1-d6e8f0a7b934/whiskers', propertyLabel: 'whiskers', attachedTo: 'fandaws:class/a09765eb-966f-5fea-b075-eb384156de41/cat', value: 'yes', epistemicRegister: Fandaws.REGISTERS.NORMATIVE });
   cat['rdfs:subClassOf'].push(whiskersProp);
 
   // Add relationship: dog chases cat (with ERS register annotation)

@@ -15,7 +15,7 @@
  */
 
 import { simplify } from '../identity/identity-simplification.js';
-import { generateRestrictionIri, DEFAULT_SCOPE } from './iri-generator.js';
+import { generateRestrictionIri, generateConceptIri, DEFAULT_SCOPE } from './iri-generator.js';
 import { createProperty } from '../../types/property.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
@@ -51,7 +51,8 @@ function hasPropertyAlready(concept, propertyLabel) {
     (entry) =>
       isRestrictionNode(entry) &&
       entry['fandaws:restrictionKind'] === 'property' &&
-      entry['owl:onProperty'] === propertyLabel,
+      (entry['fandaws:propertyLabel'] === propertyLabel ||
+        entry['owl:onProperty'] === propertyLabel),
   );
 }
 
@@ -77,7 +78,8 @@ function buildDescendantRemovalModifications(descendantRemovals, graph) {
         !(
           isRestrictionNode(entry) &&
           entry['fandaws:restrictionKind'] === 'property' &&
-          entry['owl:onProperty'] === removal.propertyLabel
+          (entry['fandaws:propertyLabel'] === removal.propertyLabel ||
+            entry['owl:onProperty'] === removal.propertyLabel)
         ),
     );
 
@@ -219,13 +221,50 @@ export function processProperty(action, graph, indices, options = {}) {
     return noOp; // already has this property at target — no-op
   }
 
-  // ── 8. Check property redundancy at attachment point ──
+  // ── 8. Resolve property object concept ──
+  const propertyConceptMatches = findConceptsByCanonical(propertyCanonical, graph);
+  let propertyConceptIri;
+
+  if (propertyConceptMatches.length === 1) {
+    propertyConceptIri = propertyConceptMatches[0]['@id'];
+  } else if (propertyConceptMatches.length === 0) {
+    // Property term not in graph — ask the user to classify it
+    const prompt = createConversationPrompt({
+      promptType: 'objectResolution',
+      text: `I don't know what "${rawProperty}" is yet. Can you tell me? (e.g., "${rawProperty} is a ...")`,
+      options: null,
+      context: {
+        action: 'property',
+        pendingSubject: rawSubject,
+        pendingProperty: rawProperty,
+      },
+    });
+    return { ...noOp, prompts: [prompt] };
+  } else {
+    // Defensive: canonicalLabel index guarantees ≤1 match,
+    // but guard against future multi-scope scenarios.
+    const prompt = createConversationPrompt({
+      promptType: 'disambiguation',
+      text: `Multiple meanings found for "${rawProperty}". Which did you mean?`,
+      options: propertyConceptMatches.map((c) => c['rdfs:label']),
+      context: {
+        action: 'property',
+        subject: rawSubject,
+        property: rawProperty,
+        candidates: propertyConceptMatches.map((c) => c['@id']),
+      },
+    });
+    return { ...noOp, prompts: [prompt] };
+  }
+
+  // ── 9. Check property redundancy at attachment point ──
   const attachmentCanonical = attachmentConcept
     ? attachmentConcept['skos:prefLabel']
     : subjectCanonical;
   const propertyNode = createProperty({
     id: generateRestrictionIri(attachmentCanonical, propertyCanonical, scope),
-    propertyIri: propertyCanonical,
+    propertyConceptIri,
+    propertyLabel: propertyCanonical,
     attachedTo: attachmentIri,
     scope: attachmentIri === subjectIri ? 'concept-specific' : 'inherited',
   });
@@ -248,20 +287,13 @@ export function processProperty(action, graph, indices, options = {}) {
     };
   }
 
-  // ── 9. Detect property value type ──
-  // If the property term matches an existing concept, set owl:hasValue
-  const propertyConceptMatches = findConceptsByCanonical(propertyCanonical, graph);
-  if (propertyConceptMatches.length === 1) {
-    propertyNode['owl:hasValue'] = propertyConceptMatches[0]['@id'];
-  }
-
-  // ── 10. Build descendant removal modifications ──
+  // ── 11. Build descendant removal modifications ──
   const descendantMods = buildDescendantRemovalModifications(
     redundancy.descendantRemovals,
     graph,
   );
 
-  // ── 11. Build GraphMutation ──
+  // ── 12. Build GraphMutation ──
   const attachmentLabel = (graph['fandaws:concepts'] || []).find(
     (c) => c['@id'] === attachmentIri,
   )?.['rdfs:label'] || attachmentIri;
@@ -272,7 +304,7 @@ export function processProperty(action, graph, indices, options = {}) {
     reason: `Attach property "${rawProperty}" to "${attachmentLabel}"`,
   });
 
-  // ── 12. Return result ──
+  // ── 13. Return result ──
   return {
     ...noOp,
     mutation,

@@ -13,10 +13,11 @@
  *
  * @param {object} params
  * @param {string} params.id - Unique restriction IRI
- * @param {string} params.propertyIri - Property IRI (owl:onProperty)
+ * @param {string} params.propertyConceptIri - Concept IRI for the property term (owl:onProperty)
+ * @param {string} params.propertyLabel - Canonical string label for display/comparison
  * @param {string} params.attachedTo - Concept IRI this property belongs to
  * @param {string} [params.scope] - "concept-specific" or "inherited"
- * @param {*} [params.value] - Property value (owl:hasValue)
+ * @param {*} [params.value] - Property value (owl:hasValue); null for simple attribute properties
  * @param {string|null} [params.epistemicRegister] - Register IRI (ERS Phase 10b)
  * @param {object|null} [params.routingRecord] - Inline RegisterRoutingRecord (ERS Phase 10b)
  * @param {string[]} [params.routingFlags] - Routing flags (ERS Phase 10b)
@@ -24,7 +25,8 @@
  */
 export function createProperty({
   id,
-  propertyIri,
+  propertyConceptIri,
+  propertyLabel,
   attachedTo,
   scope = 'concept-specific',
   value = null,
@@ -35,7 +37,8 @@ export function createProperty({
   const node = {
     '@id': id,
     '@type': 'owl:Restriction',
-    'owl:onProperty': propertyIri,
+    'owl:onProperty': propertyConceptIri,
+    'fandaws:propertyLabel': propertyLabel,
     'owl:hasValue': value,
     'fandaws:scope': scope,
     'fandaws:attachedTo': attachedTo,

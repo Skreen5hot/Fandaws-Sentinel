@@ -122,6 +122,7 @@ describe('Relationship Pipeline Integration', () => {
     const ctx = freshContext();
 
     runClassificationPipeline('A dog is an animal', ctx);
+    runClassificationPipeline('fur is a material', ctx);
     runPropertyPipeline('A dog has fur', ctx, {
       scopeDecisions: new Map([['fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', false]]),
     });

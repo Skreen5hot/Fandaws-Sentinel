@@ -42,6 +42,16 @@ function propertyContext() {
           prefLabel: 'dog',
           broader: 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
         }),
+        createConcept({
+          id: 'fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur',
+          label: 'Fur',
+          prefLabel: 'fur',
+        }),
+        createConcept({
+          id: 'fandaws:class/a-tail/tail',
+          label: 'Tail',
+          prefLabel: 'tail',
+        }),
       ],
     }),
   );

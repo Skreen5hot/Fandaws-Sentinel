@@ -65,10 +65,15 @@
   },
   {
     "id": "conv-property-root",
-    "note": "Property on root concept — no scope narrowing needed",
+    "note": "Property on root concept — no scope narrowing needed (classify property term first)",
     "turns": [
       {
         "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "cells is a substance",
         "options": {},
         "expect": { "success": true }
       },
@@ -85,10 +90,15 @@
   },
   {
     "id": "conv-property-with-scope-no",
-    "note": "Property with scope narrowing: parent=no → attach to subject",
+    "note": "Property with scope narrowing: parent=no → attach to subject (classify property term first)",
     "turns": [
       {
         "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "fur is a material",
         "options": {},
         "expect": { "success": true }
       },
@@ -105,10 +115,15 @@
   },
   {
     "id": "conv-property-with-scope-yes",
-    "note": "Property with scope narrowing: parent=yes → attach to parent",
+    "note": "Property with scope narrowing: parent=yes → attach to parent (classify property term first)",
     "turns": [
       {
         "utterance": "A dog is an animal",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "fur is a material",
         "options": {},
         "expect": { "success": true }
       },
@@ -243,6 +258,7 @@
       { "utterance": "A dog is an animal", "options": {} },
       { "utterance": "A cat is an animal", "options": {} },
       { "utterance": "A poodle is a dog", "options": {} },
+      { "utterance": "cells is a substance", "options": {} },
       { "utterance": "An animal has cells", "options": {} }
     ]
   },
@@ -385,6 +401,11 @@
         "expect": { "success": true }
       },
       {
+        "utterance": "fur is a material",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
         "utterance": "A dog has fur",
         "options": { "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": false } },
         "expect": {
@@ -392,6 +413,11 @@
           "propertyOn": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog",
           "propertyLabel": "fur"
         }
+      },
+      {
+        "utterance": "cells is a substance",
+        "options": {},
+        "expect": { "success": true }
       },
       {
         "utterance": "An animal has cells",
@@ -405,7 +431,7 @@
       }
     ],
     "finalExpect": {
-      "conceptCount": 4,
+      "conceptCount": 8,
       "integrity": true
     }
   }

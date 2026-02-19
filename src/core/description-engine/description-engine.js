@@ -133,7 +133,7 @@ function extractPropertyLabels(concept) {
       entry['fandaws:restrictionKind'] === 'property' &&
       entry['owl:onProperty']
     ) {
-      labels.push(entry['owl:onProperty']);
+      labels.push(entry['fandaws:propertyLabel'] || entry['owl:onProperty']);
     }
   }
 

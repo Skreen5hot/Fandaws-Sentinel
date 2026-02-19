@@ -126,7 +126,7 @@ export function initInspector(container, state) {
       html += `<div class="wb-inspector-section">`;
       html += `<div class="wb-inspector-section-title">Properties (${properties.length})</div>`;
       for (const p of properties) {
-        const propName = (p['owl:onProperty'] || '').split('/').pop();
+        const propName = p['fandaws:propertyLabel'] || (p['owl:onProperty'] || '').split('/').pop();
         const value = p['owl:hasValue'] || p['owl:someValuesFrom'] || '';
         html += `<div class="wb-inspector-prop">${escapeHtml(propName)}`;
         if (value) html += `: <span style="color: var(--text-muted);">${escapeHtml(String(value))}</span>`;

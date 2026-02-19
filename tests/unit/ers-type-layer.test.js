@@ -17,7 +17,8 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('produces output with no register fields present', () => {
       const prop = createProperty({
         id: 'fandaws:property/abc',
-        propertyIri: 'has_color',
+        propertyConceptIri: 'has_color',
+        propertyLabel: 'has_color',
         attachedTo: 'fandaws:class/dog',
         value: 'brown',
       });
@@ -42,7 +43,8 @@ describe('ERS Type Layer — Backward Compatibility', () => {
       const record = { '@id': 'fandaws:routing/test', '@type': 'fandaws:RegisterRoutingRecord' };
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        propertyIri: 'has_arm',
+        propertyConceptIri: 'has_arm',
+        propertyLabel: 'has_arm',
         attachedTo: 'fandaws:class/human',
         value: 'two',
         epistemicRegister: 'fandaws:register/normative',
@@ -60,7 +62,8 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('omits routingFlags when array is empty', () => {
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        propertyIri: 'has_sides',
+        propertyConceptIri: 'has_sides',
+        propertyLabel: 'has_sides',
         attachedTo: 'fandaws:class/triangle',
         value: 'three',
         routingFlags: [],
@@ -74,7 +77,8 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('omits epistemicRegister when null', () => {
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        propertyIri: 'has_sides',
+        propertyConceptIri: 'has_sides',
+        propertyLabel: 'has_sides',
         attachedTo: 'fandaws:class/triangle',
         value: 'three',
         epistemicRegister: null,

@@ -11,10 +11,25 @@
     "note": "Unknown subject → prompt: classify first"
   },
   {
-    "id": "prop-root-attach",
+    "id": "prop-object-resolution",
     "utterance": "An animal has cells",
     "setup": [
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" }
+    ],
+    "expect": {
+      "success": false,
+      "promptCount": 1,
+      "promptType": "objectResolution",
+      "promptContains": "cells"
+    },
+    "note": "Property term not a concept → objectResolution prompt"
+  },
+  {
+    "id": "prop-root-attach",
+    "utterance": "An animal has cells",
+    "setup": [
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
+      { "id": "fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells", "displayLabel": "Cells", "canonicalLabel": "cells" }
     ],
     "expect": {
       "success": true,
@@ -22,14 +37,15 @@
       "propertyLabel": "cells",
       "scope": "concept-specific"
     },
-    "note": "Root concept → attach directly, no scope narrowing"
+    "note": "Root concept, property term is concept → attach directly, no scope narrowing"
   },
   {
     "id": "prop-parent-no",
     "utterance": "A dog has fur",
     "setup": [
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
     ],
     "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": false },
     "expect": {
@@ -45,7 +61,8 @@
     "utterance": "A dog has fur",
     "setup": [
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
     ],
     "scopeDecisions": { "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal": true },
     "expect": {
@@ -65,7 +82,8 @@
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
       { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
       { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" },
+      { "id": "fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells", "displayLabel": "Cells", "canonicalLabel": "cells" }
     ],
     "scopeDecisions": {
       "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": true,
@@ -88,7 +106,8 @@
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
       { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
       { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" },
+      { "id": "fandaws:class/f4bb4b16-d8a8-5a5e-b785-7b07d1e2b5a1/collar", "displayLabel": "Collar", "canonicalLabel": "collar" }
     ],
     "scopeDecisions": {
       "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": false,
@@ -111,7 +130,8 @@
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
       { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
       { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
     ],
     "scopeDecisions": {
       "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": true,
@@ -132,7 +152,8 @@
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal", "parent": "fandaws:class/bd079fd1-5b5c-59be-9590-6ee2649e5fc6/living-thing" },
       { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "displayLabel": "Mammal", "canonicalLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
       { "id": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine", "displayLabel": "Canine", "canonicalLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine" },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
     ],
     "scopeDecisions": {
       "fandaws:class/2abffe54-5b0c-5dd0-9ae3-0aa699be039b/canine": true,
@@ -168,7 +189,8 @@
     "utterance": "A dog has cells",
     "setup": [
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells", "displayLabel": "Cells", "canonicalLabel": "cells" }
     ],
     "preAttach": [
       { "concept": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "propertyLabel": "cells" }
@@ -185,7 +207,8 @@
     "utterance": "A dog has fur",
     "setup": [
       { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "displayLabel": "Animal", "canonicalLabel": "animal" },
-      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "displayLabel": "Dog", "canonicalLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "displayLabel": "Fur", "canonicalLabel": "fur" }
     ],
     "preAttach": [
       { "concept": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "propertyLabel": "fur" }
@@ -224,7 +247,7 @@
       "success": false,
       "promptCount": 1
     },
-    "note": "Multi-word subject → scope narrowing prompt"
+    "note": "Multi-word subject → scope narrowing prompt (before object resolution)"
   },
   {
     "id": "prop-have-plural",
@@ -263,9 +286,8 @@
     "expect": {
       "success": true,
       "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
-      "propertyLabel": "fur",
-      "hasValue": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur"
+      "propertyLabel": "fur"
     },
-    "note": "Property term is a known concept → owl:hasValue = concept IRI"
+    "note": "Property term is a known concept → owl:onProperty stores concept IRI, owl:hasValue stays null"
   }
 ]

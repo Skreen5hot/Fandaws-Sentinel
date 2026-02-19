@@ -76,7 +76,7 @@ function assertTurnExpectations(result, exp, stateAdapter) {
     const props = (concept['rdfs:subClassOf'] || []).filter(
       (e) => isRestrictionNode(e) && e['fandaws:restrictionKind'] === 'property',
     );
-    const match = props.find((p) => p['owl:onProperty'] === exp.propertyLabel);
+    const match = props.find((p) => (p['fandaws:propertyLabel'] || p['owl:onProperty']) === exp.propertyLabel);
     expect(match).toBeDefined();
   }
   if (exp.concepts) {

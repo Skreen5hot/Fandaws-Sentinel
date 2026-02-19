@@ -30,7 +30,7 @@ export function checkPropertyRedundancy(property, graph, options = {}) {
   const violations = [];
   const descendantRemovals = [];
 
-  const propLabel = property['owl:onProperty'];
+  const propLabel = property['fandaws:propertyLabel'] || property['owl:onProperty'];
   const attachedTo = property['fandaws:attachedTo'];
 
   if (!propLabel || !attachedTo) {
@@ -107,9 +107,9 @@ function buildConceptPropertyLabels(concepts, propertyLabels) {
 
     for (const entry of subClassOf) {
       if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'property') {
-        const propIri = entry['owl:onProperty'];
-        if (propIri) {
-          labels.add(propIri);
+        const propLabel = entry['fandaws:propertyLabel'] || entry['owl:onProperty'];
+        if (propLabel) {
+          labels.add(propLabel);
         }
       }
     }

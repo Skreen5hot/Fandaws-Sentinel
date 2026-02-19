@@ -180,6 +180,11 @@ function extractConceptTriples(concept, expanded) {
       if (prop) {
         triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri(prop)));
       }
+      // fandaws:propertyLabel
+      const propLabel = r['fandaws:propertyLabel'];
+      if (propLabel) {
+        triples.push(tripleLiteral(rIri, expandIri('fandaws:propertyLabel'), propLabel));
+      }
       // owl:hasValue
       const val = r['owl:hasValue'];
       if (val != null) {

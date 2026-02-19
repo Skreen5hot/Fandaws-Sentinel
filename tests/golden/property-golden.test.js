@@ -45,6 +45,7 @@ function preAttachProperties(adapter, preAttach) {
       '@id': `fandaws:restriction/${pa.concept.split('/').pop()}--${pa.propertyLabel}`,
       '@type': 'owl:Restriction',
       'owl:onProperty': pa.propertyLabel,
+      'fandaws:propertyLabel': pa.propertyLabel,
       'owl:hasValue': null,
       'fandaws:scope': 'concept-specific',
       'fandaws:attachedTo': pa.concept,
@@ -126,7 +127,7 @@ describe('Property Golden Corpus', () => {
           (e) => isRestrictionNode(e) && e['fandaws:restrictionKind'] === 'property',
         );
         const matching = restrictions.filter(
-          (r) => r['owl:onProperty'] === exp.propertyLabel,
+          (r) => (r['fandaws:propertyLabel'] || r['owl:onProperty']) === exp.propertyLabel,
         );
         expect(matching.length).toBeGreaterThanOrEqual(1);
 

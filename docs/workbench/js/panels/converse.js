@@ -195,12 +195,15 @@ export function initConverse(container, state) {
       );
 
       if (objectPrompt) {
-        // Object resolution — informational bubble, no buttons
+        // Object resolution — informational bubble, no buttons.
+        // Store the original utterance so we can auto-retry after
+        // the user classifies the unknown term.
         const text = objectPrompt['fandaws:text'] || 'What is this?';
         const ctx = objectPrompt['fandaws:context'] || {};
         pendingObjectResolution = {
           term: ctx.pendingProperty || '',
           subject: ctx.pendingSubject || '',
+          originalUtterance: utterance,
         };
         appendMessage('wb-chat-msg--scope-prompt', `<div>${escapeHtml(text)}</div>`);
         pendingUtterance = null;
@@ -281,21 +284,26 @@ export function initConverse(container, state) {
 
       appendMessage('wb-chat-msg--system', html);
 
-      // Post-classification UX hint: if this classification resolved a pending object
+      // Auto-retry: if this classification resolved a pending objectResolution,
+      // re-run the original property/relationship utterance automatically.
       if (pendingObjectResolution && workflow === 'classification') {
         const classifiedLabel = result.parseResult?.['fandaws:subject'];
         if (classifiedLabel && classifiedLabel.toLowerCase() === pendingObjectResolution.term.toLowerCase()) {
-          const subj = pendingObjectResolution.subject;
-          const term = pendingObjectResolution.term;
-          appendMessage('wb-chat-msg--scope-prompt',
-            `<div>Got it \u2014 <strong>${escapeHtml(term)}</strong> is now in the graph. You can re-state: "${escapeHtml(subj)} has ${escapeHtml(term)}"</div>`
-          );
+          const originalUtterance = pendingObjectResolution.originalUtterance;
           pendingObjectResolution = null;
+          pendingUtterance = null;
+          scopeDecisions = new Map();
+          chatInput.value = originalUtterance;
+          appendMessage('wb-chat-msg--system',
+            `<div style="font-size: 0.78rem; color: var(--text-muted); font-style: italic;">Retrying: ${escapeHtml(originalUtterance)}</div>`
+          );
+          sendUtterance();
+          return;
         } else {
-          pendingObjectResolution = null; // context lost — different classification
+          pendingObjectResolution = null;
         }
       } else if (pendingObjectResolution) {
-        pendingObjectResolution = null; // non-classification result clears context
+        pendingObjectResolution = null;
       }
 
       pendingUtterance = null;

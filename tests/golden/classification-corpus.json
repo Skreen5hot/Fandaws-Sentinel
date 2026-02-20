@@ -78,11 +78,11 @@
     "expect": {
       "success": true,
       "conceptCount": 2,
-      "subjectCanonical": "dogs",
-      "objectCanonical": "animals",
+      "subjectCanonical": "dog",
+      "objectCanonical": "animal",
       "parentLink": true
     },
-    "note": "Plural 'are' pattern"
+    "note": "Plural 'are' pattern — singularized to 'dog' and 'animal'"
   },
   {
     "id": "cls-re-assertion",

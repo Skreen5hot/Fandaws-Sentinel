@@ -136,7 +136,7 @@ describe('processRelationship', () => {
       const additions = result.mutation['fandaws:additions'];
       expect(additions).toHaveLength(2); // 1 concept + 1 relationship
       const newConcept = additions.find((n) => Array.isArray(n['@type']));
-      expect(newConcept['skos:prefLabel']).toBe('cats');
+      expect(newConcept['skos:prefLabel']).toBe('cat');
     });
 
     it('marks new object as allowRoot', () => {
@@ -166,7 +166,7 @@ describe('processRelationship', () => {
       const additions = result.mutation['fandaws:additions'];
       expect(additions).toHaveLength(2); // 1 concept + 1 relationship
       const newConcept = additions.find((n) => Array.isArray(n['@type']));
-      expect(newConcept['skos:prefLabel']).toBe('dogs');
+      expect(newConcept['skos:prefLabel']).toBe('dog');
     });
 
     it('relationship points to existing object', () => {

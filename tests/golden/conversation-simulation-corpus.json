@@ -73,7 +73,7 @@
         "expect": { "success": true }
       },
       {
-        "utterance": "cells is a substance",
+        "utterance": "cell is a substance",
         "options": {},
         "expect": { "success": true }
       },
@@ -83,7 +83,7 @@
         "expect": {
           "success": true,
           "propertyOn": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal",
-          "propertyLabel": "cells"
+          "propertyLabel": "cell"
         }
       }
     ]

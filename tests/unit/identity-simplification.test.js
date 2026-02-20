@@ -6,6 +6,7 @@ import {
   removeLeadingArticles,
   applyNFKC,
   caseFold,
+  singularize,
   expandAbbreviations,
 } from '../../src/core/identity/identity-simplification.js';
 
@@ -145,6 +146,278 @@ describe('Step 5: caseFold', () => {
     // Turkish İ → i (not ı)
     const result = caseFold('İSTANBUL', 'tr');
     expect(result.startsWith('i')).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// Step 5.5: Noun singularization
+// ─────────────────────────────────────────────────────────
+describe('Step 5.5: singularize', () => {
+  // ── Regular -s plurals ──
+  it('strips -s: "dogs" → "dog"', () => {
+    expect(singularize('dogs', 'en')).toBe('dog');
+  });
+
+  it('strips -s: "cats" → "cat"', () => {
+    expect(singularize('cats', 'en')).toBe('cat');
+  });
+
+  it('strips -s: "animals" → "animal"', () => {
+    expect(singularize('animals', 'en')).toBe('animal');
+  });
+
+  // ── -ies → -y ──
+  it('converts -ies to -y: "puppies" → "puppy"', () => {
+    expect(singularize('puppies', 'en')).toBe('puppy');
+  });
+
+  it('converts -ies to -y: "cities" → "city"', () => {
+    expect(singularize('cities', 'en')).toBe('city');
+  });
+
+  // ── -ves → -f ──
+  it('converts -ves to -f: "wolves" → "wolf"', () => {
+    expect(singularize('wolves', 'en')).toBe('wolf');
+  });
+
+  it('converts -ves to -f: "halves" → "half"', () => {
+    expect(singularize('halves', 'en')).toBe('half');
+  });
+
+  it('converts -ves to -f: "leaves" → "leaf"', () => {
+    expect(singularize('leaves', 'en')).toBe('leaf');
+  });
+
+  // ── -ves → -fe (irregular lookup) ──
+  it('converts -ves to -fe: "knives" → "knife"', () => {
+    expect(singularize('knives', 'en')).toBe('knife');
+  });
+
+  it('converts -ves to -fe: "lives" → "life"', () => {
+    expect(singularize('lives', 'en')).toBe('life');
+  });
+
+  it('converts -ves to -fe: "wives" → "wife"', () => {
+    expect(singularize('wives', 'en')).toBe('wife');
+  });
+
+  // ── -es after sibilants ──
+  it('strips -es: "boxes" → "box"', () => {
+    expect(singularize('boxes', 'en')).toBe('box');
+  });
+
+  it('strips -es: "churches" → "church"', () => {
+    expect(singularize('churches', 'en')).toBe('church');
+  });
+
+  it('strips -es: "bushes" → "bush"', () => {
+    expect(singularize('bushes', 'en')).toBe('bush');
+  });
+
+  it('strips -es: "fizzes" → "fizz"', () => {
+    expect(singularize('fizzes', 'en')).toBe('fizz');
+  });
+
+  // ── -sses ──
+  it('strips -es from -sses: "classes" → "class"', () => {
+    expect(singularize('classes', 'en')).toBe('class');
+  });
+
+  // ── -ses (generic) ──
+  it('strips -s from -ses: "cases" → "case"', () => {
+    expect(singularize('cases', 'en')).toBe('case');
+  });
+
+  it('strips -s from -ses: "horses" → "horse"', () => {
+    expect(singularize('horses', 'en')).toBe('horse');
+  });
+
+  // ── Latin/Greek -ses → -sis (irregular lookup) ──
+  it('handles -ses → -sis: "analyses" → "analysis"', () => {
+    expect(singularize('analyses', 'en')).toBe('analysis');
+  });
+
+  it('handles -ses → -sis: "theses" → "thesis"', () => {
+    expect(singularize('theses', 'en')).toBe('thesis');
+  });
+
+  it('handles -ses → -sis: "diagnoses" → "diagnosis"', () => {
+    expect(singularize('diagnoses', 'en')).toBe('diagnosis');
+  });
+
+  it('handles -ses → -sis: "hypotheses" → "hypothesis"', () => {
+    expect(singularize('hypotheses', 'en')).toBe('hypothesis');
+  });
+
+  it('handles -ses → -sis: "crises" → "crisis"', () => {
+    expect(singularize('crises', 'en')).toBe('crisis');
+  });
+
+  it('handles -ses → -sis: "syntheses" → "synthesis"', () => {
+    expect(singularize('syntheses', 'en')).toBe('synthesis');
+  });
+
+  // ── Standard irregulars ──
+  it('handles irregular: "children" → "child"', () => {
+    expect(singularize('children', 'en')).toBe('child');
+  });
+
+  it('handles irregular: "mice" → "mouse"', () => {
+    expect(singularize('mice', 'en')).toBe('mouse');
+  });
+
+  it('handles irregular: "people" → "person"', () => {
+    expect(singularize('people', 'en')).toBe('person');
+  });
+
+  it('handles irregular: "teeth" → "tooth"', () => {
+    expect(singularize('teeth', 'en')).toBe('tooth');
+  });
+
+  it('handles irregular: "feet" → "foot"', () => {
+    expect(singularize('feet', 'en')).toBe('foot');
+  });
+
+  it('handles irregular: "geese" → "goose"', () => {
+    expect(singularize('geese', 'en')).toBe('goose');
+  });
+
+  // ── Latin/Greek -i and -a plurals ──
+  it('handles -i plural: "cacti" → "cactus"', () => {
+    expect(singularize('cacti', 'en')).toBe('cactus');
+  });
+
+  it('handles -a plural: "phenomena" → "phenomenon"', () => {
+    expect(singularize('phenomena', 'en')).toBe('phenomenon');
+  });
+
+  it('handles -a plural: "criteria" → "criterion"', () => {
+    expect(singularize('criteria', 'en')).toBe('criterion');
+  });
+
+  // ── Irregular plurals of no-strip words ──
+  it('handles irregular: "buses" → "bus"', () => {
+    expect(singularize('buses', 'en')).toBe('bus');
+  });
+
+  it('handles irregular: "gases" → "gas"', () => {
+    expect(singularize('gases', 'en')).toBe('gas');
+  });
+
+  // ── No-strip words (should NOT be modified) ──
+  it('does not strip: "bus"', () => {
+    expect(singularize('bus', 'en')).toBe('bus');
+  });
+
+  it('does not strip: "news"', () => {
+    expect(singularize('news', 'en')).toBe('news');
+  });
+
+  it('does not strip: "series"', () => {
+    expect(singularize('series', 'en')).toBe('series');
+  });
+
+  it('does not strip: "species"', () => {
+    expect(singularize('species', 'en')).toBe('species');
+  });
+
+  it('does not strip: "virus"', () => {
+    expect(singularize('virus', 'en')).toBe('virus');
+  });
+
+  it('does not strip: "status"', () => {
+    expect(singularize('status', 'en')).toBe('status');
+  });
+
+  it('does not strip: "analysis" (singular -sis word)', () => {
+    expect(singularize('analysis', 'en')).toBe('analysis');
+  });
+
+  it('does not strip: "thesis" (singular -sis word)', () => {
+    expect(singularize('thesis', 'en')).toBe('thesis');
+  });
+
+  it('does not strip: "chaos"', () => {
+    expect(singularize('chaos', 'en')).toBe('chaos');
+  });
+
+  it('does not strip: "rhinoceros"', () => {
+    expect(singularize('rhinoceros', 'en')).toBe('rhinoceros');
+  });
+
+  it('does not strip: "corpus"', () => {
+    expect(singularize('corpus', 'en')).toBe('corpus');
+  });
+
+  // ── Idempotency: -ss endings (Amendment 3) ──
+  it('idempotent: "class" → "class" (-ss guard)', () => {
+    expect(singularize('class', 'en')).toBe('class');
+  });
+
+  it('idempotent: "boss" → "boss" (-ss guard)', () => {
+    expect(singularize('boss', 'en')).toBe('boss');
+  });
+
+  it('idempotent: "moss" → "moss" (-ss guard)', () => {
+    expect(singularize('moss', 'en')).toBe('moss');
+  });
+
+  it('idempotent: "glass" → "glass" (-ss guard)', () => {
+    expect(singularize('glass', 'en')).toBe('glass');
+  });
+
+  it('idempotent: "grass" → "grass" (-ss guard)', () => {
+    expect(singularize('grass', 'en')).toBe('grass');
+  });
+
+  // ── Already singular ──
+  it('passes singular through: "dog"', () => {
+    expect(singularize('dog', 'en')).toBe('dog');
+  });
+
+  it('passes singular through: "animal"', () => {
+    expect(singularize('animal', 'en')).toBe('animal');
+  });
+
+  // ── Short words (≤3 chars, minimum length guard) ──
+  it('does not strip from short words: "gas" (≤3)', () => {
+    expect(singularize('gas', 'en')).toBe('gas');
+  });
+
+  it('does not strip from short words: "bus" (≤3)', () => {
+    expect(singularize('bus', 'en')).toBe('bus');
+  });
+
+  it('does not strip from short words: "is" (≤3)', () => {
+    expect(singularize('is', 'en')).toBe('is');
+  });
+
+  // ── Non-English locale: no-op ──
+  it('is a no-op for Chinese locale', () => {
+    expect(singularize('dogs', 'zh')).toBe('dogs');
+  });
+
+  it('is a no-op for German locale', () => {
+    expect(singularize('dogs', 'de')).toBe('dogs');
+  });
+
+  // ── Multi-word phrases ──
+  it('singularizes each word: "golden retrievers" → "golden retriever"', () => {
+    expect(singularize('golden retrievers', 'en')).toBe('golden retriever');
+  });
+
+  it('singularizes each word: "wild wolves" → "wild wolf"', () => {
+    expect(singularize('wild wolves', 'en')).toBe('wild wolf');
+  });
+
+  // ── Double singularization idempotency ──
+  it('is idempotent: singularize(singularize(x)) === singularize(x)', () => {
+    const words = ['dogs', 'puppies', 'wolves', 'knives', 'churches', 'classes', 'children', 'analyses', 'cases'];
+    for (const word of words) {
+      const once = singularize(word, 'en');
+      const twice = singularize(once, 'en');
+      expect(twice).toBe(once);
+    }
   });
 });
 
@@ -298,5 +571,48 @@ describe('simplify — full pipeline', () => {
       abbreviationTable: { govt: 'government' },
     });
     expect(canonicalLabel).toBe('government');
+  });
+
+  // --- Plural normalization (Step 5.5) ---
+
+  it('"Dogs" → "dog" (case fold + singularize)', () => {
+    const { canonicalLabel } = simplify('Dogs');
+    expect(canonicalLabel).toBe('dog');
+  });
+
+  it('"The puppies" → "puppy" (article + singularize)', () => {
+    const { canonicalLabel } = simplify('The puppies');
+    expect(canonicalLabel).toBe('puppy');
+  });
+
+  it('"animals" → "animal"', () => {
+    const { canonicalLabel } = simplify('animals');
+    expect(canonicalLabel).toBe('animal');
+  });
+
+  it('"Golden Retrievers" → "golden retriever"', () => {
+    const { canonicalLabel } = simplify('Golden Retrievers');
+    expect(canonicalLabel).toBe('golden retriever');
+  });
+
+  it('"CHILDREN" → "child" (case fold + irregular)', () => {
+    const { canonicalLabel } = simplify('CHILDREN');
+    expect(canonicalLabel).toBe('child');
+  });
+
+  it('"analyses" → "analysis" (Latin/Greek -ses → -sis)', () => {
+    const { canonicalLabel } = simplify('analyses');
+    expect(canonicalLabel).toBe('analysis');
+  });
+
+  it('singularize skipped for protected proper nouns', () => {
+    const { canonicalLabel } = simplify('The Beatles', { protectedProperNouns });
+    expect(canonicalLabel).toBe('the beatles');
+  });
+
+  it('"dog" and "Dogs" produce the same canonical label', () => {
+    const a = simplify('dog');
+    const b = simplify('Dogs');
+    expect(a.canonicalLabel).toBe(b.canonicalLabel);
   });
 });

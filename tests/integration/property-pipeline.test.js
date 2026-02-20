@@ -72,7 +72,7 @@ describe('runPropertyPipeline', () => {
   it('attaches property to root concept when property term is a concept', () => {
     setupGraph(adapter, [
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
-      makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells'),
+      makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell', 'Cell'),
     ]);
     const result = runPropertyPipeline('An animal has cells', context);
     expect(result.success).toBe(true);
@@ -87,8 +87,8 @@ describe('runPropertyPipeline', () => {
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
     expect(props).toHaveLength(1);
-    expect(props[0]['owl:onProperty']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells');
-    expect(props[0]['fandaws:propertyLabel']).toBe('cells');
+    expect(props[0]['owl:onProperty']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell');
+    expect(props[0]['fandaws:propertyLabel']).toBe('cell');
   });
 
   it('returns scope narrowing prompts for non-root subject', () => {
@@ -164,7 +164,7 @@ describe('runPropertyPipeline', () => {
   it('is idempotent — re-assertion returns no-op', () => {
     setupGraph(adapter, [
       makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal'),
-      makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells'),
+      makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell', 'Cell'),
     ]);
     // First call: attach property
     runPropertyPipeline('An animal has cells', context);
@@ -223,11 +223,11 @@ describe('runPropertyPipeline', () => {
   it('handles "have" plural form', () => {
     setupGraph(adapter, [
       createConcept({
-        id: 'fandaws:class/26e7809b-0d05-53e6-9a07-d6ca0b180f36/dogs',
-        label: 'Dogs',
-        prefLabel: 'dogs',
+        id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
+        label: 'Dog',
+        prefLabel: 'dog',
       }),
-      makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-legs', 'Four Legs'),
+      makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-leg', 'Four Leg'),
     ]);
     const result = runPropertyPipeline('Dogs have four legs', context);
     // Should parse as property workflow with "have" verb

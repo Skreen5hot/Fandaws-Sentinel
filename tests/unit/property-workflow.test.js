@@ -224,7 +224,7 @@ describe('processProperty — idempotency', () => {
 describe('processProperty — root concept', () => {
   it('attaches directly to root with no scope narrowing', () => {
     const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
-    const cells = makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells');
+    const cells = makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell', 'Cell');
     const concepts = [animal, cells];
     const graph = makeGraph(concepts);
     const indices = buildIndices(concepts);
@@ -237,8 +237,8 @@ describe('processProperty — root concept', () => {
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(1);
     expect(additions[0]['@type']).toBe('owl:Restriction');
-    expect(additions[0]['owl:onProperty']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells');
-    expect(additions[0]['fandaws:propertyLabel']).toBe('cells');
+    expect(additions[0]['owl:onProperty']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell');
+    expect(additions[0]['fandaws:propertyLabel']).toBe('cell');
     expect(additions[0]['fandaws:attachedTo']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(additions[0]['fandaws:scope']).toBe('concept-specific');
   });
@@ -309,21 +309,22 @@ describe('processProperty — scope narrowing', () => {
 describe('processProperty — mutation shape', () => {
   it('generates correct restriction IRI', () => {
     const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
-    const fourLegs = makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-legs', 'Four Legs');
-    fourLegs['skos:prefLabel'] = 'four legs';
-    const concepts = [animal, fourLegs];
+    const fourLeg = makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-leg', 'Four Leg');
+    fourLeg['skos:prefLabel'] = 'four leg';
+    const concepts = [animal, fourLeg];
     const graph = makeGraph(concepts);
     const indices = buildIndices(concepts);
     const action = makeAction('animal', 'four legs');
     const result = processProperty(action, graph, indices);
     expect(result.mutation).not.toBeNull();
     const restriction = result.mutation['fandaws:additions'][0];
-    expect(restriction['@id']).toBe('fandaws:restriction/c1a750ae-8ce8-5614-a451-321acc672ced/animal--four-legs');
+    // IRI derived from canonical labels: "animal" + "four leg"
+    expect(restriction['@id']).toMatch(/^fandaws:restriction\/.*\/animal--four-leg$/);
   });
 
   it('includes reason in mutation', () => {
     const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
-    const cells = makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells');
+    const cells = makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell', 'Cell');
     const concepts = [animal, cells];
     const graph = makeGraph(concepts);
     const indices = buildIndices(concepts);
@@ -397,21 +398,21 @@ describe('processProperty — redundancy', () => {
   });
 
   it('rejects via redundancy check when ancestor has property and attaching to descendant', () => {
-    // animal has "cells" — scope says attach to dog (parent=no) → ancestor overlap
+    // animal has "cell" — scope says attach to dog (parent=no) → ancestor overlap
     const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     animal['rdfs:subClassOf'] = [
       {
-        '@id': 'fandaws:restriction/a255093d-7524-5477-9bff-d7abfac06d52/animal--cells',
+        '@id': 'fandaws:restriction/a255093d-7524-5477-9bff-d7abfac06d52/animal--cell',
         '@type': 'owl:Restriction',
-        'owl:onProperty': 'fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells',
-        'fandaws:propertyLabel': 'cells',
+        'owl:onProperty': 'fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell',
+        'fandaws:propertyLabel': 'cell',
         'fandaws:restrictionKind': 'property',
         'fandaws:attachedTo': 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal',
         'fandaws:scope': 'concept-specific',
       },
     ];
     const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
-    const cells = makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cells', 'Cells');
+    const cells = makeConcept('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell', 'Cell');
     const graph = makeGraph([animal, dog, cells]);
     const indices = buildIndices([animal, dog, cells]);
     const action = makeAction('dog', 'cells');

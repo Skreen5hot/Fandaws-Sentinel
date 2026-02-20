@@ -127,19 +127,58 @@ export function initConverse(container, state) {
   }
 
   /**
+   * If an objectResolution prompt is pending and the user typed a short
+   * fragment (no verb pattern), auto-expand it into a classification
+   * utterance: "{pending term} is {userInput}".
+   *
+   * @param {string} input - User's raw input
+   * @param {{ term: string, subject: string }|null} pending
+   * @returns {string} Possibly expanded utterance
+   */
+  function expandObjectResolution(input, pending) {
+    if (!pending || !pending.term) return input;
+
+    const trimmed = input.trim();
+    if (!trimmed) return input;
+
+    // If the user started with a pronoun, they're forming their own sentence
+    if (/^(it|that|this|they)\b/i.test(trimmed)) return input;
+
+    // If the user typed a full utterance with a verb, send as-is
+    if (/\b(is|are|has|have|it'?s)\b/i.test(trimmed) && trimmed.includes(' ')) {
+      return input;
+    }
+
+    // Single word or fragment without a verb → auto-prefix
+    // Uses bare "is" — the parser handles "X is Y" without an article
+    return `${pending.term} is ${trimmed}`;
+  }
+
+  /**
    * Process and send an utterance.
    */
   function sendUtterance() {
-    const utterance = chatInput.value.trim();
+    let utterance = chatInput.value.trim();
     if (!utterance) return;
 
     removeOnboarding();
+
+    // Auto-expand single-word response to objectResolution prompt
+    const rawInput = utterance;
+    if (pendingObjectResolution) {
+      utterance = expandObjectResolution(utterance, pendingObjectResolution);
+    }
 
     // If this is a new utterance (not re-run for scope), show user bubble
     if (utterance !== pendingUtterance) {
       scopeDecisions = new Map();
       pendingUtterance = null;
-      appendMessage('wb-chat-msg--user', escapeHtml(utterance));
+      if (utterance !== rawInput) {
+        appendMessage('wb-chat-msg--user',
+          `${escapeHtml(rawInput)} <span class="wb-auto-expand">&rarr; ${escapeHtml(utterance)}</span>`);
+      } else {
+        appendMessage('wb-chat-msg--user', escapeHtml(utterance));
+      }
     }
 
     const options = scopeDecisions.size > 0

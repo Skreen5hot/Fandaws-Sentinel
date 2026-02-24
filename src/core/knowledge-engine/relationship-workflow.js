@@ -23,6 +23,7 @@ import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
 import { normalizeVerb } from '../validator/relationship-validation.js';
 import { isRestrictionNode } from '../../types/type-checks.js';
+import { resolveConceptByLabel } from './resolve-concept.js';
 
 /**
  * Derive a consistent display label from raw text.
@@ -94,7 +95,7 @@ function findParentRelationship(subjectIri, normalizedVerb, graph, indices) {
  * @param {string[]} [options.protectedProperNouns=[]]
  * @returns {{ mutation: object|null, prompts: object[], error: boolean, errorReason: string|null, normalizedVerb: string|null }}
  */
-export function processRelationship(action, graph, indices, options = {}) {
+export function processRelationship(action, graph, indices, options = {}, adapter = null) {
   const {
     scope = DEFAULT_SCOPE,
     locale = 'en',
@@ -136,47 +137,99 @@ export function processRelationship(action, graph, indices, options = {}) {
     return { ...noOp, error: true, errorReason: 'empty-verb' };
   }
 
-  // ── 3. Locate subject in graph ──
-  const subjectMatches = findConceptsByCanonical(subjectCanonical, graph);
+  // ── 3. Locate subject and object in graph ──
+  let existingSubject = null;
+  let existingObject = null;
 
-  // ── 4. Locate object in graph ──
-  const objectMatches = findConceptsByCanonical(objectCanonical, graph);
+  if (adapter) {
+    // Subject resolution
+    if (options.resolvedSubjectIri) {
+      existingSubject = (graph['fandaws:concepts'] || []).find(
+        (c) => c['@id'] === options.resolvedSubjectIri,
+      ) || null;
+    } else {
+      const subjectResolution = resolveConceptByLabel(subjectCanonical, graph, adapter, { allowCreate: false });
+      if (subjectResolution.ambiguous) {
+        const prompt = createConversationPrompt({
+          promptType: 'homonymDisambiguation',
+          text: `Which "${rawSubject}" do you mean?`,
+          options: subjectResolution.ambiguous.map((c) => c['rdfs:label']),
+          context: {
+            action: 'customRelationship',
+            candidates: subjectResolution.ambiguous.map((c) => c['@id']),
+            allowCreate: false,
+            bareLabel: rawSubject,
+          },
+        });
+        return { ...noOp, prompts: [prompt] };
+      }
+      existingSubject = subjectResolution.resolved || null;
+    }
 
-  // ── 5. Disambiguation ──
-  if (subjectMatches.length > 1) {
-    const prompt = createConversationPrompt({
-      promptType: 'disambiguation',
-      text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
-      options: subjectMatches.map((c) => c['rdfs:label']),
-      context: {
-        action: 'customRelationship',
-        subject: rawSubject,
-        verb: rawVerb,
-        object: rawObject,
-        candidates: subjectMatches.map((c) => c['@id']),
-      },
-    });
-    return { ...noOp, prompts: [prompt] };
+    // Object resolution
+    if (options.resolvedObjectIri) {
+      existingObject = (graph['fandaws:concepts'] || []).find(
+        (c) => c['@id'] === options.resolvedObjectIri,
+      ) || null;
+    } else {
+      const objectResolution = resolveConceptByLabel(objectCanonical, graph, adapter, { allowCreate: false });
+      if (objectResolution.ambiguous) {
+        const prompt = createConversationPrompt({
+          promptType: 'homonymDisambiguation',
+          text: `Which "${rawObject}" do you mean?`,
+          options: objectResolution.ambiguous.map((c) => c['rdfs:label']),
+          context: {
+            action: 'customRelationship',
+            candidates: objectResolution.ambiguous.map((c) => c['@id']),
+            allowCreate: false,
+            bareLabel: rawObject,
+          },
+        });
+        return { ...noOp, prompts: [prompt] };
+      }
+      existingObject = objectResolution.resolved || null;
+    }
+  } else {
+    // Legacy path: canonical-only lookup
+    const subjectMatches = findConceptsByCanonical(subjectCanonical, graph);
+    const objectMatches = findConceptsByCanonical(objectCanonical, graph);
+
+    // ── 5. Disambiguation ──
+    if (subjectMatches.length > 1) {
+      const prompt = createConversationPrompt({
+        promptType: 'disambiguation',
+        text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
+        options: subjectMatches.map((c) => c['rdfs:label']),
+        context: {
+          action: 'customRelationship',
+          subject: rawSubject,
+          verb: rawVerb,
+          object: rawObject,
+          candidates: subjectMatches.map((c) => c['@id']),
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+
+    if (objectMatches.length > 1) {
+      const prompt = createConversationPrompt({
+        promptType: 'disambiguation',
+        text: `Multiple meanings found for "${rawObject}". Which did you mean?`,
+        options: objectMatches.map((c) => c['rdfs:label']),
+        context: {
+          action: 'customRelationship',
+          subject: rawSubject,
+          verb: rawVerb,
+          object: rawObject,
+          candidates: objectMatches.map((c) => c['@id']),
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+
+    existingSubject = subjectMatches.length === 1 ? subjectMatches[0] : null;
+    existingObject = objectMatches.length === 1 ? objectMatches[0] : null;
   }
-
-  if (objectMatches.length > 1) {
-    const prompt = createConversationPrompt({
-      promptType: 'disambiguation',
-      text: `Multiple meanings found for "${rawObject}". Which did you mean?`,
-      options: objectMatches.map((c) => c['rdfs:label']),
-      context: {
-        action: 'customRelationship',
-        subject: rawSubject,
-        verb: rawVerb,
-        object: rawObject,
-        candidates: objectMatches.map((c) => c['@id']),
-      },
-    });
-    return { ...noOp, prompts: [prompt] };
-  }
-
-  const existingSubject = subjectMatches.length === 1 ? subjectMatches[0] : null;
-  const existingObject = objectMatches.length === 1 ? objectMatches[0] : null;
 
   const subjectIri = existingSubject
     ? existingSubject['@id']

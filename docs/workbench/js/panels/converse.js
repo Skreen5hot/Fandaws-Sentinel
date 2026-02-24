@@ -16,6 +16,8 @@ export function initConverse(container, state) {
   let scopeDecisions = new Map();
   let onboardingShown = true;
   let pendingObjectResolution = null;
+  let pendingReclassification = null;
+  let pendingQualification = null;
 
   // Build DOM
   container.innerHTML = `
@@ -163,6 +165,35 @@ export function initConverse(container, state) {
 
     removeOnboarding();
 
+    // Handle pendingQualification — user typed a custom qualifier label
+    if (pendingQualification) {
+      appendMessage('wb-chat-msg--user', escapeHtml(utterance));
+      const createOpts = {
+        reclassificationConfirmed: 'new_concept',
+        relabelExisting: true,
+        qualifiers: {
+          existing: pendingQualification.autoExisting,
+          new: utterance,
+        },
+      };
+      const createResult = state.runUtterance(pendingQualification.originalUtterance, createOpts);
+      pendingQualification = null;
+
+      if (createResult.success) {
+        appendMessage('wb-chat-msg--system',
+          '<span class="wb-workflow-badge wb-workflow-badge--classification">classification</span>' +
+          '<div style="margin-top: 4px;">Homonym created with custom label.</div>');
+      } else {
+        appendMessage('wb-chat-msg--error',
+          `<strong>Error:</strong> ${escapeHtml(createResult.errorReason || 'Unknown error')}`);
+      }
+      pendingUtterance = null;
+      scopeDecisions = new Map();
+      chatInput.value = '';
+      chatInput.focus();
+      return;
+    }
+
     // Auto-expand single-word response to objectResolution prompt
     const rawInput = utterance;
     if (pendingObjectResolution) {
@@ -209,6 +240,264 @@ export function initConverse(container, state) {
         pendingUtterance = null;
         scopeDecisions = new Map();
         chatInput.value = '';
+      } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'reclassificationConfirmation')) {
+        // Reclassification confirmation — three-button bubble
+        const reclPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'reclassificationConfirmation');
+        const text = reclPrompt['fandaws:text'] || 'Confirm reclassification?';
+        const ctx = reclPrompt['fandaws:context'] || {};
+
+        pendingReclassification = {
+          originalUtterance: utterance,
+          existingConceptIri: ctx.existingConceptIri,
+          existingParentLabel: ctx.existingParentLabel,
+          newParentLabel: ctx.newParentLabel,
+          subjectLabel: ctx.subjectLabel,
+        };
+
+        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
+          <div>${escapeHtml(text).replace(/\n/g, '<br>')}</div>
+          <div class="wb-scope-buttons">
+            <button class="wb-recl-btn" data-recl-action="move">Same &mdash; move it</button>
+            <button class="wb-recl-btn" data-recl-action="new_concept">Different concept</button>
+            <button class="wb-recl-btn" data-recl-action="cancel">Cancel</button>
+          </div>
+        `);
+
+        msgDiv.querySelectorAll('.wb-recl-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            const action = btn.dataset.reclAction;
+            const buttonsDiv = btn.closest('.wb-scope-buttons');
+
+            if (action === 'move') {
+              buttonsDiv.innerHTML = '<em style="color: var(--text-muted);">Moving&hellip;</em>';
+              chatInput.value = pendingReclassification.originalUtterance;
+              pendingUtterance = pendingReclassification.originalUtterance;
+              const reclOpts = {
+                reclassificationConfirmed: 'move',
+                existingConceptIri: pendingReclassification.existingConceptIri,
+              };
+              pendingReclassification = null;
+              const moveResult = state.runUtterance(pendingUtterance, reclOpts);
+
+              if (moveResult.success) {
+                buttonsDiv.innerHTML = '<em style="color: var(--text-muted);">Moved.</em>';
+                let descText = moveResult.descriptions?.length > 0
+                  ? moveResult.descriptions[0].description : null;
+                if (!descText && moveResult.mutation && moveResult.parseResult) {
+                  const subjectLabel = moveResult.parseResult['fandaws:subject'];
+                  if (subjectLabel) {
+                    const graph = state.getGraph();
+                    const concepts = graph?.['fandaws:concepts'] || [];
+                    const sc = concepts.find((c) =>
+                      (c['skos:prefLabel'] || '').toLowerCase() === subjectLabel.toLowerCase()
+                      || (c['rdfs:label'] || '').toLowerCase() === subjectLabel.toLowerCase()
+                    );
+                    if (sc) try { descText = state.Fandaws.describeConcept(sc, graph); } catch { /* */ }
+                  }
+                }
+                let html = '<span class="wb-workflow-badge wb-workflow-badge--classification">classification</span>';
+                html += descText
+                  ? `<div style="margin-top: 4px;">${linkifyConcepts(descText)}</div>`
+                  : '<div style="margin-top: 4px;">Reclassified.</div>';
+                appendMessage('wb-chat-msg--system', html);
+              } else {
+                appendMessage('wb-chat-msg--error',
+                  `<strong>Error:</strong> ${escapeHtml(moveResult.errorReason || 'Unknown error')}`);
+              }
+              pendingUtterance = null;
+              scopeDecisions = new Map();
+              chatInput.value = '';
+            } else if (action === 'cancel') {
+              buttonsDiv.innerHTML = '<em style="color: var(--text-muted);">Cancelled.</em>';
+              pendingReclassification = null;
+              pendingUtterance = null;
+              scopeDecisions = new Map();
+              chatInput.value = '';
+            } else if (action === 'new_concept') {
+              buttonsDiv.innerHTML = '<em style="color: var(--text-muted);">Different concept&hellip;</em>';
+
+              // Generate auto-qualifiers from parent labels
+              const subjLabel = pendingReclassification.subjectLabel;
+              const existingQ = `${subjLabel} (${pendingReclassification.existingParentLabel})`;
+              const newQ = `${subjLabel} (${pendingReclassification.newParentLabel})`;
+
+              pendingQualification = {
+                originalUtterance: pendingReclassification.originalUtterance,
+                existingConceptIri: pendingReclassification.existingConceptIri,
+                autoExisting: existingQ,
+                autoNew: newQ,
+              };
+              pendingReclassification = null;
+
+              const qualDiv = appendMessage('wb-chat-msg--scope-prompt', `
+                <div>Suggested labels:</div>
+                <div style="margin: 4px 0;"><strong>${escapeHtml(existingQ)}</strong> (existing)</div>
+                <div style="margin: 4px 0;"><strong>${escapeHtml(newQ)}</strong> (new)</div>
+                <div class="wb-scope-buttons">
+                  <button class="wb-qual-btn" data-qual-action="accept">Accept labels</button>
+                  <button class="wb-qual-btn" data-qual-action="customize">Customize</button>
+                </div>
+              `);
+
+              qualDiv.querySelectorAll('.wb-qual-btn').forEach((qBtn) => {
+                qBtn.addEventListener('click', () => {
+                  const qAction = qBtn.dataset.qualAction;
+                  const qBtnsDiv = qBtn.closest('.wb-scope-buttons');
+
+                  if (qAction === 'accept') {
+                    qBtnsDiv.innerHTML = '<em style="color: var(--text-muted);">Creating&hellip;</em>';
+                    const createOpts = {
+                      reclassificationConfirmed: 'new_concept',
+                      relabelExisting: true,
+                      qualifiers: {
+                        existing: pendingQualification.autoExisting,
+                        new: pendingQualification.autoNew,
+                      },
+                    };
+                    const createResult = state.runUtterance(pendingQualification.originalUtterance, createOpts);
+                    pendingQualification = null;
+
+                    if (createResult.success) {
+                      qBtnsDiv.innerHTML = '<em style="color: var(--text-muted);">Created.</em>';
+                      appendMessage('wb-chat-msg--system',
+                        '<span class="wb-workflow-badge wb-workflow-badge--classification">classification</span>' +
+                        '<div style="margin-top: 4px;">Homonym created.</div>');
+                    } else {
+                      appendMessage('wb-chat-msg--error',
+                        `<strong>Error:</strong> ${escapeHtml(createResult.errorReason || 'Unknown error')}`);
+                    }
+                    pendingUtterance = null;
+                    scopeDecisions = new Map();
+                    chatInput.value = '';
+                  } else if (qAction === 'customize') {
+                    qBtnsDiv.innerHTML = '<em style="color: var(--text-muted);">Enter custom label&hellip;</em>';
+                    appendMessage('wb-chat-msg--scope-prompt',
+                      '<div>What should I call the new one? (Type a qualified label, e.g., "mouse (input device)")</div>');
+                    // Set flag — next sendUtterance() input becomes the custom qualifier
+                    chatInput.value = '';
+                    chatInput.focus();
+                    // pendingQualification stays set — sendUtterance intercepts it
+                  }
+                });
+              });
+            }
+          });
+        });
+      } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'homonymDisambiguation')) {
+        // Homonym disambiguation — selection buttons per homonym
+        const disPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'homonymDisambiguation');
+        const text = disPrompt['fandaws:text'] || 'Which concept did you mean?';
+        const ctx = disPrompt['fandaws:context'] || {};
+        const opts = disPrompt['fandaws:options'] || [];
+        const candidates = ctx.candidates || [];
+        const allowCreate = ctx.allowCreate || false;
+
+        let btnsHtml = candidates.map((iri, i) =>
+          `<button class="wb-dis-btn" data-dis-iri="${escapeHtml(iri)}">${escapeHtml(opts[i] || iri)}</button>`,
+        ).join('');
+        if (allowCreate) {
+          btnsHtml += '<button class="wb-dis-btn" data-dis-action="neither">Neither &mdash; new concept</button>';
+        }
+
+        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
+          <div>${escapeHtml(text)}</div>
+          <div class="wb-scope-buttons">${btnsHtml}</div>
+        `);
+
+        msgDiv.querySelectorAll('.wb-dis-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const selectedIri = btn.dataset.disIri;
+            const disAction = btn.dataset.disAction;
+            const buttonsDiv = btn.closest('.wb-scope-buttons');
+
+            if (disAction === 'neither') {
+              // Simplified qualifier flow for Nth homonym
+              buttonsDiv.innerHTML = '<em style="color: var(--text-muted);">New concept&hellip;</em>';
+              const bareLabel = ctx.bareLabel || 'concept';
+              const autoLabel = `${bareLabel} (new)`;
+
+              pendingQualification = {
+                originalUtterance: utterance,
+                autoExisting: '',
+                autoNew: autoLabel,
+                isNthHomonym: true,
+              };
+
+              const qualDiv = appendMessage('wb-chat-msg--scope-prompt', `
+                <div>What should I call the new one? (suggested: <strong>${escapeHtml(autoLabel)}</strong>)</div>
+                <div class="wb-scope-buttons">
+                  <button class="wb-qual-btn" data-qual-action="accept">Accept label</button>
+                  <button class="wb-qual-btn" data-qual-action="customize">Customize</button>
+                </div>
+              `);
+
+              qualDiv.querySelectorAll('.wb-qual-btn').forEach((qBtn) => {
+                qBtn.addEventListener('click', () => {
+                  const qAction = qBtn.dataset.qualAction;
+                  const qBtnsDiv = qBtn.closest('.wb-scope-buttons');
+                  if (qAction === 'accept') {
+                    qBtnsDiv.innerHTML = '<em style="color: var(--text-muted);">Creating&hellip;</em>';
+                    const createOpts = {
+                      disambiguationAction: 'create_new',
+                      reclassificationConfirmed: 'new_concept',
+                      relabelExisting: false,
+                      qualifiers: { existing: '', new: pendingQualification.autoNew },
+                    };
+                    const createResult = state.runUtterance(pendingQualification.originalUtterance, createOpts);
+                    pendingQualification = null;
+                    if (createResult.success) {
+                      qBtnsDiv.innerHTML = '<em style="color: var(--text-muted);">Created.</em>';
+                      appendMessage('wb-chat-msg--system',
+                        '<span class="wb-workflow-badge wb-workflow-badge--classification">classification</span>' +
+                        '<div style="margin-top: 4px;">Homonym created.</div>');
+                    } else {
+                      appendMessage('wb-chat-msg--error',
+                        `<strong>Error:</strong> ${escapeHtml(createResult.errorReason || 'Unknown error')}`);
+                    }
+                    pendingUtterance = null;
+                    chatInput.value = '';
+                  } else if (qAction === 'customize') {
+                    qBtnsDiv.innerHTML = '<em style="color: var(--text-muted);">Enter custom label&hellip;</em>';
+                    appendMessage('wb-chat-msg--scope-prompt',
+                      '<div>Type a qualified label (e.g., "mouse (new category)"):</div>');
+                    chatInput.value = '';
+                    chatInput.focus();
+                  }
+                });
+              });
+            } else {
+              // User selected a specific homonym
+              buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${escapeHtml(btn.textContent)}</em>`;
+              const resolveOpts = { resolvedConceptIri: selectedIri };
+              const resolveResult = state.runUtterance(utterance, resolveOpts);
+
+              if (resolveResult.success) {
+                let descText = resolveResult.descriptions?.length > 0
+                  ? resolveResult.descriptions[0].description : null;
+                const workflowClass = getWorkflowLabel(resolveResult) === 'classification' ? 'classification'
+                  : getWorkflowLabel(resolveResult) === 'property' ? 'property' : 'relationship';
+                let html = `<span class="wb-workflow-badge wb-workflow-badge--${workflowClass}">${escapeHtml(getWorkflowLabel(resolveResult))}</span>`;
+                html += descText
+                  ? `<div style="margin-top: 4px;">${linkifyConcepts(descText)}</div>`
+                  : '<div style="margin-top: 4px;">Done.</div>';
+                appendMessage('wb-chat-msg--system', html);
+              } else if (resolveResult.prompts && resolveResult.prompts.length > 0) {
+                // May trigger further prompts (e.g., reclassification confirmation)
+                // The next sendUtterance cycle will handle them
+                chatInput.value = utterance;
+                pendingUtterance = utterance;
+                // Re-process with the resolved IRI in the options
+                return;
+              } else {
+                appendMessage('wb-chat-msg--error',
+                  `<strong>Error:</strong> ${escapeHtml(resolveResult.errorReason || 'Unknown error')}`);
+              }
+              pendingUtterance = null;
+              chatInput.value = '';
+            }
+          });
+        });
       } else {
         // Scope narrowing — render as chat bubble with buttons
         pendingUtterance = utterance;

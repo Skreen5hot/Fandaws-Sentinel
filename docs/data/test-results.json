@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-02-19T18:00:00.000Z",
+  "generatedAt": "2026-02-24T12:00:00.000Z",
   "success": true,
-  "totalSuites": 88,
-  "passedSuites": 88,
+  "totalSuites": 92,
+  "passedSuites": 92,
   "failedSuites": 0,
-  "totalTests": 1785,
-  "passedTests": 1785,
+  "totalTests": 1937,
+  "passedTests": 1937,
   "failedTests": 0,
   "skippedTests": 0,
   "suites": [
@@ -98,6 +98,10 @@
       "duration": 0
     },
     {
+      "name": "unit/disambiguation.test.js",
+      "duration": 0
+    },
+    {
       "name": "unit/epistemic-register.test.js",
       "duration": 0
     },
@@ -123,6 +127,10 @@
     },
     {
       "name": "unit/governance-check.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/homonym-creation.test.js",
       "duration": 0
     },
     {
@@ -214,11 +222,19 @@
       "duration": 0
     },
     {
+      "name": "unit/proximity.test.js",
+      "duration": 0
+    },
+    {
       "name": "unit/property-redundancy.test.js",
       "duration": 0
     },
     {
       "name": "unit/property-workflow.test.js",
+      "duration": 0
+    },
+    {
+      "name": "unit/reclassification-confirmation.test.js",
       "duration": 0
     },
     {

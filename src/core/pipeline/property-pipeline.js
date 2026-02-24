@@ -137,7 +137,8 @@ export function runPropertyPipeline(utterance, context, options = {}) {
     protectedProperNouns,
     scopeDecisions,
     leapCheckEnabled,
-  });
+    resolvedConceptIri: options.resolvedConceptIri,
+  }, stateAdapter);
 
   if (engineResult.error) {
     return {

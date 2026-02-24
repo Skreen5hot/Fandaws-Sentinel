@@ -390,7 +390,7 @@ export class InMemoryStateAdapter extends StateAdapter {
   /**
    * Create a fresh empty index set.
    *
-   * @returns {object} GraphIndices with 5 empty Maps
+   * @returns {object} GraphIndices with 6 empty Maps
    */
   _createEmptyIndices() {
     return {
@@ -399,6 +399,7 @@ export class InMemoryStateAdapter extends StateAdapter {
       iriToChildren: new Map(),
       iriToProperties: new Map(),
       iriToReverseRelationships: new Map(),
+      hiddenLabelToIri: new Map(),
     };
   }
 
@@ -458,6 +459,14 @@ export class InMemoryStateAdapter extends StateAdapter {
           }
         }
       }
+
+      // Index 6: hidden label → IRI array (for homonym disambiguation)
+      const hiddenLabel = concept['skos:hiddenLabel'];
+      if (hiddenLabel) {
+        const existing = idx.hiddenLabelToIri.get(hiddenLabel) || [];
+        existing.push(iri);
+        idx.hiddenLabelToIri.set(hiddenLabel, existing);
+      }
     }
 
     this._indices.set(id, idx);
@@ -471,6 +480,24 @@ export class InMemoryStateAdapter extends StateAdapter {
    */
   getIndices(graphId) {
     return this._indices.get(graphId) ?? null;
+  }
+
+  /**
+   * Find concepts with a given skos:hiddenLabel (bare label before qualification).
+   *
+   * @param {string} label - Bare label to search for
+   * @param {string} graphId - Graph IRI
+   * @returns {object[]} Matching concept nodes
+   */
+  findConceptsByHiddenLabel(label, graphId) {
+    const idx = this._indices.get(graphId);
+    if (!idx) return [];
+    const iris = idx.hiddenLabelToIri.get(label) || [];
+    const graph = this._graphs.get(graphId);
+    if (!graph) return [];
+    return iris.map((iri) =>
+      (graph['fandaws:concepts'] || []).find((c) => c['@id'] === iri),
+    ).filter(Boolean);
   }
 
   // ─────────────────────────────────────────────────────────
@@ -581,6 +608,20 @@ export class InMemoryStateAdapter extends StateAdapter {
             key: iri,
             ghostIri: relIri,
             reason: 'Relationship restriction IRI not present in graph',
+          });
+        }
+      }
+    }
+
+    // Check Index 6: hiddenLabel → IRIs
+    for (const [label, iris] of idx.hiddenLabelToIri) {
+      for (const iri of iris) {
+        if (!conceptIris.has(iri)) {
+          ghosts.push({
+            index: 'hiddenLabelToIri',
+            key: label,
+            ghostIri: iri,
+            reason: 'Concept IRI not present in graph',
           });
         }
       }

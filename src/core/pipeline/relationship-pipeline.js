@@ -105,7 +105,9 @@ export function runRelationshipPipeline(utterance, context, options = {}) {
     locale,
     abbreviationTable,
     protectedProperNouns,
-  });
+    resolvedSubjectIri: options.resolvedSubjectIri,
+    resolvedObjectIri: options.resolvedObjectIri,
+  }, stateAdapter);
 
   baseResult.normalizedVerb = engineResult.normalizedVerb;
 

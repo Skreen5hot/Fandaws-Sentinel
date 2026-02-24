@@ -1031,12 +1031,14 @@ let convOrchestrator = null;
 let convTurnCount = 0;
 let convPendingUtterance = null;
 let convScopeDecisions = new Map();
+let convPendingOptions = {};
 
 const CONV_SCENARIOS = [
   { label: 'Build taxonomy: dog → animal', utterances: ['A dog is an animal', 'A cat is an animal', 'A poodle is a dog'] },
   { label: 'Add properties: dog has fur', utterances: ['A dog is an animal', 'A dog has fur'] },
   { label: 'Relationships: dog chases cat', utterances: ['A dog is an animal', 'A cat is an animal', 'A dog chases a cat'] },
   { label: 'Full scenario: taxonomy + properties + relationships', utterances: ['A dog is an animal', 'A cat is an animal', 'A dog has fur', 'A dog chases a cat'] },
+  { label: 'Homonym detection: mouse (animal vs device)', utterances: ['A rodent is an animal', 'A mouse is a rodent', 'A device is a technology', 'A mouse is a device'] },
   { label: 'Error: circular classification', utterances: ['A dog is an animal', 'An animal is a dog'] },
 ];
 
@@ -1088,6 +1090,7 @@ function resetConversation() {
   convTurnCount = 0;
   convPendingUtterance = null;
   convScopeDecisions = new Map();
+  convPendingOptions = {};
   document.getElementById('conv-scope-prompts').innerHTML = '';
 }
 
@@ -1102,13 +1105,15 @@ function sendConversation() {
   // Clear previous prompts if this is a new utterance
   if (utterance !== convPendingUtterance) {
     convScopeDecisions = new Map();
+    convPendingOptions = {};
     convPendingUtterance = null;
   }
   promptArea.innerHTML = '';
 
   convTurnCount++;
   const context = { stateAdapter: convAdapter, graphId: CONV_GRAPH_ID };
-  const options = convScopeDecisions.size > 0 ? { scopeDecisions: convScopeDecisions } : {};
+  const options = { ...convPendingOptions };
+  if (convScopeDecisions.size > 0) options.scopeDecisions = convScopeDecisions;
 
   const result = convOrchestrator.runPipeline(utterance, context, options);
 
@@ -1132,34 +1137,85 @@ function sendConversation() {
   sysDiv.className = 'pipeline-step';
 
   if (result.prompts && result.prompts.length > 0 && !result.success && !result.error) {
-    // Scope narrowing prompts
+    const promptType = result.prompts[0]['fandaws:promptType'] || 'scopeNarrowing';
     const pipelineLabel = `[${workflow}]`;
-    sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result step-result--changed">${escapeHtml(pipelineLabel)} Scope narrowing: answer below</span>`;
-    log.appendChild(sysDiv);
-
-    // Render scope prompts
     convPendingUtterance = utterance;
-    for (const prompt of result.prompts) {
-      const text = prompt['fandaws:text'] || 'Scope question';
-      const ctx = prompt['fandaws:context'] || {};
-      const conceptIri = ctx.conceptIri || '';
+
+    if (promptType === 'reclassificationConfirmation') {
+      // ── Reclassification confirmation prompt ──
+      const prompt = result.prompts[0];
+      const text = prompt['fandaws:text'] || 'Confirm reclassification?';
+      sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result step-result--changed">${escapeHtml(pipelineLabel)} ${escapeHtml(text)}</span>`;
+      log.appendChild(sysDiv);
+
       const div = document.createElement('div');
       div.className = 'card';
       div.style.cssText = 'margin-bottom: 8px; padding: 12px;';
       div.innerHTML = `
-        <p style="margin-bottom: 8px; color: var(--accent);">${escapeHtml(text)}</p>
-        <button class="btn btn--primary conv-scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="true" style="margin-right: 8px;">Yes</button>
-        <button class="btn conv-scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="false" style="background: var(--surface-alt); border: 1px solid var(--border);">No</button>
+        <p style="margin-bottom: 8px; color: var(--accent);">Reclassification detected across distant branches</p>
+        <button class="btn btn--primary conv-reclass-btn" data-action="move" style="margin-right: 8px;">Same concept &mdash; move it</button>
+        <button class="btn conv-reclass-btn" data-action="cancel" style="background: var(--surface-alt); border: 1px solid var(--border);">Cancel</button>
       `;
       promptArea.appendChild(div);
-    }
 
-    promptArea.querySelectorAll('.conv-scope-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        convScopeDecisions.set(btn.dataset.iri, btn.dataset.answer === 'true');
-        sendConversation();
+      promptArea.querySelectorAll('.conv-reclass-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          convPendingOptions = { reclassificationConfirmed: btn.dataset.action };
+          sendConversation();
+        });
       });
-    });
+    } else if (promptType === 'homonymDisambiguation') {
+      // ── Homonym disambiguation prompt ──
+      const prompt = result.prompts[0];
+      const text = prompt['fandaws:text'] || 'Which did you mean?';
+      const ctx = prompt['fandaws:context'] || {};
+      const candidates = ctx.candidates || [];
+      const promptOptions = prompt['fandaws:options'] || [];
+      sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result step-result--changed">${escapeHtml(pipelineLabel)} ${escapeHtml(text)}</span>`;
+      log.appendChild(sysDiv);
+
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.style.cssText = 'margin-bottom: 8px; padding: 12px;';
+      let btns = candidates.map((iri, i) =>
+        `<button class="btn btn--primary conv-disambig-btn" data-iri="${escapeHtml(iri)}" style="margin-right: 8px; margin-bottom: 4px;">${escapeHtml(promptOptions[i] || iri.split('/').pop())}</button>`,
+      ).join('');
+      div.innerHTML = `<p style="margin-bottom: 8px; color: var(--accent);">${escapeHtml(text)}</p>${btns}`;
+      promptArea.appendChild(div);
+
+      promptArea.querySelectorAll('.conv-disambig-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          convPendingOptions = { resolvedConceptIri: btn.dataset.iri };
+          sendConversation();
+        });
+      });
+    } else {
+      // ── Scope narrowing prompts ──
+      sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result step-result--changed">${escapeHtml(pipelineLabel)} Scope narrowing: answer below</span>`;
+      log.appendChild(sysDiv);
+
+      for (const prompt of result.prompts) {
+        const text = prompt['fandaws:text'] || 'Scope question';
+        const ctx = prompt['fandaws:context'] || {};
+        const conceptIri = ctx.conceptIri || '';
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.style.cssText = 'margin-bottom: 8px; padding: 12px;';
+        div.innerHTML = `
+          <p style="margin-bottom: 8px; color: var(--accent);">${escapeHtml(text)}</p>
+          <button class="btn btn--primary conv-scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="true" style="margin-right: 8px;">Yes</button>
+          <button class="btn conv-scope-btn" data-iri="${escapeHtml(conceptIri)}" data-answer="false" style="background: var(--surface-alt); border: 1px solid var(--border);">No</button>
+        `;
+        promptArea.appendChild(div);
+      }
+
+      promptArea.querySelectorAll('.conv-scope-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          convScopeDecisions.set(btn.dataset.iri, btn.dataset.answer === 'true');
+          sendConversation();
+        });
+      });
+    }
   } else if (result.success) {
     const conceptCount = (result.graph?.['fandaws:concepts'] || []).length;
     const mutationNote = result.mutation ? 'graph updated' : 'no-op (idempotent)';
@@ -1170,12 +1226,14 @@ function sendConversation() {
     log.appendChild(sysDiv);
     convPendingUtterance = null;
     convScopeDecisions = new Map();
+    convPendingOptions = {};
     input.value = '';
   } else {
     sysDiv.innerHTML = `<span class="step-label" style="min-width: 50px; color: var(--text-muted);">Sys</span><span class="step-result" style="color: #f87171;">[${escapeHtml(workflow)}] Error: ${escapeHtml(result.errorReason || 'unknown')}</span>`;
     log.appendChild(sysDiv);
     convPendingUtterance = null;
     convScopeDecisions = new Map();
+    convPendingOptions = {};
   }
 
   // Scroll log to bottom

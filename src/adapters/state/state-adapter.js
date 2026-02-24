@@ -51,6 +51,7 @@ export class StateAdapter {
   queryGraph(_id, _query) { throw new Error('StateAdapter.queryGraph() not implemented'); }
   loadScopeConfig(_id) { throw new Error('StateAdapter.loadScopeConfig() not implemented'); }
   saveScopeConfig(_id, _config) { throw new Error('StateAdapter.saveScopeConfig() not implemented'); }
+  findConceptsByHiddenLabel(_label, _graphId) { throw new Error('StateAdapter.findConceptsByHiddenLabel() not implemented'); }
   onMutation(_callback) { throw new Error('StateAdapter.onMutation() not implemented'); }
   serialize() { throw new Error('StateAdapter.serialize() not implemented'); }
   static deserialize(_snapshot) { throw new Error('StateAdapter.deserialize() not implemented'); }

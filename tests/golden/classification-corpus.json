@@ -201,10 +201,10 @@
     ],
     "expect": {
       "success": false,
-      "promptType": "disambiguation",
+      "promptType": "homonymDisambiguation",
       "promptCount": 1
     },
-    "note": "Object 'bank' has 2 meanings → disambiguation prompt"
+    "note": "Object 'bank' has 2 meanings → homonymDisambiguation prompt"
   },
   {
     "id": "cls-unknown-parent-auto",

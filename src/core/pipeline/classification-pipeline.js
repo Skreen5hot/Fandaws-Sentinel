@@ -120,7 +120,14 @@ export function runClassificationPipeline(utterance, context, options = {}) {
     abbreviationTable,
     protectedProperNouns,
     negotiateUnknownParent,
-  });
+    reclassificationConfirmed: options.reclassificationConfirmed,
+    existingConceptIri: options.existingConceptIri,
+    proximityThreshold: options.proximityThreshold,
+    qualifiers: options.qualifiers,
+    relabelExisting: options.relabelExisting,
+    resolvedConceptIri: options.resolvedConceptIri,
+    disambiguationAction: options.disambiguationAction,
+  }, stateAdapter);
 
   if (engineResult.error) {
     return {

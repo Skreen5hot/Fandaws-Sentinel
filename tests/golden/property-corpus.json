@@ -272,9 +272,9 @@
     "expect": {
       "success": false,
       "promptCount": 1,
-      "promptType": "disambiguation"
+      "promptType": "homonymDisambiguation"
     },
-    "note": "Subject has 2 meanings → disambiguation prompt"
+    "note": "Subject has 2 meanings → homonymDisambiguation prompt"
   },
   {
     "id": "prop-value-concept",

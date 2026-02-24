@@ -22,6 +22,7 @@ import { createConversationPrompt } from '../../types/conversation-prompt.js';
 import { checkPropertyRedundancy } from '../validator/property-redundancy.js';
 import { isRestrictionNode } from '../../types/type-checks.js';
 import { buildAncestorChain, narrowScope } from './scope-narrowing.js';
+import { resolveConceptByLabel } from './resolve-concept.js';
 
 /**
  * Find all concepts in the graph that match a canonical label.
@@ -108,7 +109,7 @@ function buildDescendantRemovalModifications(descendantRemovals, graph) {
  * @param {boolean} [options.leapCheckEnabled=true] - Use Leap Check optimization
  * @returns {{ mutation: object|null, prompts: object[], scopeContext: object|null, descendantRemovals: object[], error: boolean, errorReason: string|null }}
  */
-export function processProperty(action, graph, indices, options = {}) {
+export function processProperty(action, graph, indices, options = {}, adapter = null) {
   const {
     scope = DEFAULT_SCOPE,
     locale = 'en',
@@ -148,9 +149,49 @@ export function processProperty(action, graph, indices, options = {}) {
   const propertyCanonical = propertySimplified.canonicalLabel;
 
   // ── 3. Locate subject in graph ──
-  const subjectMatches = findConceptsByCanonical(subjectCanonical, graph);
+  let subject = null;
 
-  if (subjectMatches.length === 0) {
+  if (adapter && options.resolvedConceptIri) {
+    subject = (graph['fandaws:concepts'] || []).find(
+      (c) => c['@id'] === options.resolvedConceptIri,
+    ) || null;
+  } else if (adapter) {
+    const resolution = resolveConceptByLabel(subjectCanonical, graph, adapter, { allowCreate: false });
+    if (resolution.ambiguous) {
+      const prompt = createConversationPrompt({
+        promptType: 'homonymDisambiguation',
+        text: `Which "${rawSubject}" do you mean?`,
+        options: resolution.ambiguous.map((c) => c['rdfs:label']),
+        context: {
+          action: 'property',
+          candidates: resolution.ambiguous.map((c) => c['@id']),
+          allowCreate: false,
+          bareLabel: rawSubject,
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+    subject = resolution.resolved || null;
+  } else {
+    const subjectMatches = findConceptsByCanonical(subjectCanonical, graph);
+    if (subjectMatches.length > 1) {
+      const prompt = createConversationPrompt({
+        promptType: 'disambiguation',
+        text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
+        options: subjectMatches.map((c) => c['rdfs:label']),
+        context: {
+          action: 'property',
+          subject: rawSubject,
+          property: rawProperty,
+          candidates: subjectMatches.map((c) => c['@id']),
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+    subject = subjectMatches[0] || null;
+  }
+
+  if (!subject) {
     const prompt = createConversationPrompt({
       promptType: 'disambiguation',
       text: `I don't know what "${rawSubject}" is yet. Please classify it first (e.g., "A ${rawSubject} is a ...").`,
@@ -165,23 +206,6 @@ export function processProperty(action, graph, indices, options = {}) {
     return { ...noOp, prompts: [prompt] };
   }
 
-  // ── 4. Disambiguate if multiple subject matches ──
-  if (subjectMatches.length > 1) {
-    const prompt = createConversationPrompt({
-      promptType: 'disambiguation',
-      text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
-      options: subjectMatches.map((c) => c['rdfs:label']),
-      context: {
-        action: 'property',
-        subject: rawSubject,
-        property: rawProperty,
-        candidates: subjectMatches.map((c) => c['@id']),
-      },
-    });
-    return { ...noOp, prompts: [prompt] };
-  }
-
-  const subject = subjectMatches[0];
   const subjectIri = subject['@id'];
 
   // ── 5. Build ancestor chain ──

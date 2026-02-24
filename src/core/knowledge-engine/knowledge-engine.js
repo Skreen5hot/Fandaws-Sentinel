@@ -18,9 +18,24 @@
 import { simplify } from '../identity/identity-simplification.js';
 import { generateConceptIri, DEFAULT_SCOPE } from './iri-generator.js';
 import { inferBfoCategory, inheritBfoCategory } from './bfo-heuristic.js';
+import { computeProximity, quickProximityCheck } from './proximity.js';
 import { createConcept } from '../../types/concept.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
+import { resolveConceptByLabel } from './resolve-concept.js';
+
+/**
+ * Find the display label for a concept by IRI (linear scan).
+ * No IRI→label index exists in the current architecture.
+ *
+ * @param {string} iri
+ * @param {object} graph - KnowledgeGraph
+ * @returns {string} Display label or IRI fallback
+ */
+function findLabelForIri(iri, graph) {
+  const c = (graph['fandaws:concepts'] || []).find((n) => n['@id'] === iri);
+  return c ? (c['rdfs:label'] || c['skos:prefLabel'] || iri) : iri;
+}
 
 /**
  * Find all concepts in the graph that match a canonical label.
@@ -29,7 +44,7 @@ import { createConversationPrompt } from '../../types/conversation-prompt.js';
  * @param {object} graph - KnowledgeGraph
  * @returns {object[]} Matching concept nodes
  */
-function findConceptsByCanonical(canonicalLabel, graph) {
+export function findConceptsByCanonical(canonicalLabel, graph) {
   const concepts = graph['fandaws:concepts'] || [];
   return concepts.filter(
     (c) => c['skos:prefLabel'] === canonicalLabel,
@@ -74,13 +89,15 @@ function wouldCreateCycle(startIri, targetIri, iriToParent) {
  * @param {boolean} [options.negotiateUnknownParent=false]
  * @returns {{ mutation: object|null, prompts: object[], sessionUpdates: object|null, error: boolean, errorReason: string|null }}
  */
-export function processClassification(action, graph, indices, options = {}) {
+export function processClassification(action, graph, indices, options = {}, adapter = null) {
   const {
     scope = DEFAULT_SCOPE,
     locale = 'en',
     abbreviationTable = {},
     protectedProperNouns = [],
     negotiateUnknownParent = false,
+    reclassificationConfirmed,
+    proximityThreshold = 3,
   } = options;
 
   const noOp = { mutation: null, prompts: [], sessionUpdates: null, error: false, errorReason: null };
@@ -111,42 +128,95 @@ export function processClassification(action, graph, indices, options = {}) {
   }
 
   // ── 4. Lookup existing concepts ──
-  const subjectMatches = findConceptsByCanonical(subjectCanonical, graph);
-  const objectMatches = findConceptsByCanonical(objectCanonical, graph);
+  let existingSubject = null;
+  let existingObject = null;
 
-  // ── 5. Disambiguation ──
-  if (objectMatches.length > 1) {
-    const prompt = createConversationPrompt({
-      promptType: 'disambiguation',
-      text: `Multiple meanings found for "${rawObject}". Which did you mean?`,
-      options: objectMatches.map((c) => c['rdfs:label']),
-      context: {
-        action: 'classification',
-        subject: rawSubject,
-        object: rawObject,
-        candidates: objectMatches.map((c) => c['@id']),
-      },
-    });
-    return { ...noOp, prompts: [prompt] };
+  if (adapter) {
+    // When adapter is provided, use resolveConceptByLabel with hidden-label fallback.
+    // resolvedConceptIri bypasses resolution (user already selected from disambiguation).
+    if (options.disambiguationAction === 'create_new') {
+      // "Neither — new concept" path: pick any existing homonym as reference.
+      // existingSubject is needed so Case A fires and the new_concept handler runs.
+      const subjectResolution = resolveConceptByLabel(subjectCanonical, graph, adapter, { allowCreate: true });
+      existingSubject = subjectResolution.ambiguous?.[0] || subjectResolution.resolved || null;
+    } else if (options.resolvedConceptIri) {
+      existingSubject = (graph['fandaws:concepts'] || []).find(
+        (c) => c['@id'] === options.resolvedConceptIri,
+      ) || null;
+    } else {
+      const subjectResolution = resolveConceptByLabel(subjectCanonical, graph, adapter, { allowCreate: true });
+      if (subjectResolution.ambiguous) {
+        const prompt = createConversationPrompt({
+          promptType: 'homonymDisambiguation',
+          text: `Which "${rawSubject}" do you mean?`,
+          options: subjectResolution.ambiguous.map((c) => c['rdfs:label']),
+          context: {
+            action: 'classification',
+            candidates: subjectResolution.ambiguous.map((c) => c['@id']),
+            allowCreate: true,
+            bareLabel: rawSubject,
+          },
+        });
+        return { ...noOp, prompts: [prompt] };
+      }
+      existingSubject = subjectResolution.resolved || null;
+    }
+
+    const objectResolution = resolveConceptByLabel(objectCanonical, graph, adapter, { allowCreate: false });
+    if (objectResolution.ambiguous) {
+      const prompt = createConversationPrompt({
+        promptType: 'homonymDisambiguation',
+        text: `Which "${rawObject}" do you mean?`,
+        options: objectResolution.ambiguous.map((c) => c['rdfs:label']),
+        context: {
+          action: 'classification',
+          candidates: objectResolution.ambiguous.map((c) => c['@id']),
+          allowCreate: false,
+          bareLabel: rawObject,
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+    existingObject = objectResolution.resolved || null;
+  } else {
+    // Legacy path: no adapter, canonical-only lookup
+    const subjectMatches = findConceptsByCanonical(subjectCanonical, graph);
+    const objectMatches = findConceptsByCanonical(objectCanonical, graph);
+
+    // ── 5. Disambiguation ──
+    if (objectMatches.length > 1) {
+      const prompt = createConversationPrompt({
+        promptType: 'disambiguation',
+        text: `Multiple meanings found for "${rawObject}". Which did you mean?`,
+        options: objectMatches.map((c) => c['rdfs:label']),
+        context: {
+          action: 'classification',
+          subject: rawSubject,
+          object: rawObject,
+          candidates: objectMatches.map((c) => c['@id']),
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+
+    if (subjectMatches.length > 1) {
+      const prompt = createConversationPrompt({
+        promptType: 'disambiguation',
+        text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
+        options: subjectMatches.map((c) => c['rdfs:label']),
+        context: {
+          action: 'classification',
+          subject: rawSubject,
+          object: rawObject,
+          candidates: subjectMatches.map((c) => c['@id']),
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+
+    existingSubject = subjectMatches[0] || null;
+    existingObject = objectMatches[0] || null;
   }
-
-  if (subjectMatches.length > 1) {
-    const prompt = createConversationPrompt({
-      promptType: 'disambiguation',
-      text: `Multiple meanings found for "${rawSubject}". Which did you mean?`,
-      options: subjectMatches.map((c) => c['rdfs:label']),
-      context: {
-        action: 'classification',
-        subject: rawSubject,
-        object: rawObject,
-        candidates: subjectMatches.map((c) => c['@id']),
-      },
-    });
-    return { ...noOp, prompts: [prompt] };
-  }
-
-  const existingSubject = subjectMatches[0] || null;
-  const existingObject = objectMatches[0] || null;
 
   const subjectIri = existingSubject
     ? existingSubject['@id']
@@ -169,8 +239,101 @@ export function processClassification(action, graph, indices, options = {}) {
 
   // ── 8. Build mutation ──
 
-  // Case A: Both exist, not linked
+  // Case A: Both exist, not linked — proximity-gated reclassification
   if (existingSubject && existingObject) {
+    // Homonym creation: "Different concept" choice
+    if (reclassificationConfirmed === 'new_concept') {
+      // Guard: malformed qualifier options.
+      // When relabelExisting=false (Nth homonym), existing qualifier may be empty.
+      if (!options.qualifiers?.new) {
+        return noOp;
+      }
+      if (options.relabelExisting !== false && !options.qualifiers?.existing) {
+        return noOp;
+      }
+
+      const { existing: existingQualifiedLabel, new: newQualifiedLabel } = options.qualifiers;
+      const newCanonical = simplify(newQualifiedLabel, simplifyOpts).canonicalLabel;
+      const newIri = generateConceptIri(newCanonical, scope);
+      const newBfo = inheritBfoCategory(existingObject, newCanonical);
+
+      const newConcept = createConcept({
+        id: newIri,
+        label: newQualifiedLabel.charAt(0).toUpperCase() + newQualifiedLabel.slice(1),
+        prefLabel: newCanonical,
+        broader: objectIri,
+        bfoMapping: newBfo,
+      });
+      // For Nth homonym (disambiguationAction=create_new), existingSubject has a
+      // qualified prefLabel. Use the bare input canonical instead.
+      newConcept['skos:hiddenLabel'] = options.disambiguationAction === 'create_new'
+        ? subjectCanonical
+        : existingSubject['skos:prefLabel'];
+
+      // Build mutation
+      const modifications = [];
+
+      // Only relabel existing concept if relabelExisting is true.
+      // First homonym split: true (default). Nth homonym via "Neither": false.
+      if (options.relabelExisting !== false) {
+        const existingQualifiedCanonical = simplify(existingQualifiedLabel, simplifyOpts).canonicalLabel;
+        modifications.push(
+          { '@id': subjectIri, 'fandaws:field': 'skos:prefLabel', 'fandaws:value': existingQualifiedCanonical },
+          { '@id': subjectIri, 'fandaws:field': 'rdfs:label', 'fandaws:value': existingQualifiedLabel.charAt(0).toUpperCase() + existingQualifiedLabel.slice(1) },
+          { '@id': subjectIri, 'fandaws:field': 'skos:hiddenLabel', 'fandaws:value': existingSubject['skos:prefLabel'] },
+        );
+      }
+
+      const mutation = createGraphMutation({
+        additions: [newConcept],
+        modifications,
+        reason: `Create homonym "${newQualifiedLabel}"` + (modifications.length > 0 ? ` and relabel existing as "${existingQualifiedLabel}"` : ''),
+      });
+      return { ...noOp, mutation };
+    }
+
+    // Confirmed move — skip proximity check
+    if (reclassificationConfirmed === 'move') {
+      // fall through to build mutation
+    } else if (reclassificationConfirmed === 'cancel') {
+      return noOp;
+    } else {
+      // Check proximity between current parent and new parent
+      const currentParentIri = existingSubject['skos:broader'];
+
+      // Only check proximity if subject already has a parent (reclassification).
+      // If broader is null, this is a first-time classification — proceed silently.
+      if (currentParentIri != null && !quickProximityCheck(currentParentIri, objectIri, indices)) {
+        const proximity = computeProximity(currentParentIri, objectIri, indices);
+
+        if (proximity.steps > proximityThreshold) {
+          const existingParentLabel = currentParentIri
+            ? findLabelForIri(currentParentIri, graph)
+            : '(root)';
+          const newParentLabel = findLabelForIri(objectIri, graph);
+
+          const distanceText = proximity.steps === Infinity
+            ? 'These appear to be in completely different branches.'
+            : `They are ${proximity.steps} steps apart in the taxonomy.`;
+
+          const prompt = createConversationPrompt({
+            promptType: 'reclassificationConfirmation',
+            text: `"${rawSubject}" already exists under "${existingParentLabel}".\n${distanceText}\n\nIs this the same "${rawSubject}", or a different one?`,
+            options: ['move', 'new_concept', 'cancel'],
+            context: {
+              existingConceptIri: subjectIri,
+              existingParentLabel,
+              newParentLabel,
+              subjectLabel: rawSubject,
+              proximity,
+            },
+          });
+          return { ...noOp, prompts: [prompt] };
+        }
+      }
+      // Within threshold — fall through to reclassify silently
+    }
+
     const mutation = createGraphMutation({
       modifications: [
         {

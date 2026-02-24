@@ -97,6 +97,21 @@ export function initInspector(container, state) {
     if (prefLabel && prefLabel !== label.toLowerCase()) {
       html += `<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">prefLabel: ${escapeHtml(prefLabel)}</div>`;
     }
+    // Homonym advisory (if concept has skos:hiddenLabel)
+    const hiddenLabel = concept['skos:hiddenLabel'];
+    if (hiddenLabel) {
+      const siblings = state.findConceptsByHiddenLabel(hiddenLabel)
+        .filter((c) => c['@id'] !== iri);
+      if (siblings.length > 0) {
+        html += `<div style="font-size: 0.78rem; color: var(--accent-primary); margin-top: 4px;">`;
+        html += `Homonym of: `;
+        html += siblings.map((s) =>
+          `<a href="#" data-concept-iri="${escapeHtml(s['@id'])}" style="color: var(--accent-primary); text-decoration: underline;">${escapeHtml(s['rdfs:label'] || s['skos:prefLabel'])}</a>`,
+        ).join(', ');
+        html += `</div>`;
+      }
+      html += `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">hiddenLabel: ${escapeHtml(hiddenLabel)}</div>`;
+    }
     html += `</div>`;
 
     // Description section

@@ -249,7 +249,7 @@ describe('Classification Pipeline', () => {
     const result = runClassificationPipeline('An atm is a bank', context);
     expect(result.success).toBe(false);
     expect(result.prompts).toHaveLength(1);
-    expect(result.prompts[0]['fandaws:promptType']).toBe('disambiguation');
+    expect(result.prompts[0]['fandaws:promptType']).toBe('homonymDisambiguation');
   });
 
   // ── Unknown parent negotiation ──

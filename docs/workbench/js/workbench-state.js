@@ -100,6 +100,15 @@ export class WorkbenchStateManager {
   }
 
   /**
+   * Find concepts with a given skos:hiddenLabel (for homonym advisory).
+   * @param {string} label
+   * @returns {object[]}
+   */
+  findConceptsByHiddenLabel(label) {
+    return this._adapter.findConceptsByHiddenLabel(label, this._graphId);
+  }
+
+  /**
    * Reset graph: create fresh adapter + empty graph, emit event.
    */
   resetGraph() {

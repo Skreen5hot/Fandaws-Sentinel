@@ -176,10 +176,15 @@ function extractConceptTriples(concept, expanded) {
     const kind = r['fandaws:restrictionKind'];
 
     if (kind === 'property') {
-      // owl:onProperty
+      // owl:onProperty — must reference an owl:ObjectProperty, not a class
       const prop = r['owl:onProperty'];
       if (prop) {
-        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri(prop)));
+        const expandedProp = expandIri(prop);
+        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandedProp));
+        // Declare the property IRI as an owl:ObjectProperty
+        triples.push(tripleUri(expandedProp, RDF_TYPE, expandIri('owl:ObjectProperty')));
+        // Sub-property of fandaws:objectProperty/has
+        triples.push(tripleUri(expandedProp, expandIri('rdfs:subPropertyOf'), expandIri('fandaws:objectProperty/has')));
       }
       // fandaws:propertyLabel
       const propLabel = r['fandaws:propertyLabel'];
@@ -235,6 +240,21 @@ export function extractTriples(graph) {
   );
 
   const allTriples = [];
+
+  // Declare fandaws:objectProperty/has as the top-level ObjectProperty,
+  // equivalent to owl:topObjectProperty, if any properties exist.
+  const hasProperties = concepts.some((c) =>
+    (c['rdfs:subClassOf'] || []).some(
+      (e) => typeof e === 'object' && e['fandaws:restrictionKind'] === 'property',
+    ),
+  );
+  if (hasProperties) {
+    const hasIri = expandIri('fandaws:objectProperty/has');
+    allTriples.push(tripleUri(hasIri, RDF_TYPE, expandIri('owl:ObjectProperty')));
+    allTriples.push(tripleLiteral(hasIri, expandIri('rdfs:label'), 'has'));
+    allTriples.push(tripleUri(hasIri, expandIri('owl:equivalentProperty'), expandIri('owl:topObjectProperty')));
+  }
+
   for (const concept of sorted) {
     const expanded = expandIri(concept['@id']);
     const conceptTriples = extractConceptTriples(concept, expanded);

@@ -744,7 +744,7 @@
         "@type": "fandaws:ParseResult",
         "fandaws:subject": "Is",
         "fandaws:predicate": "dog",
-        "fandaws:object": "animal?",
+        "fandaws:object": "animal",
         "fandaws:verbType": "customRelationship",
         "fandaws:confidence": 1.0,
         "fandaws:error": false,

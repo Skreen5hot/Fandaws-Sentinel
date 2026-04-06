@@ -55,6 +55,19 @@ describe('Step 2: normalizeInput', () => {
   it('handles tabs and newlines', () => {
     expect(normalizeInput('A\tdog\nis\tan\nanimal')).toBe('A dog is an animal');
   });
+
+  it('strips trailing period', () => {
+    expect(normalizeInput('A dog is an animal.')).toBe('A dog is an animal');
+  });
+
+  it('strips trailing exclamation and question marks', () => {
+    expect(normalizeInput('A dog is an animal!')).toBe('A dog is an animal');
+    expect(normalizeInput('A dog is an animal?')).toBe('A dog is an animal');
+  });
+
+  it('strips multiple trailing punctuation', () => {
+    expect(normalizeInput('A dog is an animal...')).toBe('A dog is an animal');
+  });
 });
 
 // ─────────────────────────────────────────────────────────

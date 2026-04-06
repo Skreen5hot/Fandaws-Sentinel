@@ -43,7 +43,7 @@ export function validateInput(text) {
  * @returns {string}
  */
 export function normalizeInput(text) {
-  return text.trim().replace(/\s+/g, ' ');
+  return text.trim().replace(/\s+/g, ' ').replace(/[.!?;]+$/, '');
 }
 
 // ─────────────────────────────────────────────────────────

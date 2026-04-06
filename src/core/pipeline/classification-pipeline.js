@@ -173,22 +173,25 @@ export function runClassificationPipeline(utterance, context, options = {}) {
   baseResult.mutation = engineResult.mutation;
   baseResult.graph = updatedGraph;
 
-  // ── Step 8: Generate descriptions ──
+  // ── Step 8: Generate descriptions and write back to graph ──
   const descriptions = [];
   const additions = engineResult.mutation['fandaws:additions'] || [];
   for (const node of additions) {
     if (isConceptNode(node)) {
-      // Find the concept in the updated graph for full context
       const updatedConcept = (updatedGraph['fandaws:concepts'] || []).find(
         (c) => c['@id'] === node['@id'],
       );
       if (updatedConcept) {
-        descriptions.push({
-          conceptIri: node['@id'],
-          description: describeConcept(updatedConcept, updatedGraph),
-        });
+        const description = describeConcept(updatedConcept, updatedGraph);
+        descriptions.push({ conceptIri: node['@id'], description });
+        // Write algorithmic definition back to the concept
+        updatedConcept['fandaws:algorithmicDefinition'] = description;
       }
     }
+  }
+  // Persist updated descriptions
+  if (descriptions.length > 0) {
+    stateAdapter.saveGraph(graphId, updatedGraph);
   }
   baseResult.descriptions = descriptions;
 

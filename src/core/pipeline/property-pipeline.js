@@ -209,7 +209,7 @@ export function runPropertyPipeline(utterance, context, options = {}) {
   baseResult.mutation = engineResult.mutation;
   baseResult.graph = updatedGraph;
 
-  // ── Step 7: Generate descriptions ──
+  // ── Step 7: Generate descriptions and write back to graph ──
   // Regenerate for attachment target + all its descendants
   const descriptions = [];
   const additions = engineResult.mutation['fandaws:additions'] || [];
@@ -223,10 +223,9 @@ export function runPropertyPipeline(utterance, context, options = {}) {
         (c) => c['@id'] === attachedIri,
       );
       if (targetConcept) {
-        descriptions.push({
-          conceptIri: attachedIri,
-          description: describeConcept(targetConcept, updatedGraph),
-        });
+        const description = describeConcept(targetConcept, updatedGraph);
+        descriptions.push({ conceptIri: attachedIri, description });
+        targetConcept['fandaws:algorithmicDefinition'] = description;
       }
 
       // Describe descendants (property inherited down)
@@ -238,14 +237,17 @@ export function runPropertyPipeline(utterance, context, options = {}) {
             (c) => c['@id'] === descIri,
           );
           if (descConcept) {
-            descriptions.push({
-              conceptIri: descIri,
-              description: describeConcept(descConcept, updatedGraph),
-            });
+            const description = describeConcept(descConcept, updatedGraph);
+            descriptions.push({ conceptIri: descIri, description });
+            descConcept['fandaws:algorithmicDefinition'] = description;
           }
         }
       }
     }
+  }
+  // Persist updated descriptions
+  if (descriptions.length > 0) {
+    stateAdapter.saveGraph(graphId, updatedGraph);
   }
   baseResult.descriptions = descriptions;
 

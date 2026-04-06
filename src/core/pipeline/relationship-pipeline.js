@@ -200,7 +200,7 @@ export function runRelationshipPipeline(utterance, context, options = {}) {
   baseResult.mutation = engineResult.mutation;
   baseResult.graph = updatedGraph;
 
-  // ── Step 8: Generate descriptions ──
+  // ── Step 8: Generate descriptions and write back to graph ──
   const descriptions = [];
   for (const node of additions) {
     if (isConceptNode(node)) {
@@ -208,10 +208,9 @@ export function runRelationshipPipeline(utterance, context, options = {}) {
         (c) => c['@id'] === node['@id'],
       );
       if (updatedConcept) {
-        descriptions.push({
-          conceptIri: node['@id'],
-          description: describeConcept(updatedConcept, updatedGraph),
-        });
+        const description = describeConcept(updatedConcept, updatedGraph);
+        descriptions.push({ conceptIri: node['@id'], description });
+        updatedConcept['fandaws:algorithmicDefinition'] = description;
       }
     }
   }
@@ -223,13 +222,16 @@ export function runRelationshipPipeline(utterance, context, options = {}) {
       (c) => c['@id'] === subjectIri,
     );
     if (subjectConcept) {
-      descriptions.push({
-        conceptIri: subjectIri,
-        description: describeConcept(subjectConcept, updatedGraph),
-      });
+      const description = describeConcept(subjectConcept, updatedGraph);
+      descriptions.push({ conceptIri: subjectIri, description });
+      subjectConcept['fandaws:algorithmicDefinition'] = description;
     }
   }
 
+  // Persist updated descriptions
+  if (descriptions.length > 0) {
+    stateAdapter.saveGraph(graphId, updatedGraph);
+  }
   baseResult.descriptions = descriptions;
 
   return {

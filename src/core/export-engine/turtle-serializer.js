@@ -24,10 +24,25 @@ function escapeTurtleLiteral(str) {
 
 // ── URI Formatting ──
 
+/**
+ * Turtle PN_LOCAL allows alphanumerics, underscore, hyphen, and period,
+ * but NOT unescaped forward slashes, spaces, or most special characters.
+ * If the local name contains characters outside this safe set, emit
+ * the full IRI in angle brackets instead of a prefixed name.
+ *
+ * @see https://www.w3.org/TR/turtle/#grammar-production-PN_LOCAL
+ */
+const SAFE_LOCAL_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.\-]*$/;
+
 function formatUri(uri, reverseMap) {
   for (const [ns, prefix] of reverseMap) {
     if (uri.startsWith(ns)) {
-      return prefix + uri.slice(ns.length);
+      const localName = uri.slice(ns.length);
+      if (localName && SAFE_LOCAL_NAME.test(localName)) {
+        return prefix + localName;
+      }
+      // Local name contains illegal characters (e.g., '/') — use full IRI
+      return `<${uri}>`;
     }
   }
   return `<${uri}>`;

@@ -49,10 +49,10 @@ describe('Export Formats', () => {
       expect(result).toMatch(/\.\s*$/m);
     });
 
-    it('compacts IRIs using declared prefixes', () => {
+    it('emits full IRI for local names with slashes', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const result = exportTurtle(makeGraph([dog]));
-      expect(result).toContain('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
+      expect(result).toContain('<https://fandaws.org/schema/class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog>');
     });
 
     it('escapes special characters in literals', () => {
@@ -227,7 +227,7 @@ describe('Export Formats', () => {
       const graph = makeConceptWithRegisterProperty();
       const result = exportTurtle(graph);
       expect(result).toContain('fandaws:epistemicRegister');
-      expect(result).toContain('fandaws:register/normative');
+      expect(result).toContain('<https://fandaws.org/schema/register/normative>');
     });
 
     it('Turtle emits fandaws:routingFlags triple when present', () => {
@@ -293,7 +293,7 @@ describe('Export Formats', () => {
       const graph = makeGraph([dog]);
       const result = exportTurtle(graph);
       expect(result).toContain('fandaws:epistemicRegister');
-      expect(result).toContain('fandaws:register/axiomatic');
+      expect(result).toContain('<https://fandaws.org/schema/register/axiomatic>');
     });
 
     it('OWL export includes register metadata (EXP-03)', () => {
@@ -333,8 +333,8 @@ describe('Export Formats', () => {
       dog['rdfs:subClassOf'] = [prop1, prop2];
       const graph = makeGraph([dog]);
       const result = exportTurtle(graph);
-      expect(result).toContain('fandaws:register/normative');
-      expect(result).toContain('fandaws:register/axiomatic');
+      expect(result).toContain('<https://fandaws.org/schema/register/normative>');
+      expect(result).toContain('<https://fandaws.org/schema/register/axiomatic>');
     });
   });
 });

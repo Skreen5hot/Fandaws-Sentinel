@@ -55,6 +55,16 @@ describe('Export Formats', () => {
       expect(result).toContain('<https://fandaws.org/schema/class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog>');
     });
 
+    it('emits rdfs:subClassOf for immediate parent alongside skos:broader', () => {
+      const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+      const result = exportTurtle(makeGraph([dog]));
+      const parentIri = '<https://fandaws.org/schema/class/d6123e71-7602-59f2-aaad-b86d549898c3/animal>';
+      // Both rdfs:subClassOf and skos:broader reference the parent
+      expect(result).toContain('rdfs:subClassOf');
+      expect(result).toContain(parentIri);
+      expect(result).toContain('skos:broader');
+    });
+
     it('escapes special characters in literals', () => {
       const concept = makeConcept('fandaws:class/0bf07a6b-44d0-59c3-8688-74c07b3163f6/test', 'He said "hello"', 'test');
       const result = exportTurtle(makeGraph([concept]));

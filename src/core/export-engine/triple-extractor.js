@@ -107,10 +107,11 @@ function extractConceptTriples(concept, expanded) {
     triples.push(tripleLiteral(s, expandIri('skos:prefLabel'), prefLabel));
   }
 
-  // skos:broader
+  // skos:broader + rdfs:subClassOf for immediate parent
   const broader = concept['skos:broader'];
   if (broader) {
     triples.push(tripleUri(s, expandIri('skos:broader'), expandIri(broader)));
+    triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(broader)));
   }
 
   // skos:definition

@@ -176,22 +176,19 @@ function extractConceptTriples(concept, expanded) {
     const kind = r['fandaws:restrictionKind'];
 
     if (kind === 'property') {
-      // owl:onProperty — must reference an owl:ObjectProperty, not a class
+      // owl:onProperty → fandaws:objectProperty/has (the generic "has" verb)
+      triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:objectProperty/has')));
+      // owl:someValuesFrom → the property concept class IRI (the filler)
       const prop = r['owl:onProperty'];
       if (prop) {
-        const expandedProp = expandIri(prop);
-        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandedProp));
-        // Declare the property IRI as an owl:ObjectProperty
-        triples.push(tripleUri(expandedProp, RDF_TYPE, expandIri('owl:ObjectProperty')));
-        // Sub-property of fandaws:objectProperty/has
-        triples.push(tripleUri(expandedProp, expandIri('rdfs:subPropertyOf'), expandIri('fandaws:objectProperty/has')));
+        triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(prop)));
       }
       // fandaws:propertyLabel
       const propLabel = r['fandaws:propertyLabel'];
       if (propLabel) {
         triples.push(tripleLiteral(rIri, expandIri('fandaws:propertyLabel'), propLabel));
       }
-      // owl:hasValue
+      // owl:hasValue (when an explicit value is set)
       const val = r['owl:hasValue'];
       if (val != null) {
         triples.push(tripleLiteral(rIri, expandIri('owl:hasValue'), val));

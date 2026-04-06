@@ -15,7 +15,7 @@
  */
 
 import { simplify } from '../identity/identity-simplification.js';
-import { generateRestrictionIri, generateConceptIri, generatePropertyIri, DEFAULT_SCOPE } from './iri-generator.js';
+import { generateRestrictionIri, generateConceptIri, DEFAULT_SCOPE } from './iri-generator.js';
 import { createProperty } from '../../types/property.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
@@ -285,12 +285,9 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
   const attachmentCanonical = attachmentConcept
     ? attachmentConcept['skos:prefLabel']
     : subjectCanonical;
-  // owl:onProperty must reference an owl:ObjectProperty IRI, not a class IRI.
-  // Generate a property IRI (fandaws:property/...) from the canonical label.
-  const propertyIri = generatePropertyIri(propertyCanonical, scope);
   const propertyNode = createProperty({
     id: generateRestrictionIri(attachmentCanonical, propertyCanonical, scope),
-    propertyConceptIri: propertyIri,
+    propertyConceptIri,
     propertyLabel: propertyCanonical,
     attachedTo: attachmentIri,
     scope: attachmentIri === subjectIri ? 'concept-specific' : 'inherited',

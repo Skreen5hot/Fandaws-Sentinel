@@ -78,7 +78,7 @@ describe('OWL Export', () => {
       expect(result).toContain('owl:Ontology');
     });
 
-    it('declares DatatypeProperty for string properties', () => {
+    it('declares ObjectProperty for "has" property restrictions', () => {
       const dog = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'dog');
       const prop = createProperty({
         id: 'fandaws:prop/dog--fur',
@@ -90,7 +90,7 @@ describe('OWL Export', () => {
       dog['rdfs:subClassOf'] = [prop];
       const result = exportOWL(makeGraph([dog]));
 
-      expect(result).toContain('owl:DatatypeProperty');
+      expect(result).toContain('owl:ObjectProperty');
     });
 
     it('declares ObjectProperty for relationship verbs', () => {

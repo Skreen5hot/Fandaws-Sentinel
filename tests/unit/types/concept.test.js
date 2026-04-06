@@ -26,7 +26,7 @@ describe('createConcept', () => {
     expect(concept).toHaveProperty('rdfs:label', 'Dog');
     expect(concept).toHaveProperty('skos:prefLabel', 'dog');
     expect(concept).toHaveProperty('skos:broader', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
-    expect(concept).toHaveProperty('skos:definition', '');
+    expect(concept).toHaveProperty('fandaws:algorithmicDefinition', '');
     expect(concept).toHaveProperty('dcterms:created');
     expect(concept).toHaveProperty('dcterms:modified', null);
     expect(concept).toHaveProperty('prov:wasDerivedFrom', []);
@@ -49,7 +49,7 @@ describe('createConcept', () => {
       prefLabel: 'thing',
     });
     expect(minimal['skos:broader']).toBeNull();
-    expect(minimal['skos:definition']).toBe('');
+    expect(minimal['fandaws:algorithmicDefinition']).toBe('');
     expect(minimal['rdfs:subClassOf']).toEqual([]);
     expect(minimal['prov:wasDerivedFrom']).toEqual([]);
     expect(minimal['skos:altLabel']).toEqual([]);
@@ -68,7 +68,7 @@ describe('createConcept', () => {
     });
     expect(rich['skos:altLabel']).toEqual(['canine', 'hound']);
     expect(rich['skos:inScheme']).toBe('fandaws:scheme/animals');
-    expect(rich['skos:definition']).toBe('Dog is an animal.');
+    expect(rich['fandaws:algorithmicDefinition']).toBe('Dog is an animal.');
   });
 
   it('returns a fresh object each invocation (no shared state)', () => {

@@ -16,7 +16,7 @@
  * @param {string} params.label - Display name (rdfs:label)
  * @param {string} params.prefLabel - Normalized form for matching (skos:prefLabel)
  * @param {string|null} [params.broader] - Parent concept IRI (skos:broader, null for roots)
- * @param {string} [params.definition] - Auto-generated definition (skos:definition)
+ * @param {string} [params.definition] - Auto-generated definition (fandaws:algorithmicDefinition)
  * @param {string|null} [params.bfoMapping] - BFO category IRI (entry in rdfs:subClassOf)
  * @param {string[]} [params.altLabel] - Alternative labels (skos:altLabel)
  * @param {string|null} [params.inScheme] - Graph/scheme IRI (skos:inScheme)
@@ -38,7 +38,7 @@ export function createConcept({
     'rdfs:label': label,
     'skos:prefLabel': prefLabel,
     'skos:broader': broader,
-    'skos:definition': definition,
+    'fandaws:algorithmicDefinition': definition,
     'dcterms:created': new Date().toISOString(),
     'dcterms:modified': null,
     'prov:wasDerivedFrom': [],

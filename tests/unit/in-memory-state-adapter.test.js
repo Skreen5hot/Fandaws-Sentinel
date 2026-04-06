@@ -435,7 +435,7 @@ describe('applyMutation — additions', () => {
     );
     const added = result['fandaws:concepts'][0];
     expect(added['rdfs:label']).toBe('Full Concept');
-    expect(added['skos:definition']).toBe('A fully populated concept');
+    expect(added['fandaws:algorithmicDefinition']).toBe('A fully populated concept');
     expect(added['rdfs:subClassOf']).toContain('bfo:BFO_0000015');
   });
 });
@@ -468,7 +468,7 @@ describe('applyMutation — modifications', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'A loyal companion',
           },
         ],
@@ -477,7 +477,7 @@ describe('applyMutation — modifications', () => {
     const dog = result['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(dog['skos:definition']).toBe('A loyal companion');
+    expect(dog['fandaws:algorithmicDefinition']).toBe('A loyal companion');
   });
 
   it('modifies a field on a vestigial relationship entry', () => {
@@ -507,7 +507,7 @@ describe('applyMutation — modifications', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'test',
           },
         ],
@@ -526,7 +526,7 @@ describe('applyMutation — modifications', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'A good dog',
           },
           {
@@ -543,7 +543,7 @@ describe('applyMutation — modifications', () => {
     const rel = result['fandaws:relationships'].find(
       (r) => r['@id'] === 'fandaws:rel/e61308ff-5b93-5d48-a1c9-7ca300dc3580/chase',
     );
-    expect(dog['skos:definition']).toBe('A good dog');
+    expect(dog['fandaws:algorithmicDefinition']).toBe('A good dog');
     expect(rel['owl:onProperty']).toBe('follows');
   });
 
@@ -574,7 +574,7 @@ describe('applyMutation — modifications', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'bad',
           },
         ],
@@ -948,7 +948,7 @@ describe('applyMutation — atomicity', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'fail',
           },
         ],
@@ -983,7 +983,7 @@ describe('applyMutation — atomicity', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4037670b-847c-5f97-a512-443b3b0c0165/nonexistent',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'fail',
           },
         ],
@@ -1023,7 +1023,7 @@ describe('applyMutation — atomicity', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'A good dog',
           },
         ],
@@ -1033,7 +1033,7 @@ describe('applyMutation — atomicity', () => {
     const dog = result['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(dog['skos:definition']).toBe('A good dog');
+    expect(dog['fandaws:algorithmicDefinition']).toBe('A good dog');
   });
 
   it('mixed mutation: add concept, modify existing, delete stale', () => {
@@ -1051,7 +1051,7 @@ describe('applyMutation — atomicity', () => {
         modifications: [
           {
             '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
-            'fandaws:field': 'skos:definition',
+            'fandaws:field': 'fandaws:algorithmicDefinition',
             'fandaws:value': 'Updated',
           },
         ],
@@ -1641,14 +1641,14 @@ describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', ()
     adapter.applyMutation(GRAPH_ID, makeMutation({
       modifications: [{
         '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
-        'fandaws:field': 'skos:definition',
+        'fandaws:field': 'fandaws:algorithmicDefinition',
         'fandaws:value': 'first',
       }],
     }));
     adapter.applyMutation(GRAPH_ID, makeMutation({
       modifications: [{
         '@id': 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
-        'fandaws:field': 'skos:definition',
+        'fandaws:field': 'fandaws:algorithmicDefinition',
         'fandaws:value': 'second',
       }],
     }));
@@ -1657,7 +1657,7 @@ describe('InMemoryStateAdapter — sequential mutation consistency (SUP-14)', ()
     const updatedDog = graph['fandaws:concepts'].find(
       (c) => c['@id'] === 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
     );
-    expect(updatedDog['skos:definition']).toBe('second');
+    expect(updatedDog['fandaws:algorithmicDefinition']).toBe('second');
     expect(adapter.verifyIntegrity(GRAPH_ID)).toHaveLength(0);
   });
 

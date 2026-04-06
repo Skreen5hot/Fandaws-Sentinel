@@ -27,7 +27,7 @@ describe('FANDAWS_CONTEXT', () => {
     expect(ctx.prefLabel).toEqual({ '@id': 'skos:prefLabel', '@type': 'xsd:string' });
     expect(ctx.altLabel).toEqual({ '@id': 'skos:altLabel', '@container': '@set' });
     expect(ctx.broader).toEqual({ '@id': 'skos:broader', '@type': '@id' });
-    expect(ctx.definition).toBe('skos:definition');
+    expect(ctx.algorithmicDefinition).toBe('fandaws:algorithmicDefinition');
     expect(ctx.inScheme).toEqual({ '@id': 'skos:inScheme', '@type': '@id' });
     expect(ctx.subClassOf).toEqual({ '@id': 'rdfs:subClassOf', '@container': '@set' });
     expect(ctx.created).toEqual({ '@id': 'dcterms:created', '@type': 'xsd:dateTime' });

@@ -53,7 +53,7 @@ describe('SKOS Export', () => {
       expect(result).toContain('skos:narrower');
     });
 
-    it('includes skos:definition for concepts', () => {
+    it('includes fandaws:algorithmicDefinition for concepts', () => {
       const dog = createConcept({
         id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         label: 'Dog',
@@ -61,7 +61,7 @@ describe('SKOS Export', () => {
         definition: 'Dog is an Animal.',
       });
       const result = exportSKOS(makeGraph([dog]));
-      expect(result).toContain('skos:definition');
+      expect(result).toContain('algorithmicDefinition');
       expect(result).toContain('Dog is an Animal.');
     });
 

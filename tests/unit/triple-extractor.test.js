@@ -135,7 +135,7 @@ describe('Triple Extractor', () => {
       expect(broaderTriple.objectType).toBe('uri');
     });
 
-    it('extracts skos:definition as literal triple', () => {
+    it('extracts fandaws:algorithmicDefinition as literal triple', () => {
       const dog = createConcept({
         id: 'fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog',
         label: 'Dog',
@@ -146,7 +146,7 @@ describe('Triple Extractor', () => {
       const triples = extractTriples(graph);
 
       const defTriple = triples.find(
-        (t) => t.predicate === expandIri('skos:definition'),
+        (t) => t.predicate === expandIri('fandaws:algorithmicDefinition'),
       );
       expect(defTriple).toBeDefined();
       expect(defTriple.object).toBe('Dog is an Animal.');

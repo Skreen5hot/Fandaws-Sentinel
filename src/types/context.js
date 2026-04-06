@@ -28,7 +28,7 @@ export const FANDAWS_CONTEXT = {
     prefLabel: { '@id': 'skos:prefLabel', '@type': 'xsd:string' },
     altLabel: { '@id': 'skos:altLabel', '@container': '@set' },
     broader: { '@id': 'skos:broader', '@type': '@id' },
-    definition: 'skos:definition',
+    algorithmicDefinition: 'fandaws:algorithmicDefinition',
     inScheme: { '@id': 'skos:inScheme', '@type': '@id' },
     subClassOf: { '@id': 'rdfs:subClassOf', '@container': '@set' },
     created: { '@id': 'dcterms:created', '@type': 'xsd:dateTime' },

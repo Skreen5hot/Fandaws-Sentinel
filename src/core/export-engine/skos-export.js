@@ -33,11 +33,14 @@ const DCTERMS_NS = 'http://purl.org/dc/terms/';
 
 // ── Filters ──
 
+const FANDAWS_ALGORITHMIC_DEF = expandIri('fandaws:algorithmicDefinition');
+
 function isSkosPredicate(predicate) {
   return (
     predicate.startsWith(SKOS_NS) ||
     predicate === RDFS_LABEL ||
-    predicate.startsWith(DCTERMS_NS)
+    predicate.startsWith(DCTERMS_NS) ||
+    predicate === FANDAWS_ALGORITHMIC_DEF
   );
 }
 

@@ -114,10 +114,10 @@ function extractConceptTriples(concept, expanded) {
     triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(broader)));
   }
 
-  // skos:definition
-  const definition = concept['skos:definition'];
+  // fandaws:algorithmicDefinition (sub-property of skos:definition)
+  const definition = concept['fandaws:algorithmicDefinition'];
   if (definition) {
-    triples.push(tripleLiteral(s, expandIri('skos:definition'), definition));
+    triples.push(tripleLiteral(s, expandIri('fandaws:algorithmicDefinition'), definition));
   }
 
   // skos:altLabel
@@ -250,6 +250,16 @@ export function extractTriples(graph) {
     allTriples.push(tripleUri(hasIri, RDF_TYPE, expandIri('owl:ObjectProperty')));
     allTriples.push(tripleLiteral(hasIri, expandIri('rdfs:label'), 'has'));
     allTriples.push(tripleUri(hasIri, expandIri('owl:equivalentProperty'), expandIri('owl:topObjectProperty')));
+  }
+
+  // Declare fandaws:algorithmicDefinition as an annotation property
+  // sub-property of skos:definition, if any concepts have one
+  const hasDefinitions = concepts.some((c) => c['fandaws:algorithmicDefinition']);
+  if (hasDefinitions) {
+    const defIri = expandIri('fandaws:algorithmicDefinition');
+    allTriples.push(tripleUri(defIri, RDF_TYPE, expandIri('owl:AnnotationProperty')));
+    allTriples.push(tripleLiteral(defIri, expandIri('rdfs:label'), 'algorithmic definition'));
+    allTriples.push(tripleUri(defIri, expandIri('rdfs:subPropertyOf'), expandIri('skos:definition')));
   }
 
   for (const concept of sorted) {

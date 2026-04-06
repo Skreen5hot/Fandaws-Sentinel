@@ -319,7 +319,7 @@ describe('hydrate/dehydrate — round-trip fidelity with restrictions (SUP-06)',
   it('restrictions survive hydrate → dehydrate → hydrate', () => {
     const concept = makeConcept('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog', 'Dog', 'fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     concept['skos:altLabel'] = ['pupper', 'doggo'];
-    concept['skos:definition'] = 'A domesticated canine';
+    concept['fandaws:algorithmicDefinition'] = 'A domesticated canine';
     concept['rdfs:subClassOf'] = [
       'cco:Organism',
       {
@@ -394,7 +394,7 @@ describe('hydrate — external JSON-LD forms (SUP-04)', () => {
       '@type': ['owl:Class', 'skos:Concept'],
       'rdfs:label': { '@value': 'Dog', '@language': 'en' },
       'skos:prefLabel': { '@value': 'dog', '@language': 'en' },
-      'skos:definition': { '@value': 'A domesticated carnivore', '@language': 'en' },
+      'fandaws:algorithmicDefinition': { '@value': 'A domesticated carnivore', '@language': 'en' },
       'skos:broader': null,
       'dcterms:created': '2025-01-01T00:00:00Z',
       'rdfs:subClassOf': [],
@@ -477,7 +477,7 @@ describe('dehydrate', () => {
     expect(canonical['rdfs:label']).toBe('Dog');
     expect(canonical['skos:prefLabel']).toBe('dog');
     expect(canonical['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
-    expect(canonical['skos:definition']).toBe('A domesticated canine.');
+    expect(canonical['fandaws:algorithmicDefinition']).toBe('A domesticated canine.');
 
     // Computed fields must NOT be present
     expect(canonical.depth).toBeUndefined();

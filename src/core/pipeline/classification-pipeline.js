@@ -175,20 +175,33 @@ export function runClassificationPipeline(utterance, context, options = {}) {
 
   // ── Step 8: Generate descriptions and write back to graph ──
   const descriptions = [];
+
+  // Collect IRIs of all affected concepts (additions + modifications)
+  const affectedIris = new Set();
   const additions = engineResult.mutation['fandaws:additions'] || [];
   for (const node of additions) {
     if (isConceptNode(node)) {
-      const updatedConcept = (updatedGraph['fandaws:concepts'] || []).find(
-        (c) => c['@id'] === node['@id'],
-      );
-      if (updatedConcept) {
-        const description = describeConcept(updatedConcept, updatedGraph);
-        descriptions.push({ conceptIri: node['@id'], description });
-        // Write algorithmic definition back to the concept
-        updatedConcept['fandaws:algorithmicDefinition'] = description;
-      }
+      affectedIris.add(node['@id']);
     }
   }
+  const modifications = engineResult.mutation['fandaws:modifications'] || [];
+  for (const mod of modifications) {
+    if (mod['@id']) {
+      affectedIris.add(mod['@id']);
+    }
+  }
+
+  for (const iri of affectedIris) {
+    const updatedConcept = (updatedGraph['fandaws:concepts'] || []).find(
+      (c) => c['@id'] === iri,
+    );
+    if (updatedConcept) {
+      const description = describeConcept(updatedConcept, updatedGraph);
+      descriptions.push({ conceptIri: iri, description });
+      updatedConcept['fandaws:algorithmicDefinition'] = description;
+    }
+  }
+
   // Persist updated descriptions
   if (descriptions.length > 0) {
     stateAdapter.saveGraph(graphId, updatedGraph);

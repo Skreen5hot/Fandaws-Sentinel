@@ -225,9 +225,22 @@ export function processClassification(action, graph, indices, options = {}, adap
     ? existingObject['@id']
     : generateConceptIri(objectCanonical, scope);
 
-  // ── 6. Re-assertion idempotency ──
+  // ── 6. Re-assertion idempotency + transitive redundancy ──
   if (existingSubject && existingSubject['skos:broader'] === objectIri) {
     return noOp; // already classified — no-op
+  }
+  // Transitive check: if objectIri is already an ancestor of subject,
+  // the assertion is transitively true and should be a no-op.
+  // e.g., "dog is an animal" when dog→mammal→animal already exists.
+  if (existingSubject && existingObject) {
+    let ancestor = existingSubject['skos:broader'];
+    const visited = new Set([subjectIri]);
+    while (ancestor != null) {
+      if (ancestor === objectIri) return noOp; // transitively redundant
+      if (visited.has(ancestor)) break; // cycle guard
+      visited.add(ancestor);
+      ancestor = indices.iriToParent.get(ancestor) ?? null;
+    }
   }
 
   // ── 7. Circular check (both exist) ──

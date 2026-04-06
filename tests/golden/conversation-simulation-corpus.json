@@ -283,6 +283,41 @@
     ]
   },
   {
+    "id": "conv-transitive-redundancy-noop",
+    "note": "Transitive redundancy: 'dog is an animal' when dog→mammal→animal is a no-op",
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 2 }
+      },
+      {
+        "utterance": "A mammal is an animal",
+        "options": {},
+        "expect": { "success": true, "conceptCount": 3 }
+      },
+      {
+        "utterance": "A dog is a mammal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "conceptCount": 4,
+          "concepts": { "dog": { "parent": "mammal" } }
+        }
+      },
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "mutationNull": true,
+          "conceptCount": 4,
+          "concepts": { "dog": { "parent": "mammal" } }
+        }
+      }
+    ]
+  },
+  {
     "id": "conv-adversarial-gibberish",
     "note": "Gibberish input returns parse error, graph unchanged",
     "turns": [

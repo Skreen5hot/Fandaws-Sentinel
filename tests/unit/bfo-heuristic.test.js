@@ -84,16 +84,16 @@ describe('BFO Heuristic', () => {
       expect(inferBfoCategory('tolerance')).toBe(BFO.quality);
     });
 
-    it('defaults to materialEntity for unmatched labels', () => {
-      expect(inferBfoCategory('dog')).toBe(BFO.materialEntity);
+    it('defaults to entity for unmatched labels', () => {
+      expect(inferBfoCategory('dog')).toBe(BFO.entity);
     });
 
-    it('defaults to materialEntity for "table"', () => {
-      expect(inferBfoCategory('table')).toBe(BFO.materialEntity);
+    it('defaults to entity for "table"', () => {
+      expect(inferBfoCategory('table')).toBe(BFO.entity);
     });
 
-    it('defaults to materialEntity for "water"', () => {
-      expect(inferBfoCategory('water')).toBe(BFO.materialEntity);
+    it('defaults to entity for "water"', () => {
+      expect(inferBfoCategory('water')).toBe(BFO.entity);
     });
 
     it('uses last word for multi-word labels', () => {
@@ -102,7 +102,7 @@ describe('BFO Heuristic', () => {
 
     it('does not match suffix if word equals suffix', () => {
       // "ing" alone should not match (word length must exceed suffix length)
-      expect(inferBfoCategory('ing')).toBe(BFO.materialEntity);
+      expect(inferBfoCategory('ing')).toBe(BFO.entity);
     });
   });
 
@@ -178,15 +178,15 @@ describe('BFO Heuristic', () => {
 
   describe('inferBfoCategory — edge cases', () => {
     it('handles null input', () => {
-      expect(inferBfoCategory(null)).toBe(BFO.materialEntity);
+      expect(inferBfoCategory(null)).toBe(BFO.entity);
     });
 
     it('handles undefined input', () => {
-      expect(inferBfoCategory(undefined)).toBe(BFO.materialEntity);
+      expect(inferBfoCategory(undefined)).toBe(BFO.entity);
     });
 
     it('handles empty string', () => {
-      expect(inferBfoCategory('')).toBe(BFO.materialEntity);
+      expect(inferBfoCategory('')).toBe(BFO.entity);
     });
 
     it('is case-insensitive', () => {
@@ -213,7 +213,7 @@ describe('BFO Heuristic', () => {
     });
 
     it('falls back to heuristic when parent is null', () => {
-      expect(inheritBfoCategory(null, 'dog')).toBe(BFO.materialEntity);
+      expect(inheritBfoCategory(null, 'dog')).toBe(BFO.entity);
     });
 
     it('detects BFO IRI in parent rdfs:subClassOf array', () => {
@@ -227,7 +227,7 @@ describe('BFO Heuristic', () => {
       const parent = {
         'rdfs:subClassOf': ['fandaws:class/something'],
       };
-      expect(inheritBfoCategory(parent, 'dog')).toBe(BFO.materialEntity);
+      expect(inheritBfoCategory(parent, 'dog')).toBe(BFO.entity);
     });
   });
 

@@ -4,7 +4,7 @@
  * Provides deterministic BFO category assignment for concepts:
  *   1. Check HEURISTIC_EXCEPTIONS for known misclassifications
  *   2. Check canonical label suffixes for linguistic patterns
- *   3. Default to materialEntity
+ *   3. Default to entity (BFO_0000001) when category is unknown
  *
  * Categories use canonical BFO 2020 IRIs (OBO PURLs, no fragments).
  *
@@ -75,14 +75,14 @@ const QUALITY_SUFFIXES = ['ness', 'ity', 'ance', 'ence'];
 /**
  * Infer a BFO category from a canonical label using heuristic rules.
  *
- * Order: exceptions → suffix → default (materialEntity).
+ * Order: exceptions → suffix → default (entity).
  *
  * @param {string} canonicalLabel - Normalized concept label
- * @returns {string} BFO IRI (prefixed form, e.g., "bfo:BFO_0000040")
+ * @returns {string} BFO IRI (prefixed form, e.g., "bfo:BFO_0000001")
  */
 export function inferBfoCategory(canonicalLabel) {
   if (!canonicalLabel || typeof canonicalLabel !== 'string') {
-    return BFO.materialEntity;
+    return BFO.entity;
   }
 
   const label = canonicalLabel.trim().toLowerCase();
@@ -110,8 +110,8 @@ export function inferBfoCategory(canonicalLabel) {
     }
   }
 
-  // 3. Default
-  return BFO.materialEntity;
+  // 3. Default — unknown category, use top-level entity
+  return BFO.entity;
 }
 
 /**

@@ -72,8 +72,19 @@ export function stripArticle(term) {
  * @returns {{ matched: boolean, subject?: string, predicate?: string, object?: string }}
  */
 export function matchClassification(text) {
-  // "is a/an" (most specific)
-  let match = text.match(/^(.+?)\s+is\s+(?:a|an)\s+(.+)$/i);
+  // "is a/an type/kind of" (most specific — must precede "is a/an")
+  let match = text.match(/^(.+?)\s+is\s+(?:a|an)\s+(?:type|kind)\s+of\s+(.+)$/i);
+  if (match) {
+    return {
+      matched: true,
+      subject: stripArticle(match[1].trim()),
+      predicate: 'is a',
+      object: stripArticle(match[2].trim()),
+    };
+  }
+
+  // "is a/an" (most specific after type/kind)
+  match = text.match(/^(.+?)\s+is\s+(?:a|an)\s+(.+)$/i);
   if (match) {
     return {
       matched: true,

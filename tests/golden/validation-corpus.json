@@ -1,0 +1,623 @@
+[
+  {
+    "id": "conv-fed-001-consensus-session-1",
+    "note": "Federation Scenario 1 (Consensus) — Session 1 side. ISOLATED SESSION — fresh graph. Creates Dog ⊆ Animal. When federated with Session 2 (identical assertion), the federation layer should detect perfect alignment and deduplicate. All concepts are fresh creations.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "animal": { "parent": "organism", "noReclassification": true },
+            "organism": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "animal", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-002-consensus-session-2",
+    "note": "Federation Scenario 1 (Consensus) — Session 2 side. ISOLATED SESSION — fresh graph, no shared state with Session 1. Creates identical Dog ⊆ Animal hierarchy. Both sessions produce structurally identical graphs — the simplest federation case. All concepts are fresh creations.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "animal": { "parent": "organism", "noReclassification": true },
+            "organism": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "animal", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-003-transitive-redundancy-session-1",
+    "note": "Federation Scenario 2 (Transitive Redundancy) — Session 1 side. ISOLATED SESSION — fresh graph. Creates the stepped path Dog ⊆ Mammal ⊆ Animal. This is the higher-fidelity version. Federation should prefer this stepped path over Session 2's direct jump. All concepts are fresh creations — no reclassification occurs.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "animal": { "parent": "organism", "noReclassification": true },
+            "organism": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A mammal is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "mammal": { "parent": "animal", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A dog is a mammal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "mammal", "noReclassification": true }
+          },
+          "conceptCount": 4
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-004-transitive-redundancy-session-2",
+    "note": "Federation Scenario 2 (Transitive Redundancy) — Session 2 side. ISOLATED SESSION — fresh graph, no shared state with Session 1. Creates direct jump Dog ⊆ Animal without intermediate Mammal. The transitive redundancy only emerges when this graph is federated with Session 1's stepped path. Within this session, dog's direct parent is animal and no reclassification occurs — dog is freshly created under animal.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "animal": { "parent": "organism", "noReclassification": true },
+            "organism": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "animal", "noReclassification": true }
+          },
+          "conceptCount": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-005-cycle-session-1",
+    "note": "Federation Scenario 3 (Direct Cycle) — Session 1 side. ISOLATED SESSION — fresh graph. Asserts Autonomy ⊆ Right. When federated with Session 2 (Right ⊆ Autonomy), the combined graph contains a subsumption cycle. Each session's graph is internally valid — the cycle only emerges at federation time. All concepts are fresh creations.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "A right is a normative concept",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "right": { "parent": "normative concept", "noReclassification": true },
+            "normative concept": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "Autonomy is a right",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "autonomy": { "parent": "right", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-006-cycle-session-2",
+    "note": "Federation Scenario 3 (Direct Cycle) — Session 2 side. ISOLATED SESSION — fresh graph, no shared state with Session 1. Asserts Right ⊆ Autonomy — the reverse of Session 1. Internally valid: this session models autonomy as the broader concept with right as a specific form. The contradiction only surfaces when both sessions' graphs are merged. All concepts are fresh creations.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "Autonomy is a normative concept",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "autonomy": { "parent": "normative concept", "noReclassification": true },
+            "normative concept": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A right is a type of autonomy",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "right": { "parent": "autonomy", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-007-polyhierarchy-session-1",
+    "note": "Federation Scenario 4 (Polyhierarchy) — Session 1 side. ISOLATED SESSION — fresh graph. Classifies AI ⊆ Software. When federated with Session 2 (AI ⊆ Agent), the combined graph should give AI two parents — valid DAG polyhierarchy. Fandaws-Sentinel uses single-parent skos:broader, so polyhierarchy only exists in the federation working graph. All concepts are fresh creations.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "Software is an artifact",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "software": { "parent": "artifact", "noReclassification": true },
+            "artifact": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "AI is a type of software",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "ai": { "parent": "software", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-008-polyhierarchy-session-2",
+    "note": "Federation Scenario 4 (Polyhierarchy) — Session 2 side. ISOLATED SESSION — fresh graph, no shared state with Session 1. Classifies AI ⊆ Agent. Neither session is wrong — AI genuinely straddles both categories. Federation should project both parent edges (polyhierarchy), not treat this as a conflict. All concepts are fresh creations.",
+    "tags": ["classification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An agent is an entity",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "agent": { "parent": "entity", "noReclassification": true },
+            "entity": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "AI is a type of agent",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "ai": { "parent": "agent", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-009-equivalence-session-1",
+    "note": "Federation Scenario 5 (Equivalence Declaration) — ISOLATED SESSION — fresh graph. Creates 'drug' and 'medication' as siblings under 'substance', then reclassifies drug under medication via 'a drug is a medication'. The final turn IS an intentional reclassification (drug moves from substance → medication). Because substance and medication are 1 step apart (≤3 proximity threshold), the reclassification proceeds silently — no confirmation prompt. noReclassification is false on the final turn to confirm the move happened.",
+    "tags": ["classification", "reclassification", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "A substance is an entity",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "substance": { "parent": "entity", "noReclassification": true },
+            "entity": { "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A drug is a substance",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "drug": { "parent": "substance", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A medication is a substance",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "medication": { "parent": "substance", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A drug is a medication",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "drug": { "parent": "medication", "noReclassification": false }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-010-cycle-with-properties-session-1",
+    "note": "Federation Scenario 3 extended — Session 1 with properties. ISOLATED SESSION — fresh graph. Builds Autonomy ⊆ Right with properties on both concepts. When federated and forked, properties must propagate onto both forks. All concepts are fresh creations.",
+    "tags": ["classification", "property", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "A right is a normative concept",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "right": { "parent": "normative concept", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "Legal standing is a quality",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Rights have legal standing",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Autonomy is a right",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "autonomy": { "parent": "right", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "Self-determination is a quality",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Autonomy has self-determination",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "autonomy": { "parent": "right", "noReclassification": true },
+            "right": { "parent": "normative concept", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-011-cycle-with-properties-session-2",
+    "note": "Federation Scenario 3 extended — Session 2 with properties. ISOLATED SESSION — fresh graph, no shared state with Session 1. Builds Right ⊆ Autonomy (reverse of Session 1) with its own properties. When federated, the fork must preserve both sessions' property sets. The properties are not contested — only the placement is. All concepts are fresh creations.",
+    "tags": ["classification", "property", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "Autonomy is a normative concept",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "autonomy": { "parent": "normative concept", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "Moral weight is a quality",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Autonomy has moral weight",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A right is a type of autonomy",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "right": { "parent": "autonomy", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "Legal protection is a quality",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Rights have legal protection",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "right": { "parent": "autonomy", "noReclassification": true },
+            "autonomy": { "parent": "normative concept", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-012-redundancy-with-properties-session-1",
+    "note": "Federation Scenario 2 extended — Session 1 with properties at each level. ISOLATED SESSION — fresh graph. Builds stepped path Dog ⊆ Mammal ⊆ Animal with properties on each. When federation performs transitive reduction against Session 2's direct jump, the intermediate concept (Mammal) and its properties must survive. All concepts are fresh creations.",
+    "tags": ["classification", "property", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "animal": { "parent": "organism", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A cell is a structure",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Animals have cells",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A mammal is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "mammal": { "parent": "animal", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A mammary gland is an organ",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Mammals have mammary glands",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A dog is a mammal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "mammal", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A tail is a body part",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Dogs have tails",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "mammal", "noReclassification": true },
+            "mammal": { "parent": "animal", "noReclassification": true },
+            "animal": { "parent": "organism", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-013-polyhierarchy-with-properties-session-1",
+    "note": "Federation Scenario 4 extended — Session 1 with properties. ISOLATED SESSION — fresh graph. Classifies AI ⊆ Software with software-specific properties. When federated with Session 2's AI ⊆ Agent, the polyhierarchy working graph should carry properties from both sessions. All concepts are fresh creations.",
+    "tags": ["classification", "property", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "Software is an artifact",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "software": { "parent": "artifact", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "AI is a type of software",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "ai": { "parent": "software", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A training dataset is a resource",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "AI has a training dataset",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "A parameter is a quantity",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "AI has parameters",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "ai": { "parent": "software", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-014-polyhierarchy-with-properties-session-2",
+    "note": "Federation Scenario 4 extended — Session 2 with properties. ISOLATED SESSION — fresh graph, no shared state with Session 1. Classifies AI ⊆ Agent with agent-specific properties. Federation working graph should union these with Session 1's software-specific properties. All concepts are fresh creations.",
+    "tags": ["classification", "property", "session", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An agent is an entity",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "agent": { "parent": "entity", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "AI is a type of agent",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "ai": { "parent": "agent", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A goal is a disposition",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "AI has goals",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Autonomy is a quality",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "AI has autonomy",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "ai": { "parent": "agent", "noReclassification": true }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "conv-fed-015-serialization-roundtrip",
+    "note": "ISOLATED SESSION — fresh graph. Validates that a session graph survives serialize → deserialize roundtrip with all fields intact. Federation consumes serialized graphs — if serialization loses data, federation cannot work. All concepts are fresh creations.",
+    "tags": ["classification", "property", "session", "export", "federation-scenario"],
+    "turns": [
+      {
+        "utterance": "An animal is an organism",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "animal": { "parent": "organism", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A dog is an animal",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "animal", "noReclassification": true }
+          }
+        }
+      },
+      {
+        "utterance": "A tail is a body part",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Dogs have tails",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Fur is a material",
+        "options": {},
+        "expect": { "success": true }
+      },
+      {
+        "utterance": "Dogs have fur",
+        "options": {},
+        "expect": {
+          "success": true,
+          "concepts": {
+            "dog": { "parent": "animal", "noReclassification": true }
+          },
+          "serializationRoundtrip": true
+        }
+      }
+    ]
+  }
+]

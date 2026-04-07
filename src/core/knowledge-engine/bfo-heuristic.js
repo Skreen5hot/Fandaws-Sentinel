@@ -49,6 +49,20 @@ export const BFO_LABELS = {
 // Common English words whose suffixes would cause misclassification.
 
 export const HEURISTIC_EXCEPTIONS = {
+  // BFO category names — recognized as themselves, not parsed by suffix
+  entity:      BFO.entity,           // not a quality despite -ity
+  'material entity': BFO.materialEntity,
+  process:     BFO.process,
+  quality:     BFO.quality,
+  role:        BFO.role,
+  disposition: BFO.disposition,
+  function:    BFO.function,
+  'realizable entity': BFO.realizableEntity,
+  'spatial region': BFO.spatialRegion,
+  'temporal region': BFO.temporalRegion,
+  'generically dependent continuant': BFO.genDepContinuant,
+
+  // Common English words whose suffixes would cause misclassification
   building:    BFO.materialEntity,   // not a process despite -ing
   king:        BFO.role,             // not a process despite -ing
   thing:       BFO.entity,           // not a process
@@ -87,14 +101,13 @@ export function inferBfoCategory(canonicalLabel) {
 
   const label = canonicalLabel.trim().toLowerCase();
 
-  // 1. Check exceptions (exact match on last word for multi-word labels)
+  // 1. Check exceptions — full label first (most specific), then last word
+  if (HEURISTIC_EXCEPTIONS[label] !== undefined) {
+    return HEURISTIC_EXCEPTIONS[label];
+  }
   const lastWord = label.includes(' ') ? label.split(' ').pop() : label;
   if (HEURISTIC_EXCEPTIONS[lastWord] !== undefined) {
     return HEURISTIC_EXCEPTIONS[lastWord];
-  }
-  // Also check full label for single-word exceptions
-  if (label !== lastWord && HEURISTIC_EXCEPTIONS[label] !== undefined) {
-    return HEURISTIC_EXCEPTIONS[label];
   }
 
   // 2. Check suffixes on last word

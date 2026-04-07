@@ -7,8 +7,10 @@
 import { EventBus } from './event-bus.js';
 
 const GRAPH_ID = 'fandaws:graph/workbench';
-// BFO Turtle source — shipped alongside the Workbench at docs/bfo-core.ttl
-const BFO_SOURCE_URL = '../bfo-core.ttl';
+// BFO Turtle source — shipped alongside the Workbench at docs/bfo-core.ttl.
+// fetch() resolves URLs relative to the document, not the JS module, and
+// workbench.html is in the same directory as bfo-core.ttl.
+const BFO_SOURCE_URL = 'bfo-core.ttl';
 
 export class WorkbenchStateManager {
   /**

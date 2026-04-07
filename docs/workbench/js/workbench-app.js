@@ -19,6 +19,16 @@ const Fandaws = await import('../../dist/fandaws.js');
 // ── Initialize State ──
 const state = new WorkbenchStateManager(Fandaws);
 
+// ── Ingest BFO at startup ──
+// Loads bundled BFO 2020 (~36 classes) into the working graph so users
+// can attach concepts to a real ontology rather than to phantom IRIs.
+const bfoResult = await state.ensureBfo();
+if (bfoResult.error) {
+  console.warn('[Workbench] BFO ingestion failed:', bfoResult.error);
+} else if (bfoResult.ingested) {
+  console.log(`[Workbench] BFO ingested: ${bfoResult.conceptsAdded} classes`);
+}
+
 // ── Initialize Panels ──
 const panelTree = document.getElementById('panel-tree');
 const panelWorkspace = document.getElementById('panel-workspace');

@@ -5,7 +5,7 @@
  */
 
 export { FANDAWS_CONTEXT } from './context.js';
-export { createConcept } from './concept.js';
+export { createConcept, createIngestedConcept } from './concept.js';
 export { createProperty } from './property.js';
 export { createRelationship } from './relationship.js';
 export { createKnowledgeGraph } from './knowledge-graph.js';

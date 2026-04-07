@@ -142,6 +142,22 @@ export function inheritBfoCategory(parentConcept, childCanonicalLabel) {
     return parentConcept.bfoMapping;
   }
 
+  // Imported concept: inherit from owl:equivalentClass (the source IRI is the BFO category)
+  if (parentConcept) {
+    const equiv = parentConcept['owl:equivalentClass'];
+    if (equiv) {
+      const sources = Array.isArray(equiv) ? equiv : [equiv];
+      for (const src of sources) {
+        if (typeof src === 'string') {
+          // Match BFO IRIs in either prefixed or full form
+          if (src.startsWith('bfo:') || src.startsWith('http://purl.obolibrary.org/obo/BFO_')) {
+            return src.startsWith('bfo:') ? src : 'bfo:' + src.split('/').pop();
+          }
+        }
+      }
+    }
+  }
+
   // Check rdfs:subClassOf for bare BFO IRI strings (existing mapping)
   if (parentConcept) {
     const subClassOf = parentConcept['rdfs:subClassOf'] || [];

@@ -13,6 +13,17 @@
 
 import { StateAdapter } from './state-adapter.js';
 import { isConceptNode, isRestrictionNode } from '../../types/type-checks.js';
+import { createGraphMutation } from '../../types/graph-mutation.js';
+import {
+  ingestTurtle,
+  buildEquivalenceIndex,
+  hasIngestedSource,
+  isAlreadyIngested,
+  migratePhantomReferences,
+} from '../integration/turtle-ingestion-adapter.js';
+import { sha256Hex } from '../../core/ivne/sha256.js';
+
+const BFO_ONTOLOGY_IRI = 'http://purl.obolibrary.org/obo/bfo.owl';
 
 // ─────────────────────────────────────────────────────────
 // InMemoryStateAdapter
@@ -39,6 +50,161 @@ export class InMemoryStateAdapter extends StateAdapter {
 
     /** @type {Function[]} Post-commit mutation observers. */
     this._mutationListeners = [];
+
+    /** @type {Map<string, string>} Ingested object property index: label → source IRI */
+    this._ingestedPropertyIndex = new Map();
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Ontology ingestion (Phase A — BFO)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Ensure a graph contains the ingested BFO ontology.
+   *
+   * - If BFO is not yet ingested into the graph, runs the full ingestion
+   *   pipeline and applies the resulting concepts as a single bulk mutation.
+   * - If BFO is already ingested with a matching content hash, short-circuits
+   *   (returns immediately, ~1ms instead of ~100ms).
+   * - If a different version is present, runs class-by-class diff.
+   * - After ingestion, runs phantom-reference migration on user concepts
+   *   that may carry legacy `rdfs:subClassOf: bfo:...` strings.
+   *
+   * Returns a result describing what happened. Errors during parsing are
+   * caught and surfaced via the `error` field — the graph remains unchanged.
+   *
+   * @see Ontology Ingestion Spec v1.4 Section 5
+   *
+   * @param {string} graphId - Graph IRI
+   * @param {string} turtleText - Raw BFO Turtle source
+   * @param {object} [options] - Forwarded to ingestTurtle()
+   * @returns {{
+   *   ingested: boolean,
+   *   skipped: boolean,
+   *   shortCircuit: boolean,
+   *   conceptsAdded: number,
+   *   migratedReferences: number,
+   *   error?: string
+   * }}
+   */
+  ensureBfoIngestion(graphId, turtleText, options = {}) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) {
+      return {
+        ingested: false,
+        skipped: false,
+        shortCircuit: false,
+        conceptsAdded: 0,
+        migratedReferences: 0,
+        error: `Graph not found: ${graphId}`,
+      };
+    }
+
+    // Fast-path hash short-circuit (Section 5.4):
+    // Hash the raw bytes BEFORE parsing. If a matching ingestion already
+    // exists, skip the entire pipeline (~1ms instead of ~50-100ms).
+    const contentHash = 'sha256:' + sha256Hex(turtleText);
+    if (isAlreadyIngested(graph, BFO_ONTOLOGY_IRI, contentHash)) {
+      return {
+        ingested: false,
+        skipped: true,
+        shortCircuit: true,
+        conceptsAdded: 0,
+        migratedReferences: 0,
+      };
+    }
+
+    let ingested;
+    try {
+      ingested = ingestTurtle(turtleText, {
+        sourceOntology: BFO_ONTOLOGY_IRI,
+        ...options,
+      });
+    } catch (err) {
+      return {
+        ingested: false,
+        skipped: false,
+        shortCircuit: false,
+        conceptsAdded: 0,
+        migratedReferences: 0,
+        error: `Turtle parse error: ${err.message}`,
+      };
+    }
+
+    // Determine which concepts to add. Skip any whose @id already exists.
+    const existingIris = new Set(
+      (graph['fandaws:concepts'] || []).map((c) => c['@id']),
+    );
+    const additions = ingested.concepts.filter(
+      (c) => !existingIris.has(c['@id']),
+    );
+
+    if (additions.length > 0) {
+      const mutation = createGraphMutation({
+        additions,
+        reason: `Ingest BFO 2020 (${additions.length} classes)`,
+      });
+      this.applyMutation(graphId, mutation);
+    }
+
+    // Phantom reference migration on user concepts
+    const updated = this._graphs.get(graphId);
+    const equivIndex = buildEquivalenceIndex(updated['fandaws:concepts'] || []);
+    const migrated = migratePhantomReferences(updated, equivIndex);
+    if (migrated > 0) {
+      // Indices need rebuild after in-place mutation
+      this._rebuildIndices(graphId, updated);
+    }
+
+    // Merge property index
+    this._mergeIngestedPropertyIndex(ingested.propertyIndex);
+
+    return {
+      ingested: true,
+      skipped: false,
+      shortCircuit: false,
+      conceptsAdded: additions.length,
+      migratedReferences: migrated,
+    };
+  }
+
+  /**
+   * Get the ingested object property index (label → source IRI).
+   * Used by the property workflow's verb-to-property resolution.
+   *
+   * @returns {Map<string, string>}
+   */
+  getIngestedPropertyIndex() {
+    return this._ingestedPropertyIndex;
+  }
+
+  /**
+   * Merge a property index from a new ingestion into the adapter-level cache.
+   * First-write wins to keep the index deterministic across re-ingestions.
+   *
+   * @param {Map<string, string>} newIndex
+   * @private
+   */
+  _mergeIngestedPropertyIndex(newIndex) {
+    if (!newIndex) return;
+    for (const [label, iri] of newIndex) {
+      if (!this._ingestedPropertyIndex.has(label)) {
+        this._ingestedPropertyIndex.set(label, iri);
+      }
+    }
+  }
+
+  /**
+   * Check whether a graph contains any ingested concepts from a given source.
+   *
+   * @param {string} graphId
+   * @param {string} sourceOntology
+   * @returns {boolean}
+   */
+  hasIngestedSource(graphId, sourceOntology) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return false;
+    return hasIngestedSource(graph, sourceOntology);
   }
 
   // ─────────────────────────────────────────────────────────
@@ -628,6 +794,88 @@ export class InMemoryStateAdapter extends StateAdapter {
     }
 
     return ghosts;
+  }
+
+  /**
+   * Collect non-fatal integrity warnings.
+   *
+   * Currently emits warnings for unresolved phantom IRIs in `rdfs:subClassOf`
+   * and `skos:broader` — references to source ontology classes that have
+   * not yet been ingested. These are NOT errors: they may resolve when the
+   * referenced ontology (e.g., CCO) is ingested later.
+   *
+   * @see Ontology Ingestion Spec v1.4 Section 6.4
+   *
+   * @param {string} graphId - Graph IRI
+   * @returns {object[]} Array of warning descriptors. Empty = no warnings.
+   */
+  collectIntegrityWarnings(graphId) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return [];
+
+    const warnings = [];
+    const conceptIris = new Set(
+      (graph['fandaws:concepts'] || []).map((c) => c['@id']),
+    );
+
+    // Build a set of source IRIs reachable via any ingested concept's
+    // owl:equivalentClass — these are "indirectly resolved" (the bridge
+    // exists even though the bare IRI is not a Fandaws concept @id).
+    // Stores both prefixed and full-URI forms for robust matching.
+    const equivalentSources = new Set();
+    for (const c of graph['fandaws:concepts'] || []) {
+      const equivs = c['owl:equivalentClass'];
+      if (Array.isArray(equivs)) {
+        for (const e of equivs) {
+          equivalentSources.add(e);
+          // Add prefixed form for full URIs
+          if (typeof e === 'string' && e.startsWith('http://purl.obolibrary.org/obo/BFO_')) {
+            equivalentSources.add('bfo:' + e.split('/').pop());
+          }
+          // Add full-URI form for prefixed BFO IRIs
+          if (typeof e === 'string' && e.startsWith('bfo:BFO_')) {
+            equivalentSources.add('http://purl.obolibrary.org/obo/' + e.slice(4));
+          }
+        }
+      }
+    }
+
+    for (const concept of graph['fandaws:concepts'] || []) {
+      // rdfs:subClassOf string entries that don't resolve
+      const subClassOf = concept['rdfs:subClassOf'] || [];
+      for (const entry of subClassOf) {
+        if (typeof entry === 'string' && !conceptIris.has(entry)) {
+          // BFO IRIs on imported concepts are expected (own equivalentClass)
+          if (concept['fandaws:isImported']) continue;
+          // IRIs reachable via an ingested concept's owl:equivalentClass
+          // are not phantom — the bridge exists even if the bare IRI
+          // isn't a Fandaws @id.
+          if (equivalentSources.has(entry)) continue;
+          warnings.push({
+            level: 'warning',
+            concept: concept['@id'],
+            field: 'rdfs:subClassOf',
+            unresolvedIri: entry,
+            reason: 'References a class not present in the graph. May resolve when its source ontology is ingested.',
+          });
+        }
+      }
+      // skos:broader phantom
+      const broader = concept['skos:broader'];
+      if (typeof broader === 'string' && !conceptIris.has(broader)) {
+        if (concept['fandaws:isImported']) continue;
+        if (equivalentSources.has(broader)) continue;
+        warnings.push({
+          level: 'warning',
+          concept: concept['@id'],
+          field: 'skos:broader',
+          unresolvedIri: broader,
+          reason: 'References a class not present in the graph. May resolve when its source ontology is ingested.',
+        });
+      }
+    }
+
+    return warnings;
   }
 
   // ─────────────────────────────────────────────────────────

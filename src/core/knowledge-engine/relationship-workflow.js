@@ -124,14 +124,37 @@ export function processRelationship(action, graph, indices, options = {}, adapte
     return { ...noOp, error: true, errorReason: 'missing-operands' };
   }
 
+  // ── 2. Multi-word verb detection (verb-to-property pre-pass) ──
+  // The NL parser splits "pet inheres in animal" as
+  //   { subject: pet, verb: inheres, object: in animal }
+  // If the object starts with a preposition AND "verb + preposition" matches
+  // an ingested object property label, treat the preposition as part of the
+  // verb and strip it from the object before normalization.
+  let effectiveRawVerb = rawVerb;
+  let effectiveRawObject = rawObject;
+  if (adapter && typeof adapter.getIngestedPropertyIndex === 'function') {
+    const ingestedIndex = adapter.getIngestedPropertyIndex();
+    const objLower = (rawObject || '').toLowerCase().trim();
+    const prepMatch = objLower.match(/^(in|on|of|to|at|by|with|from|into|onto)\s+(.+)$/);
+    if (prepMatch && ingestedIndex) {
+      const candidate = `${(rawVerb || '').toLowerCase().trim()} ${prepMatch[1]}`;
+      if (ingestedIndex.has(candidate)) {
+        effectiveRawVerb = `${rawVerb} ${prepMatch[1]}`;
+        // Re-extract original-cased object tail from raw input
+        const tailStart = rawObject.toLowerCase().indexOf(prepMatch[1]) + prepMatch[1].length;
+        effectiveRawObject = rawObject.slice(tailStart).trim();
+      }
+    }
+  }
+
   // ── 2. Normalize terms ──
   const simplifyOpts = { locale, abbreviationTable, protectedProperNouns };
   const subjectSimplified = simplify(rawSubject, simplifyOpts);
-  const objectSimplified = simplify(rawObject, simplifyOpts);
+  const objectSimplified = simplify(effectiveRawObject, simplifyOpts);
 
   const subjectCanonical = subjectSimplified.canonicalLabel;
   const objectCanonical = objectSimplified.canonicalLabel;
-  const verb = normalizeVerb(rawVerb);
+  const verb = normalizeVerb(effectiveRawVerb);
 
   if (!verb) {
     return { ...noOp, error: true, errorReason: 'empty-verb' };
@@ -231,12 +254,44 @@ export function processRelationship(action, graph, indices, options = {}, adapte
     existingObject = objectMatches.length === 1 ? objectMatches[0] : null;
   }
 
+  // ── importedConceptGuard ──
+  // Block direct relationship additions to imported concepts. Subclasses
+  // are the supported extension path.
+  if (existingSubject && existingSubject['fandaws:isImported']) {
+    const sourceLabel = (existingSubject['fandaws:ingestSource'] || {})['fandaws:sourceVersion'] || 'an imported ontology';
+    const prompt = createConversationPrompt({
+      promptType: 'importedConceptGuard',
+      text: `"${rawSubject}" is an imported concept from ${sourceLabel}. Create a subclass to add relationships.`,
+      options: null,
+      context: {
+        action: 'customRelationship',
+        subject: rawSubject,
+        subjectIri: existingSubject['@id'],
+      },
+    });
+    return { ...noOp, prompts: [prompt] };
+  }
+
   const subjectIri = existingSubject
     ? existingSubject['@id']
     : generateConceptIri(subjectCanonical, scope);
   const objectIri = existingObject
     ? existingObject['@id']
     : generateConceptIri(objectCanonical, scope);
+
+  // ── Verb-to-property resolution (Section 6.5) ──
+  // The multi-word verb pre-pass (Step 2) has already merged a leading
+  // preposition from the object into effectiveRawVerb when the combined
+  // form matches an ingested label. Now perform the actual lookup using
+  // the (possibly multi-word) effective verb.
+  let resolvedVerbIri = verb;
+  if (adapter && typeof adapter.getIngestedPropertyIndex === 'function') {
+    const ingestedIndex = adapter.getIngestedPropertyIndex();
+    const rawKey = (effectiveRawVerb || '').toLowerCase().trim();
+    if (rawKey && ingestedIndex && ingestedIndex.has(rawKey)) {
+      resolvedVerbIri = ingestedIndex.get(rawKey);
+    }
+  }
 
   // ── 6. Generate relationship IRI and check for duplicates ──
   const relIri = generateRelationshipIri(subjectCanonical, verb, objectCanonical, scope);
@@ -257,11 +312,14 @@ export function processRelationship(action, graph, indices, options = {}, adapte
 
   const relNode = createRelationship({
     id: relIri,
-    verbIri: verb,
+    verbIri: resolvedVerbIri,
     subject: subjectIri,
     object: objectIri,
     subRestrictionOf: parentRelIri,
   });
+  // Tag origin for export filtering / fidelity (Section 11.2)
+  relNode['fandaws:source'] = 'user';
+  relNode['fandaws:verbLabel'] = verb;
 
   // ── 7. Build mutation based on case ──
   const additions = [relNode];

@@ -59,7 +59,7 @@ describe('types/index barrel export', () => {
     expect(typeof types.createDialogueTurn).toBe('function');
   });
 
-  it('exports exactly 34 members (1 context + 27 factories + 2 type checks + 4 constants)', () => {
-    expect(Object.keys(types)).toHaveLength(34);
+  it('exports exactly 35 members (1 context + 28 factories + 2 type checks + 4 constants)', () => {
+    expect(Object.keys(types)).toHaveLength(35);
   });
 });

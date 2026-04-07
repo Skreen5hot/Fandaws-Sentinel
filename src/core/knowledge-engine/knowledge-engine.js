@@ -225,6 +225,26 @@ export function processClassification(action, graph, indices, options = {}, adap
     ? existingObject['@id']
     : generateConceptIri(objectCanonical, scope);
 
+  // ── importedConceptGuard ──
+  // The subject of the classification is being modified (its skos:broader
+  // would change). If it's an imported concept, block — users must create
+  // a subclass instead. Allowed: classifying a USER concept under an
+  // imported parent (object can be imported).
+  if (existingSubject && existingSubject['fandaws:isImported']) {
+    const sourceLabel = (existingSubject['fandaws:ingestSource'] || {})['fandaws:sourceVersion'] || 'an imported ontology';
+    const prompt = createConversationPrompt({
+      promptType: 'importedConceptGuard',
+      text: `"${rawSubject}" is an imported concept from ${sourceLabel}. Create a subclass to add to it.`,
+      options: null,
+      context: {
+        action: 'classification',
+        subject: rawSubject,
+        subjectIri: existingSubject['@id'],
+      },
+    });
+    return { ...noOp, prompts: [prompt] };
+  }
+
   // ── 6. Re-assertion idempotency + transitive redundancy ──
   if (existingSubject && existingSubject['skos:broader'] === objectIri) {
     return noOp; // already classified — no-op

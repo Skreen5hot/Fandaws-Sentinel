@@ -1,0 +1,365 @@
+{
+  "test_plan": {
+    "project": "Fandaws Ontology Management",
+    "version": "1.3/1.4",
+    "test_cases": [
+      {
+        "test_case_id": "TC-001",
+        "scenario_ref": 1,
+        "title": "Fresh graph startup with bundled BFO",
+        "preconditions": "Clean system state, no existing graph. Bundled BFO Turtle file is accessible.",
+        "steps": [
+          "Initialize a new graph instance.",
+          "Observe the initialization logs and network activity.",
+          "Open the navigation tree UI."
+        ],
+        "expected_result": "BFO auto-ingests successfully with zero network calls. Navigation tree populates with BFO concepts."
+      },
+      {
+        "test_case_id": "TC-002",
+        "scenario_ref": 2,
+        "title": "Deterministic IRI minting from source IRI",
+        "preconditions": "System is running. BFO is ingested.",
+        "steps": [
+          "Identify the minted Fandaws IRI for a specific source class (e.g., 'Entity').",
+          "Trigger a re-ingestion of the same source class.",
+          "Compare the resulting Fandaws IRI with the original."
+        ],
+        "expected_result": "The Fandaws IRI remains identical (uuid5-derived). No duplicates are created."
+      },
+      {
+        "test_case_id": "TC-003",
+        "scenario_ref": 3,
+        "title": "Ingest a named class with parent hierarchy",
+        "preconditions": "Ontology file contains a class with a named superclass.",
+        "steps": [
+          "Ingest the ontology file.",
+          "Query the graph for the child class properties."
+        ],
+        "expected_result": "Concept is created. Labels map correctly. Both skos:broader and rdfs:subClassOf point to the same Fandaws parent IRI. owl:equivalentClass is an array containing the source IRI."
+      },
+      {
+        "test_case_id": "TC-004",
+        "scenario_ref": 4,
+        "title": "Root class ingestion",
+        "preconditions": "Ontology file contains a class with no superclass (e.g., BFO 'Entity').",
+        "steps": [
+          "Ingest the ontology.",
+          "Inspect the root node in the tree panel."
+        ],
+        "expected_result": "Concept is created as a root node with no skos:broader or parent references."
+      },
+      {
+        "test_case_id": "TC-005",
+        "scenario_ref": 5,
+        "title": "User concept under imported parent",
+        "preconditions": "BFO is successfully ingested.",
+        "steps": [
+          "Via UI, create a new user concept.",
+          "Via conversational input: 'An organism is a material entity'."
+        ],
+        "expected_result": "skos:broader and rdfs:subClassOf on the user concept correctly point to the imported parent's Fandaws IRI. No raw bfo: IRIs appear on the user concept's rdfs:subClassOf or skos:broader."
+      },
+      {
+        "test_case_id": "TC-006",
+        "scenario_ref": 6,
+        "title": "Read-only guard on imported concepts",
+        "preconditions": "Graph contains imported BFO concepts.",
+        "steps": [
+          "Select an imported concept in the UI.",
+          "Attempt to edit its label, definition, or properties."
+        ],
+        "expected_result": "UI blocks the edit action and displays a prompt suggesting the creation of a subclass instead."
+      },
+      {
+        "test_case_id": "TC-007",
+        "scenario_ref": 7,
+        "title": "Preservation of legacy user changes",
+        "preconditions": "Synthetic fixture — restrictions seeded directly on the imported concept, bypassing the read-only guard. This tests defensive re-ingestion resilience per Section 2.2.",
+        "steps": [
+          "Trigger a re-ingestion/update of the source ontology.",
+          "Query the previously modified imported concept."
+        ],
+        "expected_result": "User-added restrictions and relationships remain intact and are not overwritten by the re-ingestion."
+      },
+      {
+        "test_case_id": "TC-008",
+        "scenario_ref": 8,
+        "title": "Label change upstream",
+        "preconditions": "A v2 ontology file exists where a class label has been updated.",
+        "steps": [
+          "Ingest v1 ontology.",
+          "Re-ingest using v2 ontology.",
+          "Check the concept's IRI and labels."
+        ],
+        "expected_result": "IRI remains unchanged. rdfs:label and skos:prefLabel are updated to match v2. owl:equivalentClass remains unchanged (same source IRI, same array). fandaws:contentHash updates to reflect the new source file."
+      },
+      {
+        "test_case_id": "TC-009",
+        "scenario_ref": 9,
+        "title": "Class removed upstream",
+        "preconditions": "A v2 ontology file exists with a previously existing class completely removed.",
+        "steps": [
+          "Ingest v1.",
+          "Ensure user concepts exist as children of the target class.",
+          "Ingest v2."
+        ],
+        "expected_result": "Concept is not deleted. It is marked with 'fandaws:upstreamStatus' as deprecated. User concepts that were children of the deprecated concept retain their skos:broader pointing to the deprecated concept's Fandaws IRI. The deprecated concept remains navigable in the tree — it is not hidden or collapsed differently from other imported concepts."
+      },
+      {
+        "test_case_id": "TC-010",
+        "scenario_ref": 10,
+        "title": "Translation of labels, definitions, and alt labels",
+        "preconditions": "Source contains standard RDFS, SKOS, and OBO annotation properties.",
+        "steps": [
+          "Ingest source file.",
+          "Inspect the resulting Fandaws concept metadata."
+        ],
+        "expected_result": "Properties are mapped exactly as specified: rdfs:label/skos:prefLabel for labels, skos:definition for definitions, skos:altLabel preserved."
+      },
+      {
+        "test_case_id": "TC-011",
+        "scenario_ref": 11,
+        "title": "Translation of hierarchy to self-contained subclass tree",
+        "preconditions": "Source file has a deep rdfs:subClassOf hierarchy.",
+        "steps": [
+          "Ingest source file.",
+          "Traverse the graph from root to leaf."
+        ],
+        "expected_result": "Tree relies entirely on Fandaws parent IRIs. No phantom/unresolvable references exist."
+      },
+      {
+        "test_case_id": "TC-012",
+        "scenario_ref": 12,
+        "title": "Non-class axioms from source ontology",
+        "preconditions": "Source contains owl:disjointWith and anonymous restrictions.",
+        "steps": [
+          "Ingest the ontology.",
+          "Query for 'fandaws:sourceAxioms'.",
+          "Attempt to trigger reasoning logic based on the disjoint axiom."
+        ],
+        "expected_result": "Complex axioms are archived in fandaws:sourceAxioms and are explicitly NOT enforced by the core ingestion/reasoning pipeline."
+      },
+      {
+        "test_case_id": "TC-013",
+        "scenario_ref": 13,
+        "title": "Verb-to-property exact match",
+        "preconditions": "BFO property 'has part' is ingested.",
+        "steps": [
+          "User asserts a property: 'engine has part piston' (where 'engine' and 'piston' are pre-existing concepts)."
+        ],
+        "expected_result": "System resolves the relationship. owl:onProperty = bfo:BFO_0000110 (not fandaws:property/has-part)."
+      },
+      {
+        "test_case_id": "TC-014",
+        "scenario_ref": 14,
+        "title": "Verb-to-property no match / fallback",
+        "preconditions": "System running normally.",
+        "steps": [
+          "User types a completely novel verb 'consumes'."
+        ],
+        "expected_result": "System mints a new local 'fandaws:property/consumes' IRI."
+      },
+      {
+        "test_case_id": "TC-015",
+        "scenario_ref": 15,
+        "title": "Verb-label fragility fallback",
+        "preconditions": "Imported property 'has part' exists.",
+        "steps": [
+          "User types punctuation variants ('has_part'), capitalization ('Has Part'), or synonyms ('contains')."
+        ],
+        "expected_result": "Label fragility causes exact match to fail. System correctly defaults to fallback behavior and mints a local IRI."
+      },
+      {
+        "test_case_id": "TC-016",
+        "scenario_ref": 16,
+        "title": "Homonym collision at ingestion",
+        "preconditions": "User graph already contains a concept labeled 'Entity'.",
+        "steps": [
+          "Ingest BFO (which also contains 'Entity').",
+          "View both concepts in the UI."
+        ],
+        "expected_result": "Auto-qualified as 'Entity (bfo)' and 'Entity (user)'. Both carry skos:hiddenLabel: 'Entity'. Subsequent bare 'Entity' input triggers disambiguation prompt via hidden label lookup."
+      },
+      {
+        "test_case_id": "TC-017",
+        "scenario_ref": 17,
+        "title": "Imported concept search and display",
+        "preconditions": "BFO is ingested. UI is open.",
+        "steps": [
+          "Search for an imported concept.",
+          "Check the navigation tree display state."
+        ],
+        "expected_result": "Imported concepts appear in search results, possess a visual badge indicating their imported status, and are collapsed in the tree by default."
+      },
+      {
+        "test_case_id": "TC-018",
+        "scenario_ref": 18,
+        "title": "Default export with pristine imported ontology included",
+        "preconditions": "Graph contains user concepts and unmodified (pristine) imported concepts.",
+        "steps": [
+          "Trigger a standard graph export."
+        ],
+        "expected_result": "Export includes owl:equivalentClass for pristine imports, retains subclass structure, emits owl:imports, and strips internal fandaws metadata."
+      },
+      {
+        "test_case_id": "TC-019",
+        "scenario_ref": 19,
+        "title": "Export excluding imported proxy concepts",
+        "preconditions": "Graph contains user concepts linked to imported concepts.",
+        "steps": [
+          "Trigger export with 'excludeImported: true' flag.",
+          "Inspect output OWL file."
+        ],
+        "expected_result": "Imported proxy concepts are entirely absent. Subclass links and user restrictions point directly to the raw source IRIs. owl:imports is present."
+      },
+      {
+        "test_case_id": "TC-020",
+        "scenario_ref": 20,
+        "title": "Restriction source fidelity",
+        "preconditions": "Synthetic fixture (or Phase B CCO ontology) where ingested restrictions are seeded directly on a concept, alongside user-created restrictions.",
+        "steps": [
+          "Query restrictions for the concept.",
+          "Export the concept."
+        ],
+        "expected_result": "Restrictions are correctly tagged with 'fandaws:source'. owl:onProperty IRIs remain opaque/unmodified."
+      },
+      {
+        "test_case_id": "TC-021",
+        "scenario_ref": 21,
+        "title": "Export relation changes with modified lifecycle (Synthetic Fixture)",
+        "preconditions": "Synthetic database fixture loaded where an imported concept has fandaws:locallyModified set to 'extended' or 'diverged'.",
+        "steps": [
+          "Export the graph."
+        ],
+        "expected_result": "Extended → each owl:equivalentClass array entry emitted as rdfs:subClassOf triple. Diverged → each entry emitted as skos:closeMatch triple. The internal owl:equivalentClass array is NOT emitted directly. fandaws:locallyModified is NOT in output."
+      },
+      {
+        "test_case_id": "TC-022",
+        "scenario_ref": 22,
+        "title": "Performance and batching",
+        "preconditions": "Fresh environment. BFO ontology file is ready.",
+        "steps": [
+          "Trigger ingestion.",
+          "Measure processing time."
+        ],
+        "expected_result": "Ingestion completes, and indexes are rebuilt, in under 100 ms to meet the spec threshold."
+      },
+      {
+        "test_case_id": "TC-023",
+        "scenario_ref": 23,
+        "title": "Migration of pre-ingestion phantom BFO links",
+        "preconditions": "Older graph version contains direct rdfs:subClassOf links to raw BFO IRIs.",
+        "steps": [
+          "Run system startup/migration script.",
+          "Query the previously phantom links."
+        ],
+        "expected_result": "Phantom links are correctly rewritten to point to the new Fandaws-minted imported IRIs using the equivalence index."
+      },
+      {
+        "test_case_id": "TC-024",
+        "scenario_ref": 24,
+        "title": "Phase boundary: Out of scope block",
+        "preconditions": "System is running v1.3.",
+        "steps": [
+          "Attempt to configure federated lazy-loading via config/API (if exposed)."
+        ],
+        "expected_result": "System gracefully ignores or rejects federated import configurations, keeping single-graph scope."
+      },
+      {
+        "test_case_id": "TC-025",
+        "scenario_ref": 25,
+        "title": "[Robustness] Error: Malformed source data",
+        "preconditions": "Bundled Turtle file contains invalid syntax.",
+        "steps": [
+          "Start system or trigger ingestion."
+        ],
+        "expected_result": "System catches parsing error, aborts ingestion gracefully without crashing, logs the error, and initializes the user graph without the broken import."
+      },
+      {
+        "test_case_id": "TC-026",
+        "scenario_ref": 26,
+        "title": "[Implementation Hardening] Error: Circular Dependencies",
+        "preconditions": "Source file contains Class A -> subClassOf -> Class B -> subClassOf -> Class A.",
+        "steps": [
+          "Ingest the circular ontology file."
+        ],
+        "expected_result": "Tree-builder detects the cycle, breaks the infinite loop to prevent a stack overflow, logs a warning, and maps the concepts flatly or stops at the cycle boundary."
+      },
+      {
+        "test_case_id": "TC-027",
+        "scenario_ref": 27,
+        "title": "Re-ingestion hash short-circuit",
+        "preconditions": "BFO already ingested.",
+        "steps": [
+          "Re-trigger ingestion with identical BFO file."
+        ],
+        "expected_result": "contentHash matches, pipeline skipped entirely, zero mutations, execution time <5ms."
+      },
+      {
+        "test_case_id": "TC-028",
+        "scenario_ref": 28,
+        "title": "Existing graph first-open trigger",
+        "preconditions": "Pre-ingestion graph with user concepts referencing bfo:BFO_0000040 in rdfs:subClassOf.",
+        "steps": [
+          "Open graph via loadGraph()."
+        ],
+        "expected_result": "BFO ingested automatically, phantom references migrated to Fandaws IRIs, user content unchanged."
+      },
+      {
+        "test_case_id": "TC-029",
+        "scenario_ref": 29,
+        "title": "Post-qualification disambiguation",
+        "preconditions": "Homonym collision resolved — 'entity (bfo)' and 'entity (user)' exist.",
+        "steps": [
+          "User types 'an organism is an entity'."
+        ],
+        "expected_result": "Hidden label lookup finds two matches. Disambiguation prompt fires. User selects 'entity (bfo)'. Organism classified under BFO Entity."
+      },
+      {
+        "test_case_id": "TC-030",
+        "scenario_ref": 30,
+        "title": "owl:imports subject IRI",
+        "preconditions": "Graph has imported concepts.",
+        "steps": [
+          "Trigger a standard graph export."
+        ],
+        "expected_result": "Export contains fandaws:graph/{graphId} a owl:Ontology ; owl:imports <http://purl.obolibrary.org/obo/bfo.owl> . Subject IRI matches graph identity. Ontology IRI used, not document URL."
+      },
+      {
+        "test_case_id": "TC-031",
+        "scenario_ref": 31,
+        "title": "Unresolved phantom warning",
+        "preconditions": "Graph with rdfs:subClassOf: cco:SomeClass (CCO not ingested).",
+        "steps": [
+          "Run ingestion + migration."
+        ],
+        "expected_result": "CCO reference left unchanged. verifyIntegrity() emits warning (not error). Graph loads successfully."
+      },
+      {
+        "test_case_id": "TC-032",
+        "scenario_ref": 32,
+        "title": "Determinism byte-equality",
+        "preconditions": "Access to two clean test environments.",
+        "steps": [
+          "Ingest BFO into two separate fresh graphs.",
+          "Serialize both."
+        ],
+        "expected_result": "Byte-identical serialized output."
+      },
+      {
+        "test_case_id": "TC-033",
+        "scenario_ref": 33,
+        "title": "owl:equivalentClass array cardinality",
+        "preconditions": "Fresh environment.",
+        "steps": [
+          "Ingest BFO.",
+          "Serialize.",
+          "Deserialize.",
+          "Check owl:equivalentClass on any ingested concept."
+        ],
+        "expected_result": "Value is an array (e.g., [\"bfo:BFO_0000040\"]), not a bare string. The array format survives the roundtrip."
+      }
+    ]
+  }
+}

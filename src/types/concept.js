@@ -47,3 +47,75 @@ export function createConcept({
     'rdfs:subClassOf': bfoMapping ? [bfoMapping] : [],
   };
 }
+
+/**
+ * Create an ingested Concept node from an external ontology source.
+ *
+ * Distinct from createConcept(): carries ingestion provenance, source
+ * identity (owl:equivalentClass as an array), and the read-only flag
+ * (fandaws:isImported). Algorithmic definition is empty — the source
+ * ontology's definition lives in skos:definition.
+ *
+ * @see Ontology Ingestion Spec v1.4 Section 3.1
+ *
+ * @param {object} params
+ * @param {string} params.id - Fandaws IRI (from generateIngestedConceptIri)
+ * @param {string} params.label - rdfs:label from source
+ * @param {string} params.prefLabel - canonicalized label
+ * @param {string|null} params.broader - Fandaws parent IRI (NOT the raw source IRI)
+ * @param {string} [params.definition] - skos:definition from source ontology
+ * @param {string|string[]} params.equivalentClass - Source IRI(s) — stored as array
+ * @param {string[]} [params.altLabel] - skos:altLabel values
+ * @param {object} params.ingestSource - Ingestion envelope (sourceOntology, sourceClassIri, sourceVersion, ingestedAt, contentHash)
+ * @param {string} [params.sourceIdentifier] - dc:identifier from source
+ * @param {object[]} [params.sourceAxioms] - Opaque axioms archived (anonymous restrictions, disjointWith)
+ * @param {string|null} [params.upstreamBroader] - Upstream parent if user has reclassified
+ * @param {string|null} [params.upstreamStatus] - "deprecated" if removed upstream
+ * @returns {object} JSON-LD ingested concept node
+ */
+export function createIngestedConcept({
+  id,
+  label,
+  prefLabel,
+  broader = null,
+  definition = '',
+  equivalentClass,
+  altLabel = [],
+  ingestSource,
+  sourceIdentifier = null,
+  sourceAxioms = [],
+  upstreamBroader = null,
+  upstreamStatus = null,
+}) {
+  if (!id) throw new Error('createIngestedConcept requires id');
+  if (!equivalentClass) throw new Error('createIngestedConcept requires equivalentClass');
+  if (!ingestSource) throw new Error('createIngestedConcept requires ingestSource');
+
+  const equivArray = Array.isArray(equivalentClass) ? equivalentClass : [equivalentClass];
+
+  const node = {
+    '@id': id,
+    '@type': ['owl:Class', 'skos:Concept'],
+    'rdfs:label': label,
+    'skos:prefLabel': prefLabel,
+    'skos:broader': broader,
+    'skos:definition': definition || '',
+    'fandaws:algorithmicDefinition': '',
+    'owl:equivalentClass': equivArray,
+    'rdfs:subClassOf': broader ? [broader] : [],
+    'dcterms:created': new Date().toISOString(),
+    'dcterms:modified': null,
+    'prov:wasDerivedFrom': equivArray.slice(),
+    'skos:altLabel': altLabel,
+    'skos:inScheme': null,
+    'fandaws:isImported': true,
+    'fandaws:ingestSource': ingestSource,
+  };
+
+  if (sourceIdentifier) node['fandaws:sourceIdentifier'] = sourceIdentifier;
+  if (sourceAxioms && sourceAxioms.length > 0) node['fandaws:sourceAxioms'] = sourceAxioms;
+  if (upstreamBroader) node['fandaws:upstreamBroader'] = upstreamBroader;
+  if (upstreamStatus) node['fandaws:upstreamStatus'] = upstreamStatus;
+
+  return node;
+}

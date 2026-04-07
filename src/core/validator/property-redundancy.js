@@ -107,6 +107,11 @@ function buildConceptPropertyLabels(concepts, propertyLabels) {
 
     for (const entry of subClassOf) {
       if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'property') {
+        // Scope redundancy check to user-authored restrictions only
+        // (Ontology Ingestion Spec v1.4 §11.3). Missing fandaws:source is
+        // treated as 'user' for backward compatibility.
+        const source = entry['fandaws:source'];
+        if (source && source !== 'user') continue;
         const propLabel = entry['fandaws:propertyLabel'] || entry['owl:onProperty'];
         if (propLabel) {
           labels.add(propLabel);
@@ -117,6 +122,8 @@ function buildConceptPropertyLabels(concepts, propertyLabels) {
     // Also resolve from external property label map (for IRI-based properties)
     for (const entry of subClassOf) {
       if (isRestrictionNode(entry) && entry['fandaws:restrictionKind'] === 'property') {
+        const source = entry['fandaws:source'];
+        if (source && source !== 'user') continue;
         const iri = entry['@id'];
         if (iri && propertyLabels.has(iri)) {
           labels.add(propertyLabels.get(iri));

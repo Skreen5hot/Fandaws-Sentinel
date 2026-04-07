@@ -206,6 +206,24 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
     return { ...noOp, prompts: [prompt] };
   }
 
+  // ── importedConceptGuard ──
+  // Block direct property additions to imported concepts. Subclasses
+  // are the supported extension path.
+  if (subject['fandaws:isImported']) {
+    const sourceLabel = (subject['fandaws:ingestSource'] || {})['fandaws:sourceVersion'] || 'an imported ontology';
+    const prompt = createConversationPrompt({
+      promptType: 'importedConceptGuard',
+      text: `"${rawSubject}" is an imported concept from ${sourceLabel}. Create a subclass to add properties.`,
+      options: null,
+      context: {
+        action: 'property',
+        subject: rawSubject,
+        subjectIri: subject['@id'],
+      },
+    });
+    return { ...noOp, prompts: [prompt] };
+  }
+
   const subjectIri = subject['@id'];
 
   // ── 5. Build ancestor chain ──
@@ -281,16 +299,31 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
     return { ...noOp, prompts: [prompt] };
   }
 
-  // ── 9. Check property redundancy at attachment point ──
+  // ── 9. Verb-to-property resolution (Section 6.5) ──
+  // The "has" verb in "X has Y" is implicit in the property workflow.
+  // The propertyCanonical (Y) may match an ingested object property label
+  // (e.g., "inheres in" → bfo:BFO_0000052). When it does, point owl:onProperty
+  // at the BFO IRI directly so consumers see real interop terms.
+  let resolvedOnProperty = propertyConceptIri;
+  if (adapter && typeof adapter.getIngestedPropertyIndex === 'function') {
+    const ingestedIndex = adapter.getIngestedPropertyIndex();
+    const verbKey = propertyCanonical.toLowerCase().trim();
+    if (ingestedIndex && ingestedIndex.has(verbKey)) {
+      resolvedOnProperty = ingestedIndex.get(verbKey);
+    }
+  }
+
+  // ── 10. Check property redundancy at attachment point ──
   const attachmentCanonical = attachmentConcept
     ? attachmentConcept['skos:prefLabel']
     : subjectCanonical;
   const propertyNode = createProperty({
     id: generateRestrictionIri(attachmentCanonical, propertyCanonical, scope),
-    propertyConceptIri,
+    propertyConceptIri: resolvedOnProperty,
     propertyLabel: propertyCanonical,
     attachedTo: attachmentIri,
     scope: attachmentIri === subjectIri ? 'concept-specific' : 'inherited',
+    source: 'user',
   });
 
   const redundancy = checkPropertyRedundancy(propertyNode, graph);

@@ -19,6 +19,7 @@ import { uuid5, FANDAWS_NAMESPACE } from './uuid5.js';
 // ── Constants ──
 
 export const DEFAULT_SCOPE = 'fandaws:scope/default';
+export const INGESTION_SCOPE = 'ontology-import';
 
 // ── Slug Algorithm ──
 
@@ -56,6 +57,35 @@ export function generateConceptIri(canonicalLabel, scope = DEFAULT_SCOPE) {
   }
 
   const hash = uuid5(FANDAWS_NAMESPACE, scope + ':' + canonicalLabel);
+  return `fandaws:class/${hash}/${slug}`;
+}
+
+/**
+ * Generate a deterministic Fandaws concept IRI for an ingested ontology
+ * class, derived from its source IRI (NOT its label).
+ *
+ * Source IRIs are stable across ontology versions; labels may change.
+ * This guarantees re-ingestion idempotency: same source IRI → same UUID
+ * → same Fandaws IRI → already in graph → no mutation.
+ *
+ * The slug tracks the label at ingestion time but is purely cosmetic.
+ *
+ * @see Ontology Ingestion Spec v1.4 Section 2.1
+ *
+ * @param {string} sourceIri - Full source class IRI (e.g., "http://purl.obolibrary.org/obo/BFO_0000040")
+ * @param {string} label - Source label (used for slug only)
+ * @returns {string} Fandaws concept IRI
+ */
+export function generateIngestedConceptIri(sourceIri, label) {
+  if (!sourceIri || typeof sourceIri !== 'string') {
+    throw new Error('generateIngestedConceptIri requires a non-empty source IRI');
+  }
+  if (!label || typeof label !== 'string') {
+    throw new Error('generateIngestedConceptIri requires a non-empty label');
+  }
+
+  const slug = slugify(label.toLowerCase()) || 'unnamed';
+  const hash = uuid5(FANDAWS_NAMESPACE, `${INGESTION_SCOPE}:${sourceIri}`);
   return `fandaws:class/${hash}/${slug}`;
 }
 

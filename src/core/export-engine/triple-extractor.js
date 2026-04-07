@@ -114,6 +114,32 @@ function extractConceptTriples(concept, expanded) {
     triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(broader)));
   }
 
+  // owl:equivalentClass — Semantic identity lifecycle (Section 3.6).
+  // For ingested concepts, emit one triple per source IRI in the array.
+  // Predicate depends on fandaws:locallyModified state:
+  //   pristine → owl:equivalentClass
+  //   extended → rdfs:subClassOf
+  //   diverged → skos:closeMatch
+  const equivClasses = concept['owl:equivalentClass'];
+  if (equivClasses) {
+    const sources = Array.isArray(equivClasses) ? equivClasses : [equivClasses];
+    const modified = concept['fandaws:locallyModified'];
+    let predicate;
+    if (!modified) predicate = 'owl:equivalentClass';
+    else if (modified === 'extended') predicate = 'rdfs:subClassOf';
+    else if (modified === 'diverged') predicate = 'skos:closeMatch';
+    else predicate = 'owl:equivalentClass';
+    for (const src of [...sources].sort()) {
+      triples.push(tripleUri(s, expandIri(predicate), expandIri(src)));
+    }
+  }
+
+  // skos:definition (from source ontologies on ingested concepts)
+  const skosDefinition = concept['skos:definition'];
+  if (skosDefinition) {
+    triples.push(tripleLiteral(s, expandIri('skos:definition'), skosDefinition));
+  }
+
   // fandaws:algorithmicDefinition (sub-property of skos:definition)
   const definition = concept['fandaws:algorithmicDefinition'];
   if (definition) {
@@ -150,10 +176,12 @@ function extractConceptTriples(concept, expanded) {
     triples.push(tripleUri(s, expandIri('prov:wasDerivedFrom'), expandIri(d)));
   }
 
-  // rdfs:subClassOf — bare IRI strings (BFO categories, parent classes)
+  // rdfs:subClassOf — bare IRI strings (BFO categories, parent classes).
+  // Skip the broader value if already emitted above to avoid duplicate triples.
   const subClassOf = concept['rdfs:subClassOf'] || [];
   const bareIris = subClassOf.filter((entry) => typeof entry === 'string');
   for (const iri of [...bareIris].sort()) {
+    if (iri === broader) continue; // already emitted via skos:broader handling
     triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(iri)));
   }
 
@@ -176,12 +204,22 @@ function extractConceptTriples(concept, expanded) {
     const kind = r['fandaws:restrictionKind'];
 
     if (kind === 'property') {
-      // owl:onProperty → fandaws:objectProperty/has (the generic "has" verb)
-      triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:objectProperty/has')));
-      // owl:someValuesFrom → the property concept class IRI (the filler)
+      // The restriction's owl:onProperty field stores the property concept IRI
+      // (the noun, e.g., fandaws:class/{uuid}/fur). The OWL pattern is:
+      //   owl:onProperty fandaws:objectProperty/has ; owl:someValuesFrom <fur>
+      // If verb resolution placed a non-class IRI in the field (e.g., a BFO
+      // object property), use it directly as owl:onProperty instead of the
+      // generic "has" verb.
       const prop = r['owl:onProperty'];
-      if (prop) {
-        triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(prop)));
+      const isClassIri = typeof prop === 'string' && prop.startsWith('fandaws:class/');
+      if (isClassIri || !prop) {
+        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:objectProperty/has')));
+        if (prop) {
+          triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(prop)));
+        }
+      } else {
+        // Resolved verb IRI (BFO/CCO/etc.) — emit directly
+        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri(prop)));
       }
       // fandaws:propertyLabel
       const propLabel = r['fandaws:propertyLabel'];
@@ -260,6 +298,27 @@ export function extractTriples(graph) {
     allTriples.push(tripleUri(defIri, RDF_TYPE, expandIri('owl:AnnotationProperty')));
     allTriples.push(tripleLiteral(defIri, expandIri('rdfs:label'), 'algorithmic definition'));
     allTriples.push(tripleUri(defIri, expandIri('rdfs:subPropertyOf'), expandIri('skos:definition')));
+  }
+
+  // owl:imports declaration (Section 9.2)
+  // If the graph contains any imported concepts, declare the graph as an
+  // owl:Ontology and emit owl:imports for each unique source ontology IRI.
+  const importedConcepts = concepts.filter((c) => c['fandaws:isImported']);
+  if (importedConcepts.length > 0) {
+    const graphId = graph['@id'];
+    if (graphId) {
+      const graphIri = expandIri(graphId);
+      allTriples.push(tripleUri(graphIri, RDF_TYPE, expandIri('owl:Ontology')));
+      const sources = new Set();
+      for (const c of importedConcepts) {
+        const ingest = c['fandaws:ingestSource'];
+        const src = ingest && ingest['fandaws:sourceOntology'];
+        if (src) sources.add(src);
+      }
+      for (const src of [...sources].sort()) {
+        allTriples.push(tripleUri(graphIri, expandIri('owl:imports'), expandIri(src)));
+      }
+    }
   }
 
   for (const concept of sorted) {

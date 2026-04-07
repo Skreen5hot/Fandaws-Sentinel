@@ -21,6 +21,7 @@
  * @param {string|null} [params.epistemicRegister] - Register IRI (ERS Phase 10b)
  * @param {object|null} [params.routingRecord] - Inline RegisterRoutingRecord (ERS Phase 10b)
  * @param {string[]} [params.routingFlags] - Routing flags (ERS Phase 10b)
+ * @param {'user'|'ingested'} [params.source='user'] - Origin of the restriction (Ontology Ingestion Spec v1.4 §11.2)
  * @returns {object} JSON-LD owl:Restriction node
  */
 export function createProperty({
@@ -33,6 +34,7 @@ export function createProperty({
   epistemicRegister = null,
   routingRecord = null,
   routingFlags = [],
+  source = 'user',
 }) {
   const node = {
     '@id': id,
@@ -43,6 +45,7 @@ export function createProperty({
     'fandaws:scope': scope,
     'fandaws:attachedTo': attachedTo,
     'fandaws:restrictionKind': 'property',
+    'fandaws:source': source,
   };
   if (epistemicRegister) node['fandaws:epistemicRegister'] = epistemicRegister;
   if (routingRecord) node['fandaws:routingRecord'] = routingRecord;

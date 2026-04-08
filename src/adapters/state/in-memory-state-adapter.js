@@ -54,6 +54,15 @@ export class InMemoryStateAdapter extends StateAdapter {
 
     /** @type {Map<string, string>} Ingested object property index: label → source IRI */
     this._ingestedPropertyIndex = new Map();
+
+    /**
+     * Cumulative rewrite counter for the current ingestion call.
+     * Reset at the start of ensureBfoIngestion(); incremented every time
+     * _recomputeBfoMarkers rewrites a marker (whether called from applyMutation
+     * or directly). Read at the end of ensureBfoIngestion to populate
+     * `migratedReferences` in the result.
+     */
+    this._ingestionRewrites = 0;
   }
 
   // ─────────────────────────────────────────────────────────
@@ -100,6 +109,9 @@ export class InMemoryStateAdapter extends StateAdapter {
         error: `Graph not found: ${graphId}`,
       };
     }
+
+    // Reset the cumulative rewrite counter for this ingestion call
+    this._ingestionRewrites = 0;
 
     // Fast-path hash short-circuit (Section 5.4):
     // Hash the raw bytes BEFORE parsing. If a matching ingestion already
@@ -157,13 +169,17 @@ export class InMemoryStateAdapter extends StateAdapter {
       this._rebuildIndices(graphId, updated);
     }
 
-    // Strip stale BFO markers from any user concept whose chain now
-    // reaches an ingested node. Self-heals graphs created before this
-    // fix shipped, where reclassification left bfo:BFO_0000001 markers
-    // on user concepts.
-    if (this._cleanupStaleBfoMarkers(graphId)) {
+    // Recompute BFO category markers on user concepts now that BFO
+    // is ingested. (Note: applyMutation already ran a recompute pass during
+    // the bulk ingest mutation; this second call handles any concept that
+    // didn't get touched in that pass and is a safety net.)
+    const recomputeResult = this._recomputeBfoMarkers(graphId);
+    if (recomputeResult.modified) {
       this._rebuildIndices(graphId, this._graphs.get(graphId));
     }
+    // Total rewrites combines: phantom migration + ALL recompute passes
+    // run during this ingestion call (tracked via _ingestionRewrites).
+    const totalRewrites = migrated + this._ingestionRewrites;
 
     // Generate algorithmic definitions for the ingested concepts.
     // Ingested concepts skip the conversational pipeline that normally
@@ -190,7 +206,7 @@ export class InMemoryStateAdapter extends StateAdapter {
       skipped: false,
       shortCircuit: false,
       conceptsAdded: additions.length,
-      migratedReferences: migrated,
+      migratedReferences: totalRewrites,
     };
   }
 
@@ -205,66 +221,153 @@ export class InMemoryStateAdapter extends StateAdapter {
   }
 
   /**
-   * Strip stale `bfo:BFO_*` markers from `rdfs:subClassOf` on any user
-   * concept whose ancestor chain reaches an ingested concept.
+   * Recompute the BFO category marker on every user concept.
    *
-   * Background: when concepts are created in an order where the chain
-   * to BFO is established AFTER the user concepts exist (e.g., dog
-   * created with no parent, then animal, then "organism is an object"
-   * connects the chain to ingested BFO), the original `inferBfoCategory`
-   * marker stays on the older concepts. Once the chain reaches BFO, the
-   * marker is a phantom reference and the BFO category is implicit via
-   * skos:broader → owl:equivalentClass.
+   * Strategy (per architect decision §5(i), revised 2026-04-08):
+   * Each user concept carries a single BFO category marker in its
+   * `rdfs:subClassOf` array — the **Fandaws IRI** of the most specific
+   * ingested ancestor in its `skos:broader` chain. The marker is computed
+   * once at write time and stored permanently for O(1) lookups.
    *
-   * Runs after every mutation. Idempotent — safe to call repeatedly.
-   * Returns true if any concept was modified (caller should rebuild indices).
+   * Algorithm:
+   *   1. For each user concept:
+   *      a. If the concept has a bare bfo:* IRI hint in rdfs:subClassOf
+   *         (legacy/migration data), use the bfoEquivalenceIndex to
+   *         resolve it to the Fandaws IRI of the matching ingested concept.
+   *      b. Otherwise, walk up via skos:broader looking for the first
+   *         ingested ancestor and use its Fandaws IRI.
+   *      c. If neither yields a marker → use the Fandaws IRI of the
+   *         ingested Entity root (universal fallback per option Z).
+   *      d. If BFO is not ingested at all → no marker
+   *   2. Strip ALL existing bfo: string markers AND any prior Fandaws-IRI
+   *      BFO category markers (so we don't accumulate stale ones)
+   *   3. Insert the new marker once
+   *
+   * Runs after every mutation. Idempotent — same input → same output.
+   * Returns { modified, rewrites } so callers can count the number of
+   * concepts whose BFO marker changed (subsumes the legacy phantom
+   * migration counter for ensureBfoIngestion).
    *
    * @param {string} graphId - Graph IRI
-   * @returns {boolean} True if any concept's rdfs:subClassOf was modified
+   * @returns {{ modified: boolean, rewrites: number }}
    * @private
    */
-  _cleanupStaleBfoMarkers(graphId) {
+  _recomputeBfoMarkers(graphId) {
     const graph = this._graphs.get(graphId);
-    if (!graph) return false;
+    if (!graph) return { modified: false, rewrites: 0 };
     const concepts = graph['fandaws:concepts'] || [];
-    if (concepts.length === 0) return false;
+    if (concepts.length === 0) return { modified: false, rewrites: 0 };
 
     const conceptById = new Map(concepts.map((c) => [c['@id'], c]));
 
-    // Walk up from a starting concept and return true if any ancestor
-    // (immediate or higher) is an ingested concept.
-    const reachesIngested = (startConcept) => {
+    // Build a set of all ingested concept IRIs — used to detect existing
+    // BFO markers (Fandaws IRIs of ingested concepts) so we can strip them
+    // before inserting the recomputed marker.
+    const ingestedIris = new Set();
+    let entityFallbackIri = null;
+    for (const c of concepts) {
+      if (c['fandaws:isImported']) {
+        ingestedIris.add(c['@id']);
+        // Identify the Entity root for the fallback
+        const equivs = c['owl:equivalentClass'];
+        if (Array.isArray(equivs) && equivs.includes('http://purl.obolibrary.org/obo/BFO_0000001')) {
+          entityFallbackIri = c['@id'];
+        }
+      }
+    }
+
+    // If BFO isn't ingested at all, there's nothing to do
+    if (ingestedIris.size === 0) return { modified: false, rewrites: 0 };
+
+    // Walk up the skos:broader chain and return the Fandaws IRI of the
+    // first ingested ancestor encountered. Returns null if none.
+    const findNearestIngestedAncestor = (startConcept) => {
       let cursor = startConcept['skos:broader'] || null;
       const visited = new Set([startConcept['@id']]);
       while (cursor && !visited.has(cursor)) {
         visited.add(cursor);
         const ancestor = conceptById.get(cursor);
-        if (!ancestor) return false;
-        if (ancestor['fandaws:isImported'] || ancestor['owl:equivalentClass']) {
-          return true;
-        }
+        if (!ancestor) return null;
+        if (ancestor['fandaws:isImported']) return ancestor['@id'];
         cursor = ancestor['skos:broader'] || null;
       }
-      return false;
+      return null;
     };
 
+    // Build a bfo: → Fandaws IRI lookup once per pass (used for hint resolution)
+    const idx = this._indices.get(graphId);
+    const bfoEqIdx = idx?.bfoEquivalenceIndex || new Map();
+
     let modified = false;
+    let rewrites = 0;
     for (const c of concepts) {
+      // Imported concepts have their own owl:equivalentClass — no marker needed
       if (c['fandaws:isImported']) continue;
-      const subClassOf = c['rdfs:subClassOf'] || [];
-      // Find any bfo: string entries
-      const hasBfoString = subClassOf.some(
-        (e) => typeof e === 'string' && e.startsWith('bfo:'),
-      );
-      if (!hasBfoString) continue;
-      // Only strip when the chain actually reaches an ingested concept
-      if (!reachesIngested(c)) continue;
-      c['rdfs:subClassOf'] = subClassOf.filter(
-        (e) => !(typeof e === 'string' && e.startsWith('bfo:')),
-      );
-      modified = true;
+
+      const oldList = c['rdfs:subClassOf'] || [];
+
+      // Step 1: Look for an existing marker hint to preserve.
+      // - Bare bfo:* IRIs (legacy seed data) → resolve via bfoEquivalenceIndex
+      // - Fandaws IRIs of ingested concepts (prior recompute output) → preserve as-is
+      // Both forms tell us the user/migration intent for this concept's BFO category.
+      let hintMarker = null;
+      for (const e of oldList) {
+        if (typeof e !== 'string') continue;
+        if (e.startsWith('bfo:') && bfoEqIdx.has(e)) {
+          hintMarker = bfoEqIdx.get(e);
+          break;
+        }
+        if (ingestedIris.has(e) && e !== c['skos:broader']) {
+          // Already-resolved BFO marker from a prior recompute pass
+          hintMarker = e;
+          break;
+        }
+      }
+
+      // Step 2: Walk skos:broader for the nearest ingested ancestor
+      const nearestIngested = findNearestIngestedAncestor(c);
+
+      // Priority: nearest-ingested-ancestor > existing hint > entity fallback.
+      // Walking the chain is preferred when it succeeds (most accurate, reflects
+      // current hierarchy). The hint is the fallback for orphan/legacy concepts
+      // whose chain doesn't reach BFO. Entity is the universal last resort.
+      const newMarker = nearestIngested || hintMarker || entityFallbackIri;
+      // newMarker is null only if Entity itself isn't ingested, which
+      // shouldn't happen with BFO 2020 — but be defensive
+
+      // Strip ANY prior BFO markers: bare bfo: IRIs and any Fandaws IRIs
+      // that happen to be ingested concepts. We rebuild the marker fresh
+      // every pass — restrictions are preserved (only string entries are
+      // candidates for stripping).
+      const stripped = oldList.filter((e) => {
+        if (typeof e === 'string') {
+          if (e.startsWith('bfo:')) return false;
+          if (ingestedIris.has(e)) return false;
+        }
+        return true;
+      });
+
+      // Insert the new marker. The marker is always added if BFO is
+      // ingested — even when the marker equals skos:broader (immediate
+      // parent is itself the ingested ancestor). This guarantees the
+      // O(1) invariant: every user concept has exactly one ingested-IRI
+      // marker in its rdfs:subClassOf array.
+      let finalList = stripped;
+      if (newMarker && !stripped.includes(newMarker)) {
+        finalList = [...stripped, newMarker];
+      }
+
+      // Only mark dirty if the array actually changed
+      if (finalList.length !== oldList.length || finalList.some((e, i) => e !== oldList[i])) {
+        c['rdfs:subClassOf'] = finalList;
+        modified = true;
+        rewrites++;
+      }
     }
-    return modified;
+    // Always tally to the cumulative ingestion counter so ensureBfoIngestion
+    // sees rewrites that happened inside applyMutation's post-commit pass.
+    this._ingestionRewrites += rewrites;
+    return { modified, rewrites };
   }
 
   /**
@@ -451,13 +554,13 @@ export class InMemoryStateAdapter extends StateAdapter {
     this._graphs.set(id, draft);
     this._rebuildIndices(id, draft);
 
-    // Strip stale BFO markers from any user concept whose ancestor chain
-    // now reaches an ingested concept. This handles the case where a
-    // reclassification connects a previously-disconnected user subtree
-    // to an ingested BFO node — the BFO category is now reachable via
-    // skos:broader → owl:equivalentClass, and the legacy bfo: marker
-    // would be a phantom reference.
-    if (this._cleanupStaleBfoMarkers(id)) {
+    // Recompute BFO category markers on user concepts. After every mutation,
+    // each user concept gets the Fandaws IRI of its nearest ingested ancestor
+    // stored as a marker in rdfs:subClassOf — O(1) lookups for the ERS and
+    // any future reasoner. Reclassification automatically updates the marker
+    // because the chain has shifted; same trigger surface as the prior
+    // strip-on-mutation pass.
+    if (this._recomputeBfoMarkers(id).modified) {
       this._rebuildIndices(id, this._graphs.get(id));
     }
 

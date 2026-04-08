@@ -566,6 +566,10 @@ export class InMemoryStateAdapter extends StateAdapter {
       iriToProperties: new Map(),
       iriToReverseRelationships: new Map(),
       hiddenLabelToIri: new Map(),
+      // bfo IRI (both prefixed and full URI form) → ingested concept Fandaws IRI.
+      // Used by inheritBfoCategory to resolve BFO category markers to Fandaws
+      // IRIs without a separate adapter call.
+      bfoEquivalenceIndex: new Map(),
     };
   }
 
@@ -632,6 +636,21 @@ export class InMemoryStateAdapter extends StateAdapter {
         const existing = idx.hiddenLabelToIri.get(hiddenLabel) || [];
         existing.push(iri);
         idx.hiddenLabelToIri.set(hiddenLabel, existing);
+      }
+
+      // Index 7: BFO equivalence — for ingested concepts, map their source
+      // IRIs (both prefixed and full forms) to the Fandaws concept IRI.
+      const equivs = concept['owl:equivalentClass'];
+      if (Array.isArray(equivs)) {
+        for (const e of equivs) {
+          if (typeof e !== 'string') continue;
+          idx.bfoEquivalenceIndex.set(e, iri);
+          if (e.startsWith('http://purl.obolibrary.org/obo/BFO_')) {
+            idx.bfoEquivalenceIndex.set('bfo:' + e.split('/').pop(), iri);
+          } else if (e.startsWith('bfo:BFO_')) {
+            idx.bfoEquivalenceIndex.set('http://purl.obolibrary.org/obo/' + e.slice(4), iri);
+          }
+        }
       }
     }
 

@@ -128,37 +128,61 @@ export function inferBfoCategory(canonicalLabel) {
 }
 
 /**
- * Determine BFO category for a child concept based on its parent.
+ * Determine the BFO category marker to write into a child concept's
+ * `rdfs:subClassOf` array.
  *
- * If the parent has a bfoMapping, the child inherits it.
- * If the parent has no mapping (or is null), apply heuristic to the child label.
+ * Returns `null` when the child's ancestor chain (immediate parent or any
+ * higher ancestor) reaches an ingested concept (one with
+ * `fandaws:isImported: true` or `owl:equivalentClass`). In that case, the
+ * BFO category is implicit in the `skos:broader` chain — at some level the
+ * chain reaches a real Fandaws node whose `owl:equivalentClass` points at
+ * the source BFO IRI. Adding a separate marker would be redundant and (if
+ * it were a raw `bfo:` IRI) would create a phantom reference that violates
+ * the self-contained subclass tree principle (Ontology Ingestion v1.4
+ * §3.3, §4.2).
+ *
+ * For fully-disconnected user concepts (no ingested ancestor anywhere in
+ * the chain — transitional pre-ingestion data), keep the marker via the
+ * pre-ingestion behavior so the BFO category remains accessible.
  *
  * @param {object|null} parentConcept - Parent concept node (or null for roots)
  * @param {string} childCanonicalLabel - Canonical label of the child concept
- * @returns {string} BFO IRI
+ * @param {object} [context] - Optional graph context for ancestor walking
+ * @param {object} [context.graph] - KnowledgeGraph for resolving ancestors
+ * @param {Map<string, string|null>} [context.iriToParent] - Parent index for O(1) walks
+ * @returns {string|null} BFO IRI marker for fully-legacy parents; null when
+ *   the ancestor chain reaches an ingested concept.
  */
-export function inheritBfoCategory(parentConcept, childCanonicalLabel) {
+export function inheritBfoCategory(parentConcept, childCanonicalLabel, context = {}) {
+  // Imported concept parent (immediate) — return null
+  if (parentConcept && (parentConcept['fandaws:isImported'] || parentConcept['owl:equivalentClass'])) {
+    return null;
+  }
+
+  // Walk the ancestor chain looking for an ingested ancestor anywhere
+  // above. If found, no marker is needed — the chain reaches BFO via
+  // owl:equivalentClass eventually.
+  if (parentConcept && context.graph && context.iriToParent) {
+    const concepts = context.graph['fandaws:concepts'] || [];
+    const conceptById = new Map(concepts.map((c) => [c['@id'], c]));
+    let cursor = parentConcept['skos:broader'] || null;
+    const visited = new Set([parentConcept['@id']]);
+    while (cursor && !visited.has(cursor)) {
+      visited.add(cursor);
+      const ancestor = conceptById.get(cursor);
+      if (ancestor && (ancestor['fandaws:isImported'] || ancestor['owl:equivalentClass'])) {
+        return null;
+      }
+      cursor = context.iriToParent.get(cursor) || null;
+    }
+  }
+
+  // Legacy path: parent has an explicit bfoMapping field
   if (parentConcept && parentConcept.bfoMapping) {
     return parentConcept.bfoMapping;
   }
 
-  // Imported concept: inherit from owl:equivalentClass (the source IRI is the BFO category)
-  if (parentConcept) {
-    const equiv = parentConcept['owl:equivalentClass'];
-    if (equiv) {
-      const sources = Array.isArray(equiv) ? equiv : [equiv];
-      for (const src of sources) {
-        if (typeof src === 'string') {
-          // Match BFO IRIs in either prefixed or full form
-          if (src.startsWith('bfo:') || src.startsWith('http://purl.obolibrary.org/obo/BFO_')) {
-            return src.startsWith('bfo:') ? src : 'bfo:' + src.split('/').pop();
-          }
-        }
-      }
-    }
-  }
-
-  // Check rdfs:subClassOf for bare BFO IRI strings (existing mapping)
+  // Legacy path: parent has a bare BFO IRI in rdfs:subClassOf
   if (parentConcept) {
     const subClassOf = parentConcept['rdfs:subClassOf'] || [];
     for (const entry of subClassOf) {
@@ -168,5 +192,8 @@ export function inheritBfoCategory(parentConcept, childCanonicalLabel) {
     }
   }
 
+  // Root concept (no parent) or fully-disconnected user concept — fall
+  // back to the label-based heuristic. Produces a marker for top-level
+  // user concepts that haven't been classified under any imported BFO node.
   return inferBfoCategory(childCanonicalLabel);
 }

@@ -279,11 +279,32 @@ export function processRelationship(action, graph, indices, options = {}, adapte
     ? existingObject['@id']
     : generateConceptIri(objectCanonical, scope);
 
-  // ── Verb-to-property resolution (Section 6.5) ──
-  // The multi-word verb pre-pass (Step 2) has already merged a leading
-  // preposition from the object into effectiveRawVerb when the combined
-  // form matches an ingested label. Now perform the actual lookup using
-  // the (possibly multi-word) effective verb.
+  // ── Verb-to-property resolution: Progressive Formalization (Section 6.5) ──
+  //
+  // Fandaws relationships move through three tiers of semantic precision:
+  //
+  //   Tier 1 — Human Frame (default)
+  //     User says "wolf chases elk" or "dog has fur". The verb is a bare
+  //     normalized string ("chase", "has"). The restriction's owl:onProperty
+  //     gets that bare verb. A reasoner can traverse it but cannot infer
+  //     anything beyond "these two things are connected somehow." This is
+  //     intentional — the user knows the relationship exists but hasn't
+  //     specified the formal OWL predicate.
+  //
+  //   Tier 2A — Label Match (this block, implemented in Phase A)
+  //     If the verb (or "verb + leading preposition", per Step 2) matches an
+  //     ingested object property label like BFO's "inheres in" → bfo:BFO_0000197,
+  //     the restriction's owl:onProperty gets the source IRI directly. Full
+  //     OWL semantics from the source ontology are now reachable.
+  //
+  //   Tier 2B — Heuristic Enrichment (parked for v0.2)
+  //     A future BFO Relationship Classifier examines the BFO categories of
+  //     both endpoints (e.g., bearer + role) to upgrade Tier 1 placeholders
+  //     to specific BFO properties (bfo:BFO_0000196 / is_bearer_of) without
+  //     requiring the user to type the BFO label.
+  //
+  // The Tier 1 edge is never wrong — it's incomplete. The system progressively
+  // completes it as evidence accumulates. See architect-to-dev-communication-2026-04-07.md §3.
   let resolvedVerbIri = verb;
   if (adapter && typeof adapter.getIngestedPropertyIndex === 'function') {
     const ingestedIndex = adapter.getIngestedPropertyIndex();

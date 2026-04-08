@@ -242,6 +242,13 @@ function extractConceptTriples(concept, expanded) {
       if (target) {
         triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(target)));
       }
+      // fandaws:verbLabel — original user verb form preserved for display
+      // and search. Same role as fandaws:propertyLabel on property restrictions.
+      // Emitted (NOT in the export exclusion list).
+      const verbLabel = r['fandaws:verbLabel'];
+      if (verbLabel) {
+        triples.push(tripleLiteral(rIri, expandIri('fandaws:verbLabel'), verbLabel));
+      }
     }
 
     // Epistemic register metadata (ERS Phase 10b)
@@ -284,10 +291,15 @@ export function extractTriples(graph) {
     ),
   );
   if (hasProperties) {
+    // Tier 1 — Human Frame: declare fandaws:objectProperty/has as a bare
+    // owl:ObjectProperty with no domain, no range, no equivalence assertions.
+    // A reasoner can traverse it but cannot infer that "everything has
+    // everything." Equating this to owl:topObjectProperty would create a
+    // universal Cartesian product — the deletion below is intentional and
+    // load-bearing. See architect-to-dev-communication-2026-04-07.md §2.
     const hasIri = expandIri('fandaws:objectProperty/has');
     allTriples.push(tripleUri(hasIri, RDF_TYPE, expandIri('owl:ObjectProperty')));
     allTriples.push(tripleLiteral(hasIri, expandIri('rdfs:label'), 'has'));
-    allTriples.push(tripleUri(hasIri, expandIri('owl:equivalentProperty'), expandIri('owl:topObjectProperty')));
   }
 
   // Declare fandaws:algorithmicDefinition as an annotation property

@@ -288,7 +288,7 @@ export function processClassification(action, graph, indices, options = {}, adap
       const { existing: existingQualifiedLabel, new: newQualifiedLabel } = options.qualifiers;
       const newCanonical = simplify(newQualifiedLabel, simplifyOpts).canonicalLabel;
       const newIri = generateConceptIri(newCanonical, scope);
-      const newBfo = inheritBfoCategory(existingObject, newCanonical);
+      const newBfo = inheritBfoCategory(existingObject, newCanonical, { graph, iriToParent: indices.iriToParent });
 
       const newConcept = createConcept({
         id: newIri,
@@ -383,7 +383,7 @@ export function processClassification(action, graph, indices, options = {}, adap
 
   // Case B: Object exists, subject new
   if (!existingSubject && existingObject) {
-    const subjectBfo = inheritBfoCategory(existingObject, subjectCanonical);
+    const subjectBfo = inheritBfoCategory(existingObject, subjectCanonical, { graph, iriToParent: indices.iriToParent });
     const newSubject = createConcept({
       id: subjectIri,
       label: rawSubject,

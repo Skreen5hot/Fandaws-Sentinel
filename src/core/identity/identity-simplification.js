@@ -275,7 +275,11 @@ function singularizeWord(word) {
   }
 
   // Rule 10: general -s → strip (not -ss endings)
-  if (word.endsWith('s') && !word.endsWith('ss')) {
+  // Skip words ending in -us (covers adjectives like filamentous, continuous,
+  // ambiguous, autonomous AND Latin nouns like campus, virus, status that
+  // form their plural with -uses, not by stripping -s). English has no
+  // singular noun whose plural is formed by appending -s to a -u stem.
+  if (word.endsWith('s') && !word.endsWith('ss') && !word.endsWith('us')) {
     return word.slice(0, -1);
   }
 

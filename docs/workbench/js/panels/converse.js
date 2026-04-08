@@ -18,6 +18,7 @@ export function initConverse(container, state) {
   let pendingObjectResolution = null;
   let pendingReclassification = null;
   let pendingQualification = null;
+  let pendingBfoCategoryChoice = null;
 
   // Build DOM
   container.innerHTML = `
@@ -212,9 +213,9 @@ export function initConverse(container, state) {
       }
     }
 
-    const options = scopeDecisions.size > 0
-      ? { scopeDecisions }
-      : {};
+    const options = {};
+    if (scopeDecisions.size > 0) options.scopeDecisions = scopeDecisions;
+    if (pendingBfoCategoryChoice) options.bfoCategoryChoice = pendingBfoCategoryChoice;
 
     const result = state.runUtterance(utterance, options);
     const workflow = getWorkflowLabel(result);
@@ -382,6 +383,38 @@ export function initConverse(container, state) {
                 });
               });
             }
+          });
+        });
+      } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'bfoCategoryDisambiguation')) {
+        // BFO Category Disambiguation — user picks the BFO root category
+        // for a brand-new concept. Replaces the old label-suffix heuristic.
+        const bfoPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'bfoCategoryDisambiguation');
+        const text = bfoPrompt['fandaws:text'] || 'What kind of thing is this?';
+        const opts = bfoPrompt['fandaws:options'] || [];
+
+        const btnsHtml = opts.map((opt) => `
+          <button class="wb-bfo-btn" data-bfo-iri="${escapeHtml(opt.sourceIri)}" title="${escapeHtml(opt.hint || '')}">
+            ${escapeHtml(opt.label)}
+            <span class="wb-bfo-btn-hint">${escapeHtml(opt.hint || '')}</span>
+          </button>
+        `).join('');
+
+        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
+          <div>${escapeHtml(text)}</div>
+          <div class="wb-bfo-buttons">${btnsHtml}</div>
+        `);
+
+        pendingUtterance = utterance;
+        msgDiv.querySelectorAll('.wb-bfo-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const choice = btn.dataset.bfoIri;
+            const buttonsDiv = btn.closest('.wb-bfo-buttons');
+            // Replace buttons with the chosen label
+            buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${escapeHtml(btn.textContent.trim().split('\n')[0])}</em>`;
+            // Re-run the utterance with the choice
+            pendingBfoCategoryChoice = choice;
+            chatInput.value = pendingUtterance;
+            sendUtterance();
           });
         });
       } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'homonymDisambiguation')) {
@@ -597,6 +630,7 @@ export function initConverse(container, state) {
 
       pendingUtterance = null;
       scopeDecisions = new Map();
+      pendingBfoCategoryChoice = null;
       chatInput.value = '';
     } else {
       // Error
@@ -604,6 +638,7 @@ export function initConverse(container, state) {
       appendMessage('wb-chat-msg--error', `<strong>Error:</strong> ${escapeHtml(reason)}`);
       pendingUtterance = null;
       scopeDecisions = new Map();
+      pendingBfoCategoryChoice = null;
     }
 
     chatInput.focus();

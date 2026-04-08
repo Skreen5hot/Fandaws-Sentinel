@@ -17,7 +17,7 @@
 
 import { simplify } from '../identity/identity-simplification.js';
 import { generateConceptIri, DEFAULT_SCOPE } from './iri-generator.js';
-import { inferBfoCategory, inheritBfoCategory } from './bfo-heuristic.js';
+import { inferBfoCategory, inheritBfoCategory, buildBfoCategoryPrompt } from './bfo-heuristic.js';
 import { computeProximity, quickProximityCheck } from './proximity.js';
 import { createConcept } from '../../types/concept.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
@@ -401,21 +401,56 @@ export function processClassification(action, graph, indices, options = {}, adap
 
   // Case C: Both new
   if (!existingSubject && !existingObject) {
-    // Skip the label-based BFO heuristic when BFO is ingested — the
-    // recompute pass will assign the correct marker (Entity fallback for
-    // disconnected concepts) after the mutation. The heuristic produces
-    // wrong guesses for words like "filament" (-ment) or "filamentous"
-    // (-ous) and we don't want those promoted to real markers.
     const bfoIngested = indices.bfoEquivalenceIndex && indices.bfoEquivalenceIndex.size > 0;
+
+    // BFO Category Disambiguation (heuristic matrix #1):
+    // When BFO is ingested AND we're about to create a brand-new root
+    // concept (the new object), we no longer guess its category from
+    // its label. Instead we ask the user to pick from the 11 BFO
+    // top-level categories. The user's choice arrives in
+    // options.bfoCategoryChoice on the re-invocation.
+    if (bfoIngested && !options.bfoCategoryChoice) {
+      return {
+        ...noOp,
+        prompts: [
+          buildBfoCategoryPrompt(rawObject, {
+            action: 'classification',
+            subject: rawSubject,
+            object: rawObject,
+            subjectCanonical,
+            objectCanonical,
+            // The user is creating a hierarchy "subject is a object" where
+            // the object is a brand-new root. The prompt anchors the OBJECT.
+            anchorTarget: 'object',
+          }),
+        ],
+      };
+    }
+
+    // If user provided a BFO category choice, look up its Fandaws IRI
+    // and use it as the new object's parent (so the object isn't a root).
+    let newObjectBroader = null;
+    if (bfoIngested && options.bfoCategoryChoice) {
+      const choice = options.bfoCategoryChoice;
+      const fandawsIri = indices.bfoEquivalenceIndex.get(choice)
+        || indices.bfoEquivalenceIndex.get(choice.replace('http://purl.obolibrary.org/obo/', 'bfo:'));
+      if (fandawsIri) {
+        newObjectBroader = fandawsIri;
+      }
+    }
+
+    // Pre-ingestion fallback: only run the suffix heuristic when BFO is
+    // not ingested. With BFO ingested the recompute pass handles markers.
     const objectBfo = bfoIngested ? null : inferBfoCategory(objectCanonical);
     const newObject = {
       ...createConcept({
         id: objectIri,
         label: rawObject,
         prefLabel: objectCanonical,
+        broader: newObjectBroader,
         bfoMapping: objectBfo,
       }),
-      'fandaws:allowRoot': true,
+      'fandaws:allowRoot': newObjectBroader == null,
     };
 
     // Child inherits BFO from parent
@@ -466,17 +501,47 @@ export function processClassification(action, graph, indices, options = {}, adap
       };
     }
 
-    // Auto-create object as root. Skip heuristic when BFO is ingested.
+    // Auto-create object. With BFO ingested, ask the user which BFO
+    // category the new object belongs under (heuristic matrix #1).
     const bfoIngested = indices.bfoEquivalenceIndex && indices.bfoEquivalenceIndex.size > 0;
+
+    if (bfoIngested && !options.bfoCategoryChoice) {
+      return {
+        ...noOp,
+        prompts: [
+          buildBfoCategoryPrompt(rawObject, {
+            action: 'classification',
+            subject: rawSubject,
+            object: rawObject,
+            subjectCanonical,
+            objectCanonical,
+            anchorTarget: 'object',
+          }),
+        ],
+      };
+    }
+
+    // Resolve the user's BFO category choice to a Fandaws IRI parent
+    let newObjectBroader = null;
+    if (bfoIngested && options.bfoCategoryChoice) {
+      const choice = options.bfoCategoryChoice;
+      const fandawsIri = indices.bfoEquivalenceIndex.get(choice)
+        || indices.bfoEquivalenceIndex.get(choice.replace('http://purl.obolibrary.org/obo/', 'bfo:'));
+      if (fandawsIri) {
+        newObjectBroader = fandawsIri;
+      }
+    }
+
     const objectBfo = bfoIngested ? null : inferBfoCategory(objectCanonical);
     const newObject = {
       ...createConcept({
         id: objectIri,
         label: rawObject,
         prefLabel: objectCanonical,
+        broader: newObjectBroader,
         bfoMapping: objectBfo,
       }),
-      'fandaws:allowRoot': true,
+      'fandaws:allowRoot': newObjectBroader == null,
     };
 
     const mutation = createGraphMutation({

@@ -630,3 +630,151 @@ ex:B rdf:type owl:Class ;
     expect(meRound['owl:equivalentClass']).toEqual(me['owl:equivalentClass']);
   });
 });
+
+// ── BFO Category Disambiguation (heuristic matrix #1 replacement) ──
+
+describe('BFO Category Disambiguation (replaces label-suffix heuristic)', () => {
+  it('TC-A-01 fires bfoCategoryDisambiguation prompt for new root concept', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    const result = orch.runPipeline('a dog is an animal', ctx);
+    expect(result.success).toBe(false);
+    expect(result.prompts).toBeDefined();
+    expect(result.prompts.length).toBe(1);
+    expect(result.prompts[0]['fandaws:promptType']).toBe('bfoCategoryDisambiguation');
+    expect(result.prompts[0]['fandaws:options']).toBeDefined();
+    expect(result.prompts[0]['fandaws:options'].length).toBe(11);
+  });
+
+  it('TC-A-02 user choice anchors new root under correct BFO category', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    // First call returns prompt
+    orch.runPipeline('a dog is an animal', ctx);
+    // Re-invoke with user's choice (Material Entity)
+    const result = orch.runPipeline('a dog is an animal', ctx, {
+      bfoCategoryChoice: BFO_MATERIAL_ENTITY,
+    });
+    expect(result.success).toBe(true);
+
+    const graph = adapter.loadGraph(gid);
+    const animal = graph['fandaws:concepts'].find((c) => c['skos:prefLabel'] === 'animal');
+    const me = findIngestedByEquivalent(graph, BFO_MATERIAL_ENTITY);
+    // Animal (the new root) is now a child of material entity
+    expect(animal['skos:broader']).toBe(me['@id']);
+    // The BFO category marker is the chosen Fandaws IRI
+    expect(animal['rdfs:subClassOf']).toContain(me['@id']);
+  });
+
+  it('TC-A-03 dog inherits BFO marker from animal via skos:broader chain', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    orch.runPipeline('a dog is an animal', ctx);
+    orch.runPipeline('a dog is an animal', ctx, {
+      bfoCategoryChoice: BFO_MATERIAL_ENTITY,
+    });
+
+    const graph = adapter.loadGraph(gid);
+    const dog = graph['fandaws:concepts'].find((c) => c['skos:prefLabel'] === 'dog');
+    const me = findIngestedByEquivalent(graph, BFO_MATERIAL_ENTITY);
+    // Dog walks the chain: dog → animal → material entity
+    // Recompute pass assigns the most specific ingested ancestor as marker
+    expect(dog['rdfs:subClassOf']).toContain(me['@id']);
+  });
+
+  it('TC-A-04 process category choice anchors under bfo:Process', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    const BFO_PROCESS = 'http://purl.obolibrary.org/obo/BFO_0000015';
+    orch.runPipeline('digestion is a metabolic process', ctx);
+    orch.runPipeline('digestion is a metabolic process', ctx, {
+      bfoCategoryChoice: BFO_PROCESS,
+    });
+
+    const graph = adapter.loadGraph(gid);
+    const metabolic = graph['fandaws:concepts'].find(
+      (c) => c['skos:prefLabel'] === 'metabolic process',
+    );
+    const procIngested = findIngestedByEquivalent(graph, BFO_PROCESS);
+    expect(metabolic).toBeDefined();
+    expect(metabolic['skos:broader']).toBe(procIngested['@id']);
+  });
+
+  it('TC-A-05 prompt does NOT fire when BFO is not ingested', () => {
+    const adapter = new InMemoryStateAdapter();
+    const gid = 'fandaws:graph/test';
+    adapter.saveGraph(gid, createKnowledgeGraph({ id: gid, concepts: [] }));
+    // No ensureBfoIngestion!
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    const result = orch.runPipeline('a dog is an animal', ctx);
+    // Should succeed via the legacy heuristic path (no prompt)
+    expect(result.success).toBe(true);
+    const promptTypes = (result.prompts || []).map((p) => p['fandaws:promptType']);
+    expect(promptTypes).not.toContain('bfoCategoryDisambiguation');
+  });
+
+  it('TC-A-06 prompt fires for Case D (subject exists, object new)', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    // First create a subject
+    orch.runPipeline('a dog is an animal', ctx);
+    orch.runPipeline('a dog is an animal', ctx, { bfoCategoryChoice: BFO_MATERIAL_ENTITY });
+
+    // Now reclassify dog under a brand-new "canine" — Case D triggers
+    const result = orch.runPipeline('a dog is a canine', ctx);
+    expect(result.success).toBe(false);
+    expect((result.prompts || []).some((p) => p['fandaws:promptType'] === 'bfoCategoryDisambiguation')).toBe(true);
+  });
+
+  it('TC-A-07 prompt options include all 11 BFO categories', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    const result = orch.runPipeline('a foo is a bar', ctx);
+    const options = result.prompts[0]['fandaws:options'];
+    const labels = options.map((o) => o.label);
+    expect(labels).toContain('Material Entity');
+    expect(labels).toContain('Process');
+    expect(labels).toContain('Quality');
+    expect(labels).toContain('Role');
+    expect(labels).toContain('Disposition');
+    expect(labels).toContain('Function');
+    expect(labels).toContain('Generically Dependent Continuant');
+    expect(labels).toContain('Spatial Region');
+    expect(labels).toContain('Temporal Region');
+    expect(labels).toContain('Realizable Entity');
+    expect(labels).toContain('Entity');
+  });
+
+  it('TC-A-08 zero ghosts and zero warnings after disambiguation flow', () => {
+    const { adapter, gid } = freshGraph();
+    adapter.ensureBfoIngestion(gid, BFO_TURTLE, { timestamp: FIXED_TIMESTAMP });
+    const orch = new SynchronousOrchestrationAdapter();
+    const ctx = { stateAdapter: adapter, graphId: gid };
+
+    orch.runPipeline('a dog is an animal', ctx);
+    orch.runPipeline('a dog is an animal', ctx, { bfoCategoryChoice: BFO_MATERIAL_ENTITY });
+
+    expect(adapter.verifyIntegrity(gid)).toHaveLength(0);
+    expect(adapter.collectIntegrityWarnings(gid)).toHaveLength(0);
+  });
+});

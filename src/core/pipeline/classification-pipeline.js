@@ -127,6 +127,7 @@ export function runClassificationPipeline(utterance, context, options = {}) {
     relabelExisting: options.relabelExisting,
     resolvedConceptIri: options.resolvedConceptIri,
     disambiguationAction: options.disambiguationAction,
+    bfoCategoryChoice: options.bfoCategoryChoice,
   }, stateAdapter);
 
   if (engineResult.error) {

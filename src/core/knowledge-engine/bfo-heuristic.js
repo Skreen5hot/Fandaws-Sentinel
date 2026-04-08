@@ -1,10 +1,15 @@
 /**
  * BFO Heuristic — Basic Formal Ontology category inference.
  *
- * Provides deterministic BFO category assignment for concepts:
- *   1. Check HEURISTIC_EXCEPTIONS for known misclassifications
- *   2. Check canonical label suffixes for linguistic patterns
- *   3. Default to entity (BFO_0000001) when category is unknown
+ * Provides deterministic BFO category assignment for concepts.
+ *
+ * **Important — heuristic matrix #1 (Critical):** The label-suffix
+ * categorization (`-ing`, `-ment`, `-ity`, etc.) is NO LONGER USED when
+ * BFO is ingested. The workflows fire `bfoCategoryDisambiguation` prompts
+ * instead, asking the user to pick the BFO category for new root concepts.
+ * The heuristic is retained as a pre-ingestion fallback (legacy graphs
+ * created before BFO 2020 was bundled), but its decisions are no longer
+ * persisted into BFO category markers — the recompute pass overwrites them.
  *
  * Categories use canonical BFO 2020 IRIs (OBO PURLs, no fragments).
  *
@@ -213,4 +218,61 @@ export function inheritBfoCategory(parentConcept, childCanonicalLabel, context =
   // back to the label-based heuristic. Produces a marker for top-level
   // user concepts that haven't been classified under any imported BFO node.
   return inferBfoCategory(childCanonicalLabel);
+}
+
+// ─────────────────────────────────────────────────────────
+// BFO Category Disambiguation (replaces label-suffix heuristic)
+// ─────────────────────────────────────────────────────────
+
+/**
+ * The 11 BFO 2020 top-level categories, in the order they should be
+ * presented to the user during a `bfoCategoryDisambiguation` prompt.
+ * Order chosen for "most likely first" — material entity is the most
+ * common pick for everyday concepts.
+ *
+ * Each entry: { sourceIri, label, hint }
+ * - sourceIri: full BFO PURL (used as the user's choice value)
+ * - label: human-readable label
+ * - hint: short explanation for the prompt UI
+ */
+export const BFO_CATEGORY_OPTIONS = [
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000040', label: 'Material Entity', hint: 'Physical objects, substances, organisms (dog, table, water)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000015', label: 'Process',         hint: 'Events, activities, things that unfold in time (running, digestion)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000019', label: 'Quality',         hint: 'Attributes that need no realization (color, mass, shape)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000023', label: 'Role',            hint: 'Externally-grounded capacities (student, employee, catalyst)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000016', label: 'Disposition',     hint: 'Internally-grounded capacities (fragility, solubility)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000034', label: 'Function',        hint: 'Biological or designed capacities (heart pumping, knife cutting)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000031', label: 'Generically Dependent Continuant', hint: 'Information / patterns (recipes, documents, software)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000006', label: 'Spatial Region',  hint: 'Geometric spaces (a point, an area, a volume)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000008', label: 'Temporal Region', hint: 'Time intervals (an hour, an era, a moment)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000017', label: 'Realizable Entity', hint: 'Specifically dependent capacities (parent of role/disposition)' },
+  { sourceIri: 'http://purl.obolibrary.org/obo/BFO_0000001', label: 'Entity',          hint: 'I don\u2019t know / something else (top-level fallback)' },
+];
+
+/**
+ * Build a `bfoCategoryDisambiguation` prompt for a new root concept.
+ *
+ * The user picks one of the 11 BFO categories. The pipeline re-runs
+ * with `options.bfoCategoryChoice` set to the chosen `sourceIri`, and
+ * the workflow uses `indices.bfoEquivalenceIndex` to look up the
+ * Fandaws IRI of the chosen ingested BFO concept and sets it as
+ * the new root's `skos:broader` parent.
+ *
+ * @param {string} rawLabel - The user's input label for the new concept
+ * @param {object} context - State to resume processing after the user picks
+ * @returns {object} ConversationPrompt JSON-LD
+ */
+export function buildBfoCategoryPrompt(rawLabel, context) {
+  return {
+    '@type': 'fandaws:ConversationPrompt',
+    'fandaws:promptType': 'bfoCategoryDisambiguation',
+    'fandaws:text': `What kind of thing is "${rawLabel}"?`,
+    'fandaws:options': BFO_CATEGORY_OPTIONS.map((opt) => ({
+      sourceIri: opt.sourceIri,
+      label: opt.label,
+      hint: opt.hint,
+    })),
+    'fandaws:context': context,
+    'fandaws:machineSignal': null,
+  };
 }

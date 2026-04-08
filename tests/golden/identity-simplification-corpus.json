@@ -269,7 +269,7 @@
       "id": "plural-multiword",
       "input": "Golden Retrievers",
       "options": {},
-      "expected": { "canonicalLabel": "golden retriever", "languageTag": "en" }
+      "expected": { "canonicalLabel": "golden retrievers", "languageTag": "en" }
     },
     {
       "id": "plural-idempotent-boss",

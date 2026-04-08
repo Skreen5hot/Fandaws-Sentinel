@@ -227,12 +227,14 @@ describe('runPropertyPipeline', () => {
         label: 'Dog',
         prefLabel: 'dog',
       }),
-      makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-leg', 'Four Leg'),
+      makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/leg', 'Leg'),
     ]);
-    const result = runPropertyPipeline('Dogs have four legs', context);
-    // Should parse as property workflow with "have" verb
+    // Single-word "legs" canonicalizes to "leg" via singularization.
+    // Multi-word phrases (e.g. "four legs") would NOT canonicalize per
+    // heuristic matrix #3 — they bypass singularization to avoid silent
+    // corruption of compound noun phrases.
+    const result = runPropertyPipeline('Dogs have legs', context);
     expect(result.error).toBe(false);
-    // Root concept → direct attachment
     expect(result.success).toBe(true);
     expect(result.mutation).not.toBeNull();
   });

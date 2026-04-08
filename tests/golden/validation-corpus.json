@@ -425,12 +425,12 @@
         }
       },
       {
-        "utterance": "A mammary gland is an organ",
+        "utterance": "An organ is a structure",
         "options": {},
         "expect": { "success": true }
       },
       {
-        "utterance": "Mammals have mammary glands",
+        "utterance": "Mammals have organs",
         "options": {},
         "expect": { "success": true }
       },

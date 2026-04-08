@@ -401,13 +401,30 @@ describe('Step 5.5: singularize', () => {
     expect(singularize('dogs', 'de')).toBe('dogs');
   });
 
-  // ── Multi-word phrases ──
-  it('singularizes each word: "golden retrievers" → "golden retriever"', () => {
-    expect(singularize('golden retrievers', 'en')).toBe('golden retriever');
+  // ── Multi-word phrases bypass singularization (heuristic matrix #3) ──
+  // Multi-word labels are noun phrases where per-word stripping causes silent
+  // corruption (e.g., "filamentous biomaterial" → "filamentou biomaterial").
+  // Singularization is only applied to single-word inputs.
+  it('preserves multi-word phrases verbatim: "filamentous biomaterial"', () => {
+    expect(singularize('filamentous biomaterial', 'en')).toBe('filamentous biomaterial');
   });
 
-  it('singularizes each word: "wild wolves" → "wild wolf"', () => {
-    expect(singularize('wild wolves', 'en')).toBe('wild wolf');
+  it('preserves multi-word phrases verbatim: "pilus capitis"', () => {
+    expect(singularize('pilus capitis', 'en')).toBe('pilus capitis');
+  });
+
+  it('preserves multi-word phrases verbatim: "material entity"', () => {
+    expect(singularize('material entity', 'en')).toBe('material entity');
+  });
+
+  it('preserves multi-word phrases even when last word is plural: "golden retrievers"', () => {
+    // Pre-fix this returned "golden retriever". Now multi-word phrases pass
+    // through unchanged. The user is responsible for the form they assert.
+    expect(singularize('golden retrievers', 'en')).toBe('golden retrievers');
+  });
+
+  it('preserves multi-word phrases even when last word is plural: "wild wolves"', () => {
+    expect(singularize('wild wolves', 'en')).toBe('wild wolves');
   });
 
   // ── Double singularization idempotency ──
@@ -590,9 +607,9 @@ describe('simplify — full pipeline', () => {
     expect(canonicalLabel).toBe('animal');
   });
 
-  it('"Golden Retrievers" → "golden retriever"', () => {
+  it('"Golden Retrievers" → "golden retrievers" (multi-word bypass per heuristic matrix #3)', () => {
     const { canonicalLabel } = simplify('Golden Retrievers');
-    expect(canonicalLabel).toBe('golden retriever');
+    expect(canonicalLabel).toBe('golden retrievers');
   });
 
   it('"CHILDREN" → "child" (case fold + irregular)', () => {

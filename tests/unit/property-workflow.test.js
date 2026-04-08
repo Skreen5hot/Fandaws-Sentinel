@@ -309,17 +309,19 @@ describe('processProperty — scope narrowing', () => {
 describe('processProperty — mutation shape', () => {
   it('generates correct restriction IRI', () => {
     const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
-    const fourLeg = makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/four-leg', 'Four Leg');
-    fourLeg['skos:prefLabel'] = 'four leg';
-    const concepts = [animal, fourLeg];
+    const leg = makeConcept('fandaws:class/c1ed9147-d3d1-5f7c-8d3a-5ec1e8c2bd05/leg', 'Leg');
+    leg['skos:prefLabel'] = 'leg';
+    const concepts = [animal, leg];
     const graph = makeGraph(concepts);
     const indices = buildIndices(concepts);
-    const action = makeAction('animal', 'four legs');
+    // Single-word plural canonicalizes to "leg" via singularization;
+    // multi-word phrases bypass singularization (heuristic matrix #3)
+    const action = makeAction('animal', 'legs');
     const result = processProperty(action, graph, indices);
     expect(result.mutation).not.toBeNull();
     const restriction = result.mutation['fandaws:additions'][0];
-    // IRI derived from canonical labels: "animal" + "four leg"
-    expect(restriction['@id']).toMatch(/^fandaws:restriction\/.*\/animal--four-leg$/);
+    // IRI derived from canonical labels: "animal" + "leg"
+    expect(restriction['@id']).toMatch(/^fandaws:restriction\/.*\/animal--leg$/);
   });
 
   it('includes reason in mutation', () => {

@@ -219,7 +219,23 @@ export function singularize(str, locale) {
   const baseLang = locale.split('-')[0];
   if (baseLang !== 'en') return str;
 
-  return str.split(' ').map(singularizeWord).join(' ');
+  // Multi-word phrases bypass singularization entirely.
+  //
+  // Multi-word concept labels like "filamentous biomaterial", "pilus capitis",
+  // "material entity", or "specifically dependent continuant" are noun
+  // phrases where the head noun is rarely a plural that needs stripping.
+  // Applying per-word singularization causes silent corruption (e.g.,
+  // "filamentous" → "filamentou" because Rule 10 strips -s from -ous
+  // adjectives, "campus building" → "campu building").
+  //
+  // Single-word inputs (e.g., "dogs", "cats", "puppies") still get the
+  // full English singularization rules — that's where plural→singular
+  // matching is most useful for canonical lookup.
+  //
+  // See heuristic assessment matrix #3.
+  if (str.includes(' ')) return str;
+
+  return singularizeWord(str);
 }
 
 /**

@@ -22,6 +22,7 @@ import {
   migratePhantomReferences,
 } from '../integration/turtle-ingestion-adapter.js';
 import { sha256Hex } from '../../core/ivne/sha256.js';
+import { describeConcept } from '../../core/description-engine/description-engine.js';
 
 const BFO_ONTOLOGY_IRI = 'http://purl.obolibrary.org/obo/bfo.owl';
 
@@ -156,6 +157,31 @@ export class InMemoryStateAdapter extends StateAdapter {
       this._rebuildIndices(graphId, updated);
     }
 
+    // Strip stale BFO markers from any user concept whose chain now
+    // reaches an ingested node. Self-heals graphs created before this
+    // fix shipped, where reclassification left bfo:BFO_0000001 markers
+    // on user concepts.
+    if (this._cleanupStaleBfoMarkers(graphId)) {
+      this._rebuildIndices(graphId, this._graphs.get(graphId));
+    }
+
+    // Generate algorithmic definitions for the ingested concepts.
+    // Ingested concepts skip the conversational pipeline that normally
+    // populates fandaws:algorithmicDefinition, so we run describeConcept
+    // here. The source ontology's own definition stays in skos:definition
+    // (separate field, set during ingestTurtle).
+    const addedIris = new Set(additions.map((c) => c['@id']));
+    if (addedIris.size > 0) {
+      for (const c of updated['fandaws:concepts'] || []) {
+        if (!addedIris.has(c['@id'])) continue;
+        try {
+          c['fandaws:algorithmicDefinition'] = describeConcept(c, updated);
+        } catch {
+          // describeConcept failures are non-fatal — leave the field empty
+        }
+      }
+    }
+
     // Merge property index
     this._mergeIngestedPropertyIndex(ingested.propertyIndex);
 
@@ -176,6 +202,69 @@ export class InMemoryStateAdapter extends StateAdapter {
    */
   getIngestedPropertyIndex() {
     return this._ingestedPropertyIndex;
+  }
+
+  /**
+   * Strip stale `bfo:BFO_*` markers from `rdfs:subClassOf` on any user
+   * concept whose ancestor chain reaches an ingested concept.
+   *
+   * Background: when concepts are created in an order where the chain
+   * to BFO is established AFTER the user concepts exist (e.g., dog
+   * created with no parent, then animal, then "organism is an object"
+   * connects the chain to ingested BFO), the original `inferBfoCategory`
+   * marker stays on the older concepts. Once the chain reaches BFO, the
+   * marker is a phantom reference and the BFO category is implicit via
+   * skos:broader → owl:equivalentClass.
+   *
+   * Runs after every mutation. Idempotent — safe to call repeatedly.
+   * Returns true if any concept was modified (caller should rebuild indices).
+   *
+   * @param {string} graphId - Graph IRI
+   * @returns {boolean} True if any concept's rdfs:subClassOf was modified
+   * @private
+   */
+  _cleanupStaleBfoMarkers(graphId) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return false;
+    const concepts = graph['fandaws:concepts'] || [];
+    if (concepts.length === 0) return false;
+
+    const conceptById = new Map(concepts.map((c) => [c['@id'], c]));
+
+    // Walk up from a starting concept and return true if any ancestor
+    // (immediate or higher) is an ingested concept.
+    const reachesIngested = (startConcept) => {
+      let cursor = startConcept['skos:broader'] || null;
+      const visited = new Set([startConcept['@id']]);
+      while (cursor && !visited.has(cursor)) {
+        visited.add(cursor);
+        const ancestor = conceptById.get(cursor);
+        if (!ancestor) return false;
+        if (ancestor['fandaws:isImported'] || ancestor['owl:equivalentClass']) {
+          return true;
+        }
+        cursor = ancestor['skos:broader'] || null;
+      }
+      return false;
+    };
+
+    let modified = false;
+    for (const c of concepts) {
+      if (c['fandaws:isImported']) continue;
+      const subClassOf = c['rdfs:subClassOf'] || [];
+      // Find any bfo: string entries
+      const hasBfoString = subClassOf.some(
+        (e) => typeof e === 'string' && e.startsWith('bfo:'),
+      );
+      if (!hasBfoString) continue;
+      // Only strip when the chain actually reaches an ingested concept
+      if (!reachesIngested(c)) continue;
+      c['rdfs:subClassOf'] = subClassOf.filter(
+        (e) => !(typeof e === 'string' && e.startsWith('bfo:')),
+      );
+      modified = true;
+    }
+    return modified;
   }
 
   /**
@@ -361,6 +450,16 @@ export class InMemoryStateAdapter extends StateAdapter {
     // Commit the draft
     this._graphs.set(id, draft);
     this._rebuildIndices(id, draft);
+
+    // Strip stale BFO markers from any user concept whose ancestor chain
+    // now reaches an ingested concept. This handles the case where a
+    // reclassification connects a previously-disconnected user subtree
+    // to an ingested BFO node — the BFO category is now reachable via
+    // skos:broader → owl:equivalentClass, and the legacy bfo: marker
+    // would be a phantom reference.
+    if (this._cleanupStaleBfoMarkers(id)) {
+      this._rebuildIndices(id, this._graphs.get(id));
+    }
 
     // Notify mutation listeners (post-commit, post-index-rebuild).
     // Listeners are synchronous and block this return. Async listeners

@@ -343,6 +343,11 @@ export function processRelationship(action, graph, indices, options = {}, adapte
   relNode['fandaws:verbLabel'] = verb;
 
   // ── 7. Build mutation based on case ──
+  // Skip the label-based BFO heuristic when BFO is ingested — the recompute
+  // pass will assign the correct marker after the mutation. The heuristic
+  // misclassifies words like "filament" (-ment) as Process.
+  const bfoIngested = indices.bfoEquivalenceIndex && indices.bfoEquivalenceIndex.size > 0;
+  const inferBfo = (label) => (bfoIngested ? null : inferBfoCategory(label));
   const additions = [relNode];
 
   // Case C: Both new
@@ -352,7 +357,7 @@ export function processRelationship(action, graph, indices, options = {}, adapte
         id: subjectIri,
         label: displayLabel(rawSubject),
         prefLabel: subjectCanonical,
-        bfoMapping: inferBfoCategory(subjectCanonical),
+        bfoMapping: inferBfo(subjectCanonical),
       }),
       'fandaws:allowRoot': true,
     };
@@ -361,7 +366,7 @@ export function processRelationship(action, graph, indices, options = {}, adapte
         id: objectIri,
         label: displayLabel(rawObject),
         prefLabel: objectCanonical,
-        bfoMapping: inferBfoCategory(objectCanonical),
+        bfoMapping: inferBfo(objectCanonical),
       }),
       'fandaws:allowRoot': true,
     };
@@ -384,7 +389,7 @@ export function processRelationship(action, graph, indices, options = {}, adapte
         id: objectIri,
         label: displayLabel(rawObject),
         prefLabel: objectCanonical,
-        bfoMapping: inferBfoCategory(objectCanonical),
+        bfoMapping: inferBfo(objectCanonical),
       }),
       'fandaws:allowRoot': true,
     };
@@ -407,7 +412,7 @@ export function processRelationship(action, graph, indices, options = {}, adapte
         id: subjectIri,
         label: displayLabel(rawSubject),
         prefLabel: subjectCanonical,
-        bfoMapping: inferBfoCategory(subjectCanonical),
+        bfoMapping: inferBfo(subjectCanonical),
       }),
       'fandaws:allowRoot': true,
     };

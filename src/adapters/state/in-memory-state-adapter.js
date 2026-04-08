@@ -152,6 +152,18 @@ export class InMemoryStateAdapter extends StateAdapter {
       (c) => !existingIris.has(c['@id']),
     );
 
+    // Phantom reference migration FIRST: rewrite legacy bfo: IRIs in user
+    // concepts BEFORE applyMutation runs (which would trigger recompute and
+    // strip them). The equivalence index is built from the new additions
+    // because they aren't in the graph yet. Migration mutates the graph
+    // in place, so we then rebuild indices, then apply the bulk addition.
+    const equivIndex = buildEquivalenceIndex(additions);
+    const preGraph = this._graphs.get(graphId);
+    const migrated = migratePhantomReferences(preGraph, equivIndex);
+    if (migrated > 0) {
+      this._rebuildIndices(graphId, preGraph);
+    }
+
     if (additions.length > 0) {
       const mutation = createGraphMutation({
         additions,
@@ -160,14 +172,7 @@ export class InMemoryStateAdapter extends StateAdapter {
       this.applyMutation(graphId, mutation);
     }
 
-    // Phantom reference migration on user concepts
     const updated = this._graphs.get(graphId);
-    const equivIndex = buildEquivalenceIndex(updated['fandaws:concepts'] || []);
-    const migrated = migratePhantomReferences(updated, equivIndex);
-    if (migrated > 0) {
-      // Indices need rebuild after in-place mutation
-      this._rebuildIndices(graphId, updated);
-    }
 
     // Recompute BFO category markers on user concepts now that BFO
     // is ingested. (Note: applyMutation already ran a recompute pass during
@@ -231,16 +236,19 @@ export class InMemoryStateAdapter extends StateAdapter {
    *
    * Algorithm:
    *   1. For each user concept:
-   *      a. If the concept has a bare bfo:* IRI hint in rdfs:subClassOf
-   *         (legacy/migration data), use the bfoEquivalenceIndex to
-   *         resolve it to the Fandaws IRI of the matching ingested concept.
-   *      b. Otherwise, walk up via skos:broader looking for the first
-   *         ingested ancestor and use its Fandaws IRI.
-   *      c. If neither yields a marker → use the Fandaws IRI of the
+   *      a. Walk up via skos:broader looking for the first ingested
+   *         ancestor and use its Fandaws IRI as the marker.
+   *      b. If no ingested ancestor exists → use the Fandaws IRI of the
    *         ingested Entity root (universal fallback per option Z).
-   *      d. If BFO is not ingested at all → no marker
-   *   2. Strip ALL existing bfo: string markers AND any prior Fandaws-IRI
-   *      BFO category markers (so we don't accumulate stale ones)
+   *      c. If BFO is not ingested at all → no marker
+   *   2. Strip ALL existing bfo:* string IRIs AND any prior Fandaws-IRI
+   *      BFO category markers (so we don't accumulate stale ones).
+   *      Note: bare bfo:* IRIs in rdfs:subClassOf are NOT trusted as
+   *      hints because they may be heuristic guesses from
+   *      `inferBfoCategory` (e.g., "filament" → process via -ment suffix).
+   *      Legacy migration data (pre-ingestion graphs with raw bfo:* IRIs)
+   *      is handled by `migratePhantomReferences` which runs explicitly
+   *      during ingestion BEFORE the recompute pass.
    *   3. Insert the new marker once
    *
    * Runs after every mutation. Idempotent — same input → same output.
@@ -294,10 +302,6 @@ export class InMemoryStateAdapter extends StateAdapter {
       return null;
     };
 
-    // Build a bfo: → Fandaws IRI lookup once per pass (used for hint resolution)
-    const idx = this._indices.get(graphId);
-    const bfoEqIdx = idx?.bfoEquivalenceIndex || new Map();
-
     let modified = false;
     let rewrites = 0;
     for (const c of concepts) {
@@ -306,32 +310,27 @@ export class InMemoryStateAdapter extends StateAdapter {
 
       const oldList = c['rdfs:subClassOf'] || [];
 
-      // Step 1: Look for an existing marker hint to preserve.
-      // - Bare bfo:* IRIs (legacy seed data) → resolve via bfoEquivalenceIndex
-      // - Fandaws IRIs of ingested concepts (prior recompute output) → preserve as-is
-      // Both forms tell us the user/migration intent for this concept's BFO category.
-      let hintMarker = null;
-      for (const e of oldList) {
-        if (typeof e !== 'string') continue;
-        if (e.startsWith('bfo:') && bfoEqIdx.has(e)) {
-          hintMarker = bfoEqIdx.get(e);
-          break;
-        }
-        if (ingestedIris.has(e) && e !== c['skos:broader']) {
-          // Already-resolved BFO marker from a prior recompute pass
-          hintMarker = e;
-          break;
+      // Walk skos:broader for the nearest ingested ancestor.
+      const nearestIngested = findNearestIngestedAncestor(c);
+
+      // Preservation rule for migrated markers: if the chain doesn't reach
+      // an ingested ancestor BUT the concept already has an ingested-IRI
+      // marker in rdfs:subClassOf, that marker came from legitimate phantom
+      // migration of a user-asserted bfo:* IRI. Preserve it. (Heuristic
+      // guesses can no longer reach this state because workflows skip
+      // inferBfoCategory when BFO is ingested.)
+      let migrationHint = null;
+      if (!nearestIngested) {
+        for (const e of oldList) {
+          if (typeof e === 'string' && ingestedIris.has(e)) {
+            migrationHint = e;
+            break;
+          }
         }
       }
 
-      // Step 2: Walk skos:broader for the nearest ingested ancestor
-      const nearestIngested = findNearestIngestedAncestor(c);
-
-      // Priority: nearest-ingested-ancestor > existing hint > entity fallback.
-      // Walking the chain is preferred when it succeeds (most accurate, reflects
-      // current hierarchy). The hint is the fallback for orphan/legacy concepts
-      // whose chain doesn't reach BFO. Entity is the universal last resort.
-      const newMarker = nearestIngested || hintMarker || entityFallbackIri;
+      // Falls back to the Fandaws Entity IRI for fully-disconnected concepts.
+      const newMarker = nearestIngested || migrationHint || entityFallbackIri;
       // newMarker is null only if Entity itself isn't ingested, which
       // shouldn't happen with BFO 2020 — but be defensive
 

@@ -401,7 +401,13 @@ export function processClassification(action, graph, indices, options = {}, adap
 
   // Case C: Both new
   if (!existingSubject && !existingObject) {
-    const objectBfo = inferBfoCategory(objectCanonical);
+    // Skip the label-based BFO heuristic when BFO is ingested — the
+    // recompute pass will assign the correct marker (Entity fallback for
+    // disconnected concepts) after the mutation. The heuristic produces
+    // wrong guesses for words like "filament" (-ment) or "filamentous"
+    // (-ous) and we don't want those promoted to real markers.
+    const bfoIngested = indices.bfoEquivalenceIndex && indices.bfoEquivalenceIndex.size > 0;
+    const objectBfo = bfoIngested ? null : inferBfoCategory(objectCanonical);
     const newObject = {
       ...createConcept({
         id: objectIri,
@@ -413,7 +419,9 @@ export function processClassification(action, graph, indices, options = {}, adap
     };
 
     // Child inherits BFO from parent
-    const subjectBfo = inheritBfoCategory(newObject, subjectCanonical);
+    const subjectBfo = bfoIngested
+      ? null
+      : inheritBfoCategory(newObject, subjectCanonical);
     const newSubject = createConcept({
       id: subjectIri,
       label: rawSubject,
@@ -458,8 +466,9 @@ export function processClassification(action, graph, indices, options = {}, adap
       };
     }
 
-    // Auto-create object as root
-    const objectBfo = inferBfoCategory(objectCanonical);
+    // Auto-create object as root. Skip heuristic when BFO is ingested.
+    const bfoIngested = indices.bfoEquivalenceIndex && indices.bfoEquivalenceIndex.size > 0;
+    const objectBfo = bfoIngested ? null : inferBfoCategory(objectCanonical);
     const newObject = {
       ...createConcept({
         id: objectIri,

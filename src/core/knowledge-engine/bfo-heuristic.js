@@ -79,6 +79,23 @@ export const HEURISTIC_EXCEPTIONS = {
   electricity: BFO.disposition,      // not a quality
   city:        BFO.materialEntity,   // not a quality
   community:   BFO.genDepContinuant, // not a quality
+  // -ment words that are NOT nominalized verbs (filament from Latin filum)
+  filament:    BFO.materialEntity,   // not a process despite -ment
+  cement:      BFO.materialEntity,   // not a process
+  ornament:    BFO.materialEntity,   // not a process
+  pigment:     BFO.materialEntity,   // not a process
+  garment:     BFO.materialEntity,   // not a process
+  fragment:    BFO.materialEntity,   // not a process
+  segment:     BFO.materialEntity,   // not a process (geometric)
+  ligament:    BFO.materialEntity,   // not a process (anatomy)
+  instrument:  BFO.materialEntity,   // not a process (artifact)
+  monument:    BFO.materialEntity,   // not a process
+  document:    BFO.genDepContinuant, // not a process — informational
+  experiment:  BFO.process,          // explicit (is a process — keep)
+  apartment:   BFO.materialEntity,   // not a process
+  basement:    BFO.materialEntity,   // not a process
+  pavement:    BFO.materialEntity,   // not a process
+  sediment:    BFO.materialEntity,   // not a process
 };
 
 // ── Suffix Patterns ──

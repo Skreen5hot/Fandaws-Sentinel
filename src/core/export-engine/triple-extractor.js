@@ -216,27 +216,42 @@ function extractConceptTriples(concept, expanded) {
     const kind = r['fandaws:restrictionKind'];
 
     if (kind === 'property') {
-      // The restriction's owl:onProperty field stores the property concept IRI
-      // (the noun, e.g., fandaws:class/{uuid}/fur). The OWL pattern is:
-      //   owl:onProperty fandaws:objectProperty/has ; owl:someValuesFrom <fur>
-      // If verb resolution placed a non-class IRI in the field (e.g., a BFO
-      // object property), use it directly as owl:onProperty instead of the
-      // generic "has" verb.
+      // Restriction Structural Correction v1.1 (Ontology Ingestion Spec v1.4 §11.2):
+      //   owl:onProperty stores the verb IRI (typically fandaws:property/has,
+      //   or a BFO/CCO object-property IRI when verb resolution matched).
+      //   owl:someValuesFrom stores the noun (the object concept IRI).
+      // Both are emitted directly — no translation, no inference.
+      //
+      // Pre-correction fixtures may store the noun's class IRI in owl:onProperty
+      // and lack owl:someValuesFrom. The fallback below detects that legacy
+      // shape and synthesizes the corrected triples so existing graphs still
+      // export sensibly until migrated.
       const prop = r['owl:onProperty'];
-      const isClassIri = typeof prop === 'string' && prop.startsWith('fandaws:class/');
-      if (isClassIri || !prop) {
-        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:objectProperty/has')));
-        if (prop) {
-          triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(prop)));
-        }
+      const someValues = r['owl:someValuesFrom'];
+      const isLegacyClassInOnProperty =
+        typeof prop === 'string' && prop.startsWith('fandaws:class/') && !someValues;
+
+      if (isLegacyClassInOnProperty) {
+        // Legacy shape — synthesize corrected triples on the fly.
+        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:property/has')));
+        triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(prop)));
       } else {
-        // Resolved verb IRI (BFO/CCO/etc.) — emit directly
-        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri(prop)));
+        if (prop) {
+          triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri(prop)));
+        }
+        if (someValues) {
+          triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(someValues)));
+        }
       }
-      // fandaws:propertyLabel
+      // fandaws:propertyLabel — noun label preserved for display/redundancy
       const propLabel = r['fandaws:propertyLabel'];
       if (propLabel) {
         triples.push(tripleLiteral(rIri, expandIri('fandaws:propertyLabel'), propLabel));
+      }
+      // fandaws:verbLabel — original verb form preserved (mirrors relationships)
+      const verbLabel = r['fandaws:verbLabel'];
+      if (verbLabel) {
+        triples.push(tripleLiteral(rIri, expandIri('fandaws:verbLabel'), verbLabel));
       }
       // owl:hasValue (when an explicit value is set)
       const val = r['owl:hasValue'];
@@ -277,6 +292,76 @@ function extractConceptTriples(concept, expanded) {
   return triples;
 }
 
+// ── Verb Property Declarations ──
+
+/**
+ * Walk all property restrictions in the graph and declare each unique
+ * local verb IRI as a bare `owl:ObjectProperty` with an `rdfs:label`.
+ *
+ * Tier 1 "Human Frame" — no domain, no range, no equivalence assertions.
+ * A reasoner can traverse the property but cannot infer anything beyond
+ * "these two things are connected by something called <verb>".
+ *
+ * Only `fandaws:property/*` IRIs are declared. BFO/CCO IRIs are silently
+ * skipped — they are defined by their source ontologies and resolved via
+ * `owl:imports`.
+ *
+ * @param {object[]} concepts - Array of concept nodes
+ * @returns {Array<{subject: string, predicate: string, object: string, objectType: 'uri'|'literal'}>}
+ */
+function emitVerbPropertyDeclarations(concepts) {
+  // Map verbIri → verbLabel (first label wins for stability).
+  const verbs = new Map();
+
+  for (const concept of concepts) {
+    const subClassOf = concept['rdfs:subClassOf'] || [];
+    for (const entry of subClassOf) {
+      if (!isRestrictionNode(entry)) continue;
+      if (entry['fandaws:restrictionKind'] !== 'property') continue;
+
+      const onProperty = entry['owl:onProperty'];
+      const someValues = entry['owl:someValuesFrom'];
+
+      // New shape: owl:onProperty IS the verb IRI.
+      // Legacy shape: owl:onProperty holds the noun's class IRI and there is
+      // no owl:someValuesFrom — in that case the export-time fallback synthesizes
+      // a `fandaws:property/has` declaration, so we add it here.
+      let verbIri;
+      let verbLabel;
+      if (typeof onProperty === 'string' && onProperty.startsWith('fandaws:class/') && !someValues) {
+        verbIri = 'fandaws:property/has';
+        verbLabel = 'has';
+      } else if (typeof onProperty === 'string') {
+        verbIri = onProperty;
+        verbLabel = entry['fandaws:verbLabel'] || null;
+      } else {
+        continue;
+      }
+
+      // Only declare local verb IRIs. BFO/CCO/etc. are defined elsewhere.
+      if (!verbIri.startsWith('fandaws:property/')) continue;
+
+      // Derive a fallback label from the IRI tail if none was stored.
+      if (!verbLabel) {
+        const tail = verbIri.slice('fandaws:property/'.length);
+        verbLabel = tail.replace(/-/g, ' ');
+      }
+
+      if (!verbs.has(verbIri)) {
+        verbs.set(verbIri, verbLabel);
+      }
+    }
+  }
+
+  const declarations = [];
+  for (const verbIri of [...verbs.keys()].sort()) {
+    const expanded = expandIri(verbIri);
+    declarations.push(tripleUri(expanded, RDF_TYPE, expandIri('owl:ObjectProperty')));
+    declarations.push(tripleLiteral(expanded, expandIri('rdfs:label'), verbs.get(verbIri)));
+  }
+  return declarations;
+}
+
 // ── Main Extraction ──
 
 /**
@@ -295,24 +380,16 @@ export function extractTriples(graph) {
 
   const allTriples = [];
 
-  // Declare fandaws:objectProperty/has as the top-level ObjectProperty,
-  // equivalent to owl:topObjectProperty, if any properties exist.
-  const hasProperties = concepts.some((c) =>
-    (c['rdfs:subClassOf'] || []).some(
-      (e) => typeof e === 'object' && e['fandaws:restrictionKind'] === 'property',
-    ),
-  );
-  if (hasProperties) {
-    // Tier 1 — Human Frame: declare fandaws:objectProperty/has as a bare
-    // owl:ObjectProperty with no domain, no range, no equivalence assertions.
-    // A reasoner can traverse it but cannot infer that "everything has
-    // everything." Equating this to owl:topObjectProperty would create a
-    // universal Cartesian product — the deletion below is intentional and
-    // load-bearing. See architect-to-dev-communication-2026-04-07.md §2.
-    const hasIri = expandIri('fandaws:objectProperty/has');
-    allTriples.push(tripleUri(hasIri, RDF_TYPE, expandIri('owl:ObjectProperty')));
-    allTriples.push(tripleLiteral(hasIri, expandIri('rdfs:label'), 'has'));
-  }
+  // Declare every local verb IRI used by a property restriction as a bare
+  // owl:ObjectProperty (Tier 1 — Human Frame). See
+  // architect-to-dev-communication-2026-04-07.md §3 (Progressive Formalization)
+  // and Ontology Ingestion Spec v1.4 §11.1.
+  //
+  // Only `fandaws:property/*` IRIs are declared here. BFO/CCO object properties
+  // are defined by their source ontologies and resolved via owl:imports — they
+  // are silently skipped to avoid duplicate definitions.
+  const verbDeclarations = emitVerbPropertyDeclarations(concepts);
+  allTriples.push(...verbDeclarations);
 
   // Declare fandaws:algorithmicDefinition as an annotation property
   // sub-property of skos:definition, if any concepts have one

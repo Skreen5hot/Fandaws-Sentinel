@@ -44,7 +44,9 @@ function makePropertyRestriction(id, propertyIri) {
 function makeProperty(id, label, attachedTo) {
   return createProperty({
     id,
-    propertyConceptIri: `fandaws:class/test/${label}`,
+    verbIri: 'fandaws:property/has',
+    verbLabel: 'has',
+    objectConceptIri: `fandaws:class/test/${label}`,
     propertyLabel: label,
     attachedTo,
   });

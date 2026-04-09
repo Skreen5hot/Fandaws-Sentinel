@@ -17,6 +17,12 @@
 import { simplify } from '../identity/identity-simplification.js';
 import { generateRestrictionIri, generateConceptIri, DEFAULT_SCOPE } from './iri-generator.js';
 import { createProperty } from '../../types/property.js';
+
+// Tier 1 "Human Frame" verb IRI for the implicit "has" of "X has Y".
+// See architect-to-dev-communication-2026-04-07.md §3 (Progressive Formalization)
+// and Ontology Ingestion Spec v1.4 §6.5. Aligned to fandaws:property/ prefix.
+const LOCAL_HAS_VERB_IRI = 'fandaws:property/has';
+const LOCAL_HAS_VERB_LABEL = 'has';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
 import { checkPropertyRedundancy } from '../validator/property-redundancy.js';
@@ -41,6 +47,10 @@ function findConceptsByCanonical(canonicalLabel, graph) {
 /**
  * Check whether a concept already has a property with the given label
  * in its rdfs:subClassOf array.
+ *
+ * After Restriction Structural Correction v1.1, the noun label lives in
+ * `fandaws:propertyLabel`. The legacy `owl:onProperty === propertyLabel`
+ * branch handles pre-correction fixtures where a bare string was stored.
  *
  * @param {object} concept - Concept node
  * @param {string} propertyLabel - The property label to check
@@ -300,16 +310,17 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
   }
 
   // ── 9. Verb-to-property resolution (Section 6.5) ──
-  // The "has" verb in "X has Y" is implicit in the property workflow.
-  // The propertyCanonical (Y) may match an ingested object property label
-  // (e.g., "inheres in" → bfo:BFO_0000052). When it does, point owl:onProperty
-  // at the BFO IRI directly so consumers see real interop terms.
-  let resolvedOnProperty = propertyConceptIri;
+  // The verb in "X has Y" is the implicit "has". Look it up in the ingested
+  // object-property index by label. If a BFO/CCO property uses "has" as its
+  // label, owl:onProperty points at that IRI directly. Otherwise the
+  // restriction carries the local fandaws:property/has placeholder (Tier 1
+  // Human Frame — see architect-to-dev §3).
+  let verbIri = LOCAL_HAS_VERB_IRI;
   if (adapter && typeof adapter.getIngestedPropertyIndex === 'function') {
     const ingestedIndex = adapter.getIngestedPropertyIndex();
-    const verbKey = propertyCanonical.toLowerCase().trim();
+    const verbKey = LOCAL_HAS_VERB_LABEL;
     if (ingestedIndex && ingestedIndex.has(verbKey)) {
-      resolvedOnProperty = ingestedIndex.get(verbKey);
+      verbIri = ingestedIndex.get(verbKey);
     }
   }
 
@@ -319,7 +330,9 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
     : subjectCanonical;
   const propertyNode = createProperty({
     id: generateRestrictionIri(attachmentCanonical, propertyCanonical, scope),
-    propertyConceptIri: resolvedOnProperty,
+    verbIri,
+    verbLabel: LOCAL_HAS_VERB_LABEL,
+    objectConceptIri: propertyConceptIri,
     propertyLabel: propertyCanonical,
     attachedTo: attachmentIri,
     scope: attachmentIri === subjectIri ? 'concept-specific' : 'inherited',

@@ -33,7 +33,9 @@ function makeAction(subject, object) {
 function makeProperty(id, conceptIri, propertyLabel, attachedTo) {
   return createProperty({
     id,
-    propertyConceptIri: conceptIri,
+    verbIri: 'fandaws:property/has',
+    verbLabel: 'has',
+    objectConceptIri: conceptIri,
     propertyLabel,
     attachedTo,
   });

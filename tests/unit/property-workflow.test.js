@@ -237,7 +237,9 @@ describe('processProperty — root concept', () => {
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(1);
     expect(additions[0]['@type']).toBe('owl:Restriction');
-    expect(additions[0]['owl:onProperty']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell');
+    expect(additions[0]['owl:onProperty']).toBe('fandaws:property/has');
+    expect(additions[0]['owl:someValuesFrom']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell');
+    expect(additions[0]['fandaws:verbLabel']).toBe('has');
     expect(additions[0]['fandaws:propertyLabel']).toBe('cell');
     expect(additions[0]['fandaws:attachedTo']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(additions[0]['fandaws:scope']).toBe('concept-specific');
@@ -336,7 +338,7 @@ describe('processProperty — mutation shape', () => {
     expect(result.mutation['fandaws:reason']).toContain('Animal');
   });
 
-  it('stores concept IRI in owl:onProperty and label in fandaws:propertyLabel', () => {
+  it('stores verb IRI in owl:onProperty, noun IRI in owl:someValuesFrom, and label in fandaws:propertyLabel', () => {
     const animal = makeConcept('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal', 'Animal');
     const fur = makeConcept('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur', 'Fur');
     const concepts = [animal, fur];
@@ -346,7 +348,9 @@ describe('processProperty — mutation shape', () => {
     const result = processProperty(action, graph, indices);
     expect(result.mutation).not.toBeNull();
     const restriction = result.mutation['fandaws:additions'][0];
-    expect(restriction['owl:onProperty']).toBe('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur');
+    expect(restriction['owl:onProperty']).toBe('fandaws:property/has');
+    expect(restriction['owl:someValuesFrom']).toBe('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur');
+    expect(restriction['fandaws:verbLabel']).toBe('has');
     expect(restriction['fandaws:propertyLabel']).toBe('fur');
     expect(restriction['owl:hasValue']).toBeNull();
   });

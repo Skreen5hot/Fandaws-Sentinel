@@ -17,7 +17,9 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('produces output with no register fields present', () => {
       const prop = createProperty({
         id: 'fandaws:property/abc',
-        propertyConceptIri: 'has_color',
+        verbIri: 'fandaws:property/has',
+        verbLabel: 'has',
+        objectConceptIri: 'has_color',
         propertyLabel: 'has_color',
         attachedTo: 'fandaws:class/dog',
         value: 'brown',
@@ -31,7 +33,8 @@ describe('ERS Type Layer — Backward Compatibility', () => {
       // Core shape unchanged
       expect(prop['@id']).toBe('fandaws:property/abc');
       expect(prop['@type']).toBe('owl:Restriction');
-      expect(prop['owl:onProperty']).toBe('has_color');
+      expect(prop['owl:onProperty']).toBe('fandaws:property/has');
+      expect(prop['owl:someValuesFrom']).toBe('has_color');
       expect(prop['owl:hasValue']).toBe('brown');
       expect(prop['fandaws:attachedTo']).toBe('fandaws:class/dog');
       expect(prop['fandaws:restrictionKind']).toBe('property');
@@ -43,7 +46,9 @@ describe('ERS Type Layer — Backward Compatibility', () => {
       const record = { '@id': 'fandaws:routing/test', '@type': 'fandaws:RegisterRoutingRecord' };
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        propertyConceptIri: 'has_arm',
+        verbIri: 'fandaws:property/has',
+        verbLabel: 'has',
+        objectConceptIri: 'has_arm',
         propertyLabel: 'has_arm',
         attachedTo: 'fandaws:class/human',
         value: 'two',
@@ -62,7 +67,9 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('omits routingFlags when array is empty', () => {
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        propertyConceptIri: 'has_sides',
+        verbIri: 'fandaws:property/has',
+        verbLabel: 'has',
+        objectConceptIri: 'has_sides',
         propertyLabel: 'has_sides',
         attachedTo: 'fandaws:class/triangle',
         value: 'three',
@@ -77,7 +84,9 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('omits epistemicRegister when null', () => {
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        propertyConceptIri: 'has_sides',
+        verbIri: 'fandaws:property/has',
+        verbLabel: 'has',
+        objectConceptIri: 'has_sides',
         propertyLabel: 'has_sides',
         attachedTo: 'fandaws:class/triangle',
         value: 'three',

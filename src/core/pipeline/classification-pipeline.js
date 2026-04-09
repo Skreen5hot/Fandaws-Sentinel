@@ -128,6 +128,7 @@ export function runClassificationPipeline(utterance, context, options = {}) {
     resolvedConceptIri: options.resolvedConceptIri,
     disambiguationAction: options.disambiguationAction,
     bfoCategoryChoice: options.bfoCategoryChoice,
+    reclassificationConsequenceChoice: options.reclassificationConsequenceChoice,
   }, stateAdapter);
 
   if (engineResult.error) {

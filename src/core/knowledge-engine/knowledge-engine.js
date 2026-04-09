@@ -23,6 +23,11 @@ import { createConcept } from '../../types/concept.js';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
 import { resolveConceptByLabel } from './resolve-concept.js';
+import {
+  detectReclassificationCase,
+  computeLostProperties,
+  buildReclassificationConsequencePrompt,
+} from './reclassification-consequences.js';
 
 /**
  * Find the display label for a concept by IRI (linear scan).
@@ -338,15 +343,77 @@ export function processClassification(action, graph, indices, options = {}, adap
       return { ...noOp, mutation };
     }
 
+    // ── Consequence-Aware Reclassification (April 9, 2026 spec) ──
+    //
+    // The user is asking to reclassify an existing subject under an existing
+    // object (Case A). Before any silent mutation, the machine computes the
+    // structural consequences and presents them to the user. The human
+    // decides. (Machine-first, human-validate.)
+    //
+    // Q4: skos:broader is the sole source of truth for "old parent".
+    const currentParentIri = existingSubject['skos:broader'];
+
+    // ── Q5: Already-secondary parent → "Make primary?" prompt ──
+    // If the user is reclassifying to a parent that's already in
+    // fandaws:additionalParents, ask if they want to promote it to primary.
+    const additionalParents = existingSubject['fandaws:additionalParents'] || [];
+    const isExistingSecondary = additionalParents.includes(objectIri);
+    if (
+      isExistingSecondary
+      && options.reclassificationConsequenceChoice !== 'promote_secondary'
+      && reclassificationConfirmed !== 'move'
+      && !options.reclassificationConsequenceChoice
+    ) {
+      return {
+        ...noOp,
+        prompts: [createConversationPrompt({
+          promptType: 'secondaryParentPromotion',
+          text: `"${rawSubject}" is already classified under "${rawObject}" as a secondary parent. Would you like to make it the primary classification?`,
+          options: ['promote_secondary', 'keep_current'],
+          context: {
+            subjectIri,
+            objectIri,
+            subjectLabel: rawSubject,
+            objectLabel: rawObject,
+          },
+        })],
+      };
+    }
+
+    // Handle the user's choice from the consequence prompt (if provided).
+    // These short-circuit the proximity check since the user has already
+    // made an informed decision.
+    if (options.reclassificationConsequenceChoice === 'keep_current') {
+      return noOp;
+    }
+    if (options.reclassificationConsequenceChoice === 'add_as_additional') {
+      // Append objectIri to fandaws:additionalParents on the subject.
+      // skos:broader is unchanged.
+      const newAdditional = [...additionalParents];
+      if (!newAdditional.includes(objectIri)) {
+        newAdditional.push(objectIri);
+      }
+      const mutation = createGraphMutation({
+        modifications: [
+          {
+            '@id': subjectIri,
+            'fandaws:field': 'fandaws:additionalParents',
+            'fandaws:value': newAdditional,
+          },
+        ],
+        reason: `Add "${rawObject}" as an additional parent of "${rawSubject}" (preserves existing classification)`,
+      });
+      return { ...noOp, mutation };
+    }
+    // 'reclassify_anyway' and 'promote_secondary' both fall through to the
+    // standard reclassification mutation builder below.
+
     // Confirmed move — skip proximity check
     if (reclassificationConfirmed === 'move') {
       // fall through to build mutation
     } else if (reclassificationConfirmed === 'cancel') {
       return noOp;
     } else {
-      // Check proximity between current parent and new parent
-      const currentParentIri = existingSubject['skos:broader'];
-
       // Only check proximity if subject already has a parent (reclassification).
       // If broader is null, this is a first-time classification — proceed silently.
       if (currentParentIri != null && !quickProximityCheck(currentParentIri, objectIri, indices)) {
@@ -377,7 +444,40 @@ export function processClassification(action, graph, indices, options = {}, adap
           return { ...noOp, prompts: [prompt] };
         }
       }
-      // Within threshold — fall through to reclassify silently
+      // Within threshold — fall through to consequence check then mutation
+    }
+
+    // Consequence detection: only fires for reclassification (currentParentIri
+    // is set) and only when the user hasn't yet picked a consequence action
+    // (reclassify_anyway or promote_secondary skip this).
+    if (
+      currentParentIri != null
+      && options.reclassificationConsequenceChoice !== 'reclassify_anyway'
+      && options.reclassificationConsequenceChoice !== 'promote_secondary'
+    ) {
+      const caseInfo = detectReclassificationCase(currentParentIri, objectIri, indices.iriToParent);
+      // Strengthening is safe — no consequence prompt.
+      if (caseInfo.case !== 'strengthening') {
+        const lostProperties = computeLostProperties(subjectIri, caseInfo, graph, indices.iriToChildren);
+        if (lostProperties.length > 0) {
+          const prompt = buildReclassificationConsequencePrompt({
+            subjectLabel: rawSubject,
+            oldParentLabel: findLabelForIri(currentParentIri, graph),
+            newParentLabel: findLabelForIri(objectIri, graph),
+            caseInfo,
+            lostProperties,
+            graph,
+            context: {
+              subjectIri,
+              objectIri,
+              subjectLabel: rawSubject,
+              caseType: caseInfo.case,
+              lostPropertyCount: lostProperties.length,
+            },
+          });
+          return { ...noOp, prompts: [prompt] };
+        }
+      }
     }
 
     const mutation = createGraphMutation({

@@ -19,6 +19,7 @@ export function initConverse(container, state) {
   let pendingReclassification = null;
   let pendingQualification = null;
   let pendingBfoCategoryChoice = null;
+  let pendingConsequenceChoice = null;
 
   // Build DOM
   container.innerHTML = `
@@ -216,6 +217,14 @@ export function initConverse(container, state) {
     const options = {};
     if (scopeDecisions.size > 0) options.scopeDecisions = scopeDecisions;
     if (pendingBfoCategoryChoice) options.bfoCategoryChoice = pendingBfoCategoryChoice;
+    if (pendingConsequenceChoice) {
+      options.reclassificationConsequenceChoice = pendingConsequenceChoice;
+      // The consequence prompt fires AFTER the proximity check, so the
+      // proximity is already resolved by the time we re-run with the
+      // user's consequence choice. Pass reclassificationConfirmed='move'
+      // implicitly to skip re-asking proximity.
+      options.reclassificationConfirmed = 'move';
+    }
 
     const result = state.runUtterance(utterance, options);
     const workflow = getWorkflowLabel(result);
@@ -383,6 +392,66 @@ export function initConverse(container, state) {
                 });
               });
             }
+          });
+        });
+      } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'reclassificationConsequence')) {
+        // Consequence-Aware Reclassification — user picks how to handle
+        // inheritance loss when a reclassification would break inherited
+        // properties. Three options: add as additional parent (safest,
+        // first), keep current, reclassify anyway. Per architect Q8 the
+        // safest option is presented first.
+        const cqPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'reclassificationConsequence');
+        const text = cqPrompt['fandaws:text'] || 'Reclassification has consequences.';
+        const opts = cqPrompt['fandaws:options'] || [];
+
+        const btnsHtml = opts.map((opt) => `
+          <button class="wb-bfo-btn" data-cq-action="${escapeHtml(opt.action)}" title="${escapeHtml(opt.hint || '')}">
+            ${escapeHtml(opt.label)}
+            <span class="wb-bfo-btn-hint">${escapeHtml(opt.hint || '')}</span>
+          </button>
+        `).join('');
+
+        // Use <pre> for the text so the multi-line consequence list renders properly
+        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
+          <div style="white-space: pre-wrap;">${escapeHtml(text)}</div>
+          <div class="wb-bfo-buttons">${btnsHtml}</div>
+        `);
+
+        pendingUtterance = utterance;
+        msgDiv.querySelectorAll('.wb-bfo-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const choice = btn.dataset.cqAction;
+            const buttonsDiv = btn.closest('.wb-bfo-buttons');
+            buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${escapeHtml(btn.textContent.trim().split('\n')[0])}</em>`;
+            pendingConsequenceChoice = choice;
+            chatInput.value = pendingUtterance;
+            sendUtterance();
+          });
+        });
+      } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'secondaryParentPromotion')) {
+        // Secondary Parent Promotion — user is reclassifying to a parent
+        // that's already in fandaws:additionalParents. Two options:
+        // promote to primary, or keep as-is.
+        const spPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'secondaryParentPromotion');
+        const text = spPrompt['fandaws:text'] || 'Make this the primary classification?';
+
+        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
+          <div>${escapeHtml(text)}</div>
+          <div class="wb-scope-buttons">
+            <button class="wb-scope-btn" data-sp-action="promote_secondary">Make primary</button>
+            <button class="wb-scope-btn" data-sp-action="keep_current">Keep as-is</button>
+          </div>
+        `);
+
+        pendingUtterance = utterance;
+        msgDiv.querySelectorAll('.wb-scope-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const choice = btn.dataset.spAction;
+            const buttonsDiv = btn.closest('.wb-scope-buttons');
+            buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${escapeHtml(btn.textContent)}</em>`;
+            pendingConsequenceChoice = choice;
+            chatInput.value = pendingUtterance;
+            sendUtterance();
           });
         });
       } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'bfoCategoryDisambiguation')) {
@@ -631,6 +700,7 @@ export function initConverse(container, state) {
       pendingUtterance = null;
       scopeDecisions = new Map();
       pendingBfoCategoryChoice = null;
+      pendingConsequenceChoice = null;
       chatInput.value = '';
     } else {
       // Error
@@ -639,6 +709,7 @@ export function initConverse(container, state) {
       pendingUtterance = null;
       scopeDecisions = new Map();
       pendingBfoCategoryChoice = null;
+      pendingConsequenceChoice = null;
     }
 
     chatInput.focus();

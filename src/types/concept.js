@@ -20,6 +20,7 @@
  * @param {string|null} [params.bfoMapping] - BFO category IRI (entry in rdfs:subClassOf)
  * @param {string[]} [params.altLabel] - Alternative labels (skos:altLabel)
  * @param {string|null} [params.inScheme] - Graph/scheme IRI (skos:inScheme)
+ * @param {string[]} [params.additionalParents] - Secondary parent IRIs added via "Add as additional parent" in the consequence-aware reclassification flow. Internal field — emitted as rdfs:subClassOf in exports but stored separately so the BFO recompute pass doesn't strip them.
  * @returns {object} JSON-LD Concept node
  */
 export function createConcept({
@@ -31,8 +32,9 @@ export function createConcept({
   bfoMapping = null,
   altLabel = [],
   inScheme = null,
+  additionalParents = null,
 }) {
-  return {
+  const node = {
     '@id': id,
     '@type': ['owl:Class', 'skos:Concept'],
     'rdfs:label': label,
@@ -46,6 +48,10 @@ export function createConcept({
     'skos:inScheme': inScheme,
     'rdfs:subClassOf': bfoMapping ? [bfoMapping] : [],
   };
+  if (additionalParents && additionalParents.length > 0) {
+    node['fandaws:additionalParents'] = additionalParents;
+  }
+  return node;
 }
 
 /**

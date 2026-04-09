@@ -290,18 +290,25 @@ export function processClassification(action, graph, indices, options = {}, adap
       const newIri = generateConceptIri(newCanonical, scope);
       const newBfo = inheritBfoCategory(existingObject, newCanonical, { graph, iriToParent: indices.iriToParent });
 
+      // The bare label that triggered the homonym (e.g., "mouse" for both
+      // "mouse (rodent)" and "mouse (input device)") is stored in
+      // skos:altLabel on each homonym sibling. This is semantically correct
+      // — the bare label IS an alternative way to refer to the qualified
+      // concept — and discoverable in displays/exports. (Was previously
+      // skos:hiddenLabel, which is for misspellings/typos that should NOT
+      // be surfaced in displays.)
+      const bareLabel = options.disambiguationAction === 'create_new'
+        ? subjectCanonical
+        : existingSubject['skos:prefLabel'];
+
       const newConcept = createConcept({
         id: newIri,
         label: newQualifiedLabel.charAt(0).toUpperCase() + newQualifiedLabel.slice(1),
         prefLabel: newCanonical,
         broader: objectIri,
         bfoMapping: newBfo,
+        altLabel: [bareLabel],
       });
-      // For Nth homonym (disambiguationAction=create_new), existingSubject has a
-      // qualified prefLabel. Use the bare input canonical instead.
-      newConcept['skos:hiddenLabel'] = options.disambiguationAction === 'create_new'
-        ? subjectCanonical
-        : existingSubject['skos:prefLabel'];
 
       // Build mutation
       const modifications = [];
@@ -310,10 +317,16 @@ export function processClassification(action, graph, indices, options = {}, adap
       // First homonym split: true (default). Nth homonym via "Neither": false.
       if (options.relabelExisting !== false) {
         const existingQualifiedCanonical = simplify(existingQualifiedLabel, simplifyOpts).canonicalLabel;
+        // Append the bare label to the existing concept's altLabel array
+        // (read from snapshot — modifications haven't been applied yet).
+        const existingAltLabels = existingSubject['skos:altLabel'] || [];
+        const newAltLabel = existingAltLabels.includes(existingSubject['skos:prefLabel'])
+          ? existingAltLabels
+          : [...existingAltLabels, existingSubject['skos:prefLabel']];
         modifications.push(
           { '@id': subjectIri, 'fandaws:field': 'skos:prefLabel', 'fandaws:value': existingQualifiedCanonical },
           { '@id': subjectIri, 'fandaws:field': 'rdfs:label', 'fandaws:value': existingQualifiedLabel.charAt(0).toUpperCase() + existingQualifiedLabel.slice(1) },
-          { '@id': subjectIri, 'fandaws:field': 'skos:hiddenLabel', 'fandaws:value': existingSubject['skos:prefLabel'] },
+          { '@id': subjectIri, 'fandaws:field': 'skos:altLabel', 'fandaws:value': newAltLabel },
         );
       }
 

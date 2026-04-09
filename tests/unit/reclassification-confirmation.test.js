@@ -303,16 +303,16 @@ describe('RCL-09: Regression', () => {
 });
 
 // ─────────────────────────────────────────────────────────
-// RCL-10: Concept with existing hiddenLabel preserved on close reclassify
+// RCL-10: Concept with existing altLabel preserved on close reclassify
 // ─────────────────────────────────────────────────────────
 
-describe('RCL-10: hiddenLabel preserved on close reclassify', () => {
-  it('does not strip skos:hiddenLabel when reclassifying within threshold', () => {
+describe('RCL-10: altLabel preserved on close reclassify', () => {
+  it('does not strip skos:altLabel when reclassifying within threshold', () => {
     const root = makeConcept('iri:root', 'Root', 'root');
     const animal = makeConcept('iri:animal', 'Animal', 'animal', 'iri:root');
     const mammal = makeConcept('iri:mammal', 'Mammal', 'mammal', 'iri:animal');
     const cat = makeConcept('iri:cat', 'Cat', 'cat', 'iri:animal', {
-      'skos:hiddenLabel': 'kitty',
+      'skos:altLabel': ['kitty'],
     });
     const concepts = [root, animal, mammal, cat];
     const graph = makeGraph(concepts);
@@ -324,11 +324,11 @@ describe('RCL-10: hiddenLabel preserved on close reclassify', () => {
     expect(result.error).toBe(false);
     expect(result.mutation).not.toBeNull();
     // The mutation is a modification (set broader), not a replacement.
-    // hiddenLabel is on the original concept and won't be touched.
+    // altLabel is on the original concept and won't be touched.
     const mods = result.mutation['fandaws:modifications'];
     expect(mods).toHaveLength(1);
     expect(mods[0]['fandaws:field']).toBe('skos:broader');
-    // No field touching hiddenLabel
-    expect(mods.some((m) => m['fandaws:field'] === 'skos:hiddenLabel')).toBe(false);
+    // No field touching altLabel
+    expect(mods.some((m) => m['fandaws:field'] === 'skos:altLabel')).toBe(false);
   });
 });

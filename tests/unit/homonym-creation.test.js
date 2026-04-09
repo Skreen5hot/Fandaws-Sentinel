@@ -101,7 +101,8 @@ describe('HOM-01: new_concept creates homonym and relabels existing', () => {
     expect(additions[0]['skos:prefLabel']).toBe('mouse (device)');
     expect(additions[0]['rdfs:label']).toBe('Mouse (device)');
     expect(additions[0]['skos:broader']).toBe('iri:input');
-    expect(additions[0]['skos:hiddenLabel']).toBe('mouse'); // bare label
+    // Bare label is now in skos:altLabel (was skos:hiddenLabel)
+    expect(additions[0]['skos:altLabel']).toContain('mouse');
 
     // Existing concept relabeled
     const mods = result.mutation['fandaws:modifications'];
@@ -110,8 +111,8 @@ describe('HOM-01: new_concept creates homonym and relabels existing', () => {
     expect(prefLabelMod['fandaws:value']).toBe('mouse (rodent)');
     const labelMod = mods.find((m) => m['fandaws:field'] === 'rdfs:label');
     expect(labelMod['fandaws:value']).toBe('Mouse (rodent)');
-    const hiddenMod = mods.find((m) => m['fandaws:field'] === 'skos:hiddenLabel');
-    expect(hiddenMod['fandaws:value']).toBe('mouse');
+    const altMod = mods.find((m) => m['fandaws:field'] === 'skos:altLabel');
+    expect(altMod['fandaws:value']).toContain('mouse');
   });
 });
 
@@ -160,11 +161,11 @@ describe('HOM-03: New concept IRI distinct from existing', () => {
 });
 
 // ─────────────────────────────────────────────────────────
-// HOM-04: Both concepts have skos:hiddenLabel set to bare label
+// HOM-04: Both concepts have skos:altLabel set to bare label
 // ─────────────────────────────────────────────────────────
 
-describe('HOM-04: Both concepts get hiddenLabel = bare label', () => {
-  it('sets hiddenLabel on both new and existing concepts', () => {
+describe('HOM-04: Both concepts get altLabel = bare label', () => {
+  it('sets altLabel on both new and existing concepts', () => {
     const { graph, indices } = makeMouseTopology();
     const action = makeAction('Mouse', 'Input device');
     const result = processClassification(action, graph, indices, {
@@ -173,15 +174,15 @@ describe('HOM-04: Both concepts get hiddenLabel = bare label', () => {
       qualifiers: { existing: 'mouse (rodent)', new: 'mouse (device)' },
     });
 
-    // New concept has hiddenLabel
-    expect(result.mutation['fandaws:additions'][0]['skos:hiddenLabel']).toBe('mouse');
+    // New concept has altLabel containing the bare label
+    expect(result.mutation['fandaws:additions'][0]['skos:altLabel']).toContain('mouse');
 
-    // Existing concept gets hiddenLabel via modification
-    const hiddenMod = result.mutation['fandaws:modifications'].find(
-      (m) => m['fandaws:field'] === 'skos:hiddenLabel',
+    // Existing concept gets altLabel via modification
+    const altMod = result.mutation['fandaws:modifications'].find(
+      (m) => m['fandaws:field'] === 'skos:altLabel',
     );
-    expect(hiddenMod).toBeDefined();
-    expect(hiddenMod['fandaws:value']).toBe('mouse');
+    expect(altMod).toBeDefined();
+    expect(altMod['fandaws:value']).toContain('mouse');
   });
 });
 
@@ -224,10 +225,10 @@ describe('HOM-05: Index has two qualified entries, bare label gone', () => {
 });
 
 // ─────────────────────────────────────────────────────────
-// HOM-06: hiddenLabelToIri maps bare label → both IRIs
+// HOM-06: altLabelToIri maps bare label → both IRIs
 // ─────────────────────────────────────────────────────────
 
-describe('HOM-06: hiddenLabelToIri maps bare label to both IRIs', () => {
+describe('HOM-06: altLabelToIri maps bare label to both IRIs', () => {
   let adapter;
 
   beforeEach(() => {
@@ -249,17 +250,17 @@ describe('HOM-06: hiddenLabelToIri maps bare label to both IRIs', () => {
     adapter.applyMutation(GRAPH_ID, result.mutation);
 
     const updatedIndices = adapter.getIndices(GRAPH_ID);
-    const hiddenIris = updatedIndices.hiddenLabelToIri.get('mouse') || [];
-    expect(hiddenIris).toHaveLength(2);
-    expect(hiddenIris).toContain('iri:mouse'); // existing
+    const altIris = updatedIndices.altLabelToIri.get('mouse') || [];
+    expect(altIris).toHaveLength(2);
+    expect(altIris).toContain('iri:mouse'); // existing
   });
 });
 
 // ─────────────────────────────────────────────────────────
-// HOM-07: findConceptsByHiddenLabel returns both concepts
+// HOM-07: findConceptsByAltLabel returns both concepts
 // ─────────────────────────────────────────────────────────
 
-describe('HOM-07: findConceptsByHiddenLabel returns both', () => {
+describe('HOM-07: findConceptsByAltLabel returns both', () => {
   let adapter;
 
   beforeEach(() => {
@@ -280,7 +281,7 @@ describe('HOM-07: findConceptsByHiddenLabel returns both', () => {
 
     adapter.applyMutation(GRAPH_ID, result.mutation);
 
-    const matches = adapter.findConceptsByHiddenLabel('mouse', GRAPH_ID);
+    const matches = adapter.findConceptsByAltLabel('mouse', GRAPH_ID);
     expect(matches).toHaveLength(2);
 
     const labels = matches.map((c) => c['skos:prefLabel']);
@@ -313,11 +314,11 @@ describe('HOM-08: Custom qualifier for new concept', () => {
 });
 
 // ─────────────────────────────────────────────────────────
-// HOM-09: Serialize → deserialize → hidden label index rebuilt
+// HOM-09: Serialize → deserialize → alt label index rebuilt
 // ─────────────────────────────────────────────────────────
 
-describe('HOM-09: Serialization preserves hidden label index', () => {
-  it('rebuilds hiddenLabelToIri after deserialize', () => {
+describe('HOM-09: Serialization preserves alt label index', () => {
+  it('rebuilds altLabelToIri after deserialize', () => {
     const adapter = new InMemoryStateAdapter();
     const { concepts } = makeMouseTopology();
     adapter.saveGraph(GRAPH_ID, makeGraph(concepts));
@@ -337,11 +338,11 @@ describe('HOM-09: Serialization preserves hidden label index', () => {
     const restored = InMemoryStateAdapter.deserialize(snapshot);
 
     const restoredIndices = restored.getIndices(GRAPH_ID);
-    const hiddenIris = restoredIndices.hiddenLabelToIri.get('mouse') || [];
-    expect(hiddenIris).toHaveLength(2);
+    const altIris = restoredIndices.altLabelToIri.get('mouse') || [];
+    expect(altIris).toHaveLength(2);
 
     // Method also works
-    const matches = restored.findConceptsByHiddenLabel('mouse', GRAPH_ID);
+    const matches = restored.findConceptsByAltLabel('mouse', GRAPH_ID);
     expect(matches).toHaveLength(2);
   });
 });
@@ -360,7 +361,7 @@ describe('HOM-10: Properties preserved after relabeling', () => {
       qualifiers: { existing: 'mouse (rodent)', new: 'mouse (device)' },
     });
 
-    // Modifications only touch prefLabel, label, hiddenLabel — not subClassOf
+    // Modifications only touch prefLabel, label, altLabel — not subClassOf
     const mods = result.mutation['fandaws:modifications'];
     const fields = mods.map((m) => m['fandaws:field']);
     expect(fields).not.toContain('rdfs:subClassOf');

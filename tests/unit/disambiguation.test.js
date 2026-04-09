@@ -51,19 +51,19 @@ function buildIndices(concepts) {
 
 /**
  * Build a graph with two "mouse" homonyms already created.
- * Both have qualified prefLabels and skos:hiddenLabel = "mouse".
+ * Both have qualified prefLabels and "mouse" in their skos:altLabel array.
  */
 function makeHomonymGraph() {
   const root = makeConcept('iri:root', 'Root', 'root');
   const biology = makeConcept('iri:biology', 'Biology', 'biology', 'iri:root');
   const rodent = makeConcept('iri:rodent', 'Rodent', 'rodent', 'iri:biology');
   const mouseRodent = makeConcept('iri:mouse-rodent', 'Mouse (rodent)', 'mouse (rodent)', 'iri:rodent', {
-    'skos:hiddenLabel': 'mouse',
+    'skos:altLabel': ['mouse'],
   });
   const technology = makeConcept('iri:tech', 'Technology', 'technology', 'iri:root');
   const device = makeConcept('iri:device', 'Device', 'device', 'iri:tech');
   const mouseDevice = makeConcept('iri:mouse-device', 'Mouse (device)', 'mouse (device)', 'iri:device', {
-    'skos:hiddenLabel': 'mouse',
+    'skos:altLabel': ['mouse'],
   });
   const cat = makeConcept('iri:cat', 'Cat', 'cat', 'iri:biology');
   const concepts = [root, biology, rodent, mouseRodent, technology, device, mouseDevice, cat];
@@ -221,7 +221,7 @@ describe('DIS-06: Single hidden-label match auto-resolves', () => {
     const biology = makeConcept('iri:biology', 'Biology', 'biology', 'iri:root');
     const rodent = makeConcept('iri:rodent', 'Rodent', 'rodent', 'iri:biology');
     const mouseRodent = makeConcept('iri:mouse-rodent', 'Mouse (rodent)', 'mouse (rodent)', 'iri:rodent', {
-      'skos:hiddenLabel': 'mouse',
+      'skos:altLabel': ['mouse'],
     });
     const mammal = makeConcept('iri:mammal', 'Mammal', 'mammal', 'iri:biology');
     const concepts = [root, biology, rodent, mouseRodent, mammal];
@@ -306,13 +306,13 @@ describe('DIS-09: Three homonyms in classification', () => {
     const tech = makeConcept('iri:tech', 'Technology', 'technology', 'iri:root');
     const sports = makeConcept('iri:sports', 'Sports', 'sports', 'iri:root');
     const m1 = makeConcept('iri:m1', 'Mouse (rodent)', 'mouse (rodent)', 'iri:bio', {
-      'skos:hiddenLabel': 'mouse',
+      'skos:altLabel': ['mouse'],
     });
     const m2 = makeConcept('iri:m2', 'Mouse (device)', 'mouse (device)', 'iri:tech', {
-      'skos:hiddenLabel': 'mouse',
+      'skos:altLabel': ['mouse'],
     });
     const m3 = makeConcept('iri:m3', 'Mouse (quiet person)', 'mouse (quiet person)', 'iri:sports', {
-      'skos:hiddenLabel': 'mouse',
+      'skos:altLabel': ['mouse'],
     });
     const cat = makeConcept('iri:cat', 'Cat', 'cat', 'iri:bio');
     const concepts = [root, bio, tech, sports, m1, m2, m3, cat];

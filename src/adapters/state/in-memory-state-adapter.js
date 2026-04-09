@@ -766,7 +766,7 @@ export class InMemoryStateAdapter extends StateAdapter {
       iriToChildren: new Map(),
       iriToProperties: new Map(),
       iriToReverseRelationships: new Map(),
-      hiddenLabelToIri: new Map(),
+      altLabelToIri: new Map(),
       // bfo IRI (both prefixed and full URI form) → ingested concept Fandaws IRI.
       // Used by inheritBfoCategory to resolve BFO category markers to Fandaws
       // IRIs without a separate adapter call.
@@ -831,12 +831,16 @@ export class InMemoryStateAdapter extends StateAdapter {
         }
       }
 
-      // Index 6: hidden label → IRI array (for homonym disambiguation)
-      const hiddenLabel = concept['skos:hiddenLabel'];
-      if (hiddenLabel) {
-        const existing = idx.hiddenLabelToIri.get(hiddenLabel) || [];
+      // Index 6: alt label → IRI array (for homonym disambiguation).
+      // Each concept may have multiple skos:altLabel entries; index every one.
+      // This is the lookup path that finds homonyms when a user types a bare
+      // label like "mouse" against concepts qualified as "mouse (rodent)" and
+      // "mouse (input device)" — both carry "mouse" in their skos:altLabel array.
+      const altLabels = concept['skos:altLabel'] || [];
+      for (const altLabel of altLabels) {
+        const existing = idx.altLabelToIri.get(altLabel) || [];
         existing.push(iri);
-        idx.hiddenLabelToIri.set(hiddenLabel, existing);
+        idx.altLabelToIri.set(altLabel, existing);
       }
 
       // Index 7: BFO equivalence — for ingested concepts, map their source
@@ -869,21 +873,33 @@ export class InMemoryStateAdapter extends StateAdapter {
   }
 
   /**
-   * Find concepts with a given skos:hiddenLabel (bare label before qualification).
+   * Find concepts with a given skos:altLabel (typically the bare label
+   * before homonym qualification — e.g. "mouse" finds both "mouse (rodent)"
+   * and "mouse (input device)" because each carries "mouse" in its
+   * skos:altLabel array).
    *
-   * @param {string} label - Bare label to search for
+   * @param {string} label - Alternative label to search for
    * @param {string} graphId - Graph IRI
    * @returns {object[]} Matching concept nodes
    */
-  findConceptsByHiddenLabel(label, graphId) {
+  findConceptsByAltLabel(label, graphId) {
     const idx = this._indices.get(graphId);
     if (!idx) return [];
-    const iris = idx.hiddenLabelToIri.get(label) || [];
+    const iris = idx.altLabelToIri.get(label) || [];
     const graph = this._graphs.get(graphId);
     if (!graph) return [];
     return iris.map((iri) =>
       (graph['fandaws:concepts'] || []).find((c) => c['@id'] === iri),
     ).filter(Boolean);
+  }
+
+  /**
+   * @deprecated Use findConceptsByAltLabel — homonym original labels are
+   * now stored in skos:altLabel (semantically correct) instead of
+   * skos:hiddenLabel. Kept for one release for backward compatibility.
+   */
+  findConceptsByHiddenLabel(label, graphId) {
+    return this.findConceptsByAltLabel(label, graphId);
   }
 
   // ─────────────────────────────────────────────────────────
@@ -999,12 +1015,12 @@ export class InMemoryStateAdapter extends StateAdapter {
       }
     }
 
-    // Check Index 6: hiddenLabel → IRIs
-    for (const [label, iris] of idx.hiddenLabelToIri) {
+    // Check Index 6: altLabel → IRIs
+    for (const [label, iris] of idx.altLabelToIri) {
       for (const iri of iris) {
         if (!conceptIris.has(iri)) {
           ghosts.push({
-            index: 'hiddenLabelToIri',
+            index: 'altLabelToIri',
             key: label,
             ghostIri: iri,
             reason: 'Concept IRI not present in graph',

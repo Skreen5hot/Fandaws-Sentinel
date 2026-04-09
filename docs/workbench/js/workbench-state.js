@@ -139,12 +139,12 @@ export class WorkbenchStateManager {
   }
 
   /**
-   * Find concepts with a given skos:hiddenLabel (for homonym advisory).
+   * Find concepts with a given skos:altLabel (for homonym advisory).
    * @param {string} label
    * @returns {object[]}
    */
-  findConceptsByHiddenLabel(label) {
-    return this._adapter.findConceptsByHiddenLabel(label, this._graphId);
+  findConceptsByAltLabel(label) {
+    return this._adapter.findConceptsByAltLabel(label, this._graphId);
   }
 
   /**

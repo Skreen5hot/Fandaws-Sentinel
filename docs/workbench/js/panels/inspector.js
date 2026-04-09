@@ -97,11 +97,19 @@ export function initInspector(container, state) {
     if (prefLabel && prefLabel !== label.toLowerCase()) {
       html += `<div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">prefLabel: ${escapeHtml(prefLabel)}</div>`;
     }
-    // Homonym advisory (if concept has skos:hiddenLabel)
-    const hiddenLabel = concept['skos:hiddenLabel'];
-    if (hiddenLabel) {
-      const siblings = state.findConceptsByHiddenLabel(hiddenLabel)
-        .filter((c) => c['@id'] !== iri);
+    // Homonym advisory + altLabel display
+    const altLabels = Array.isArray(concept['skos:altLabel'])
+      ? concept['skos:altLabel']
+      : [];
+    if (altLabels.length > 0) {
+      // Find any sibling concepts that share an altLabel (homonyms)
+      const siblingMap = new Map();
+      for (const al of altLabels) {
+        const matches = state.findConceptsByAltLabel(al)
+          .filter((c) => c['@id'] !== iri);
+        for (const m of matches) siblingMap.set(m['@id'], m);
+      }
+      const siblings = [...siblingMap.values()];
       if (siblings.length > 0) {
         html += `<div style="font-size: 0.78rem; color: var(--accent-primary); margin-top: 4px;">`;
         html += `Homonym of: `;
@@ -110,7 +118,7 @@ export function initInspector(container, state) {
         ).join(', ');
         html += `</div>`;
       }
-      html += `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">hiddenLabel: ${escapeHtml(hiddenLabel)}</div>`;
+      html += `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">altLabels: ${altLabels.map(escapeHtml).join(', ')}</div>`;
     }
     html += `</div>`;
 

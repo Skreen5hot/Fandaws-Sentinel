@@ -207,6 +207,10 @@ describe('CRC-05: reclassify_subtree moves concept, descendants follow', () => {
 
     const animal = getConcept(adapter, 'animal');
     expect(animal['skos:broader']).toBe('iri:matEntity');
+    // rdfs:subClassOf parent entry synced
+    const animalSubClassOf = animal['rdfs:subClassOf'].filter((e) => typeof e === 'string');
+    expect(animalSubClassOf).toContain('iri:matEntity');
+    expect(animalSubClassOf).not.toContain('iri:organism');
     // Descendants follow — their skos:broader is unchanged (still points to parent)
     const mammal = getConcept(adapter, 'mammal');
     expect(mammal['skos:broader']).toBe('iri:animal');
@@ -260,10 +264,18 @@ describe('CRC-07: reclassify_only re-homes direct children to old parent', () =>
     // Animal moved to material entity
     const animal = getConcept(adapter, 'animal');
     expect(animal['skos:broader']).toBe('iri:matEntity');
+    // rdfs:subClassOf parent entry synced
+    const animalStrings = animal['rdfs:subClassOf'].filter((e) => typeof e === 'string');
+    expect(animalStrings).toContain('iri:matEntity');
+    expect(animalStrings).not.toContain('iri:organism');
 
     // Mammal (direct child) re-homed to organism (animal's old parent)
     const mammal = getConcept(adapter, 'mammal');
     expect(mammal['skos:broader']).toBe('iri:organism');
+    // rdfs:subClassOf parent entry synced
+    const mammalStrings = mammal['rdfs:subClassOf'].filter((e) => typeof e === 'string');
+    expect(mammalStrings).toContain('iri:organism');
+    expect(mammalStrings).not.toContain('iri:animal');
 
     // Dog (grandchild) unchanged — follows mammal
     const dog = getConcept(adapter, 'dog');

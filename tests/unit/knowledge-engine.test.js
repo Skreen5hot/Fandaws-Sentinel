@@ -235,11 +235,12 @@ describe('Case A: Both exist, not linked', () => {
     expect(result.error).toBe(false);
 
     const mods = result.mutation['fandaws:modifications'];
-    expect(mods).toHaveLength(1);
+    expect(mods).toHaveLength(2);
     expect(mods[0]['@id']).toBe('fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog');
     expect(mods[0]['fandaws:field']).toBe('skos:broader');
     expect(mods[0]['fandaws:value']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
     expect(mods[0]['skos:broader']).toBe('fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal');
+    expect(mods[1]['fandaws:field']).toBe('rdfs:subClassOf');
   });
 });
 

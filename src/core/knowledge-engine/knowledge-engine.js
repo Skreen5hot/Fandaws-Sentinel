@@ -30,6 +30,53 @@ import {
 } from './reclassification-consequences.js';
 
 /**
+ * Build the reclassification modifications for a single concept: rewrite
+ * skos:broader AND swap the corresponding non-restriction string entry in
+ * rdfs:subClassOf.  BFO marker entries are NOT touched — the recompute
+ * pass handles those separately.
+ *
+ * @param {object} concept - Concept node
+ * @param {string} oldParentIri - Current skos:broader value
+ * @param {string} newParentIri - Target parent IRI
+ * @returns {object[]} One or two modification entries for a GraphMutation
+ */
+function buildReclassifyModifications(concept, oldParentIri, newParentIri) {
+  const modifications = [
+    {
+      '@id': concept['@id'],
+      'fandaws:field': 'skos:broader',
+      'fandaws:value': newParentIri,
+      'skos:broader': newParentIri, // dual format for validator cycle check
+    },
+  ];
+
+  // Swap the parent's string entry in rdfs:subClassOf.
+  // Walk the array, replace the first bare-string match for oldParentIri
+  // with newParentIri.  Restrictions and BFO markers are untouched.
+  const oldSubClassOf = concept['rdfs:subClassOf'] || [];
+  let replaced = false;
+  const newSubClassOf = oldSubClassOf.map((entry) => {
+    if (!replaced && typeof entry === 'string' && entry === oldParentIri) {
+      replaced = true;
+      return newParentIri;
+    }
+    return entry;
+  });
+  // If the old parent wasn't present as a string entry (edge case: root
+  // concepts, or data that was never synced), append the new parent.
+  if (!replaced && newParentIri) {
+    newSubClassOf.push(newParentIri);
+  }
+  modifications.push({
+    '@id': concept['@id'],
+    'fandaws:field': 'rdfs:subClassOf',
+    'fandaws:value': newSubClassOf,
+  });
+
+  return modifications;
+}
+
+/**
  * Find the display label for a concept by IRI (linear scan).
  * No IRI→label index exists in the current architecture.
  *
@@ -361,25 +408,25 @@ export function processClassification(action, graph, indices, options = {}, adap
     }
     if (options.reclassificationConsequenceChoice === 'reclassify_only') {
       // Re-home direct children to old parent, then move concept alone.
-      // BFO marker recompute fires automatically after applyMutation.
-      const directChildren = indices.iriToChildren
+      // Both skos:broader AND rdfs:subClassOf are updated for each affected
+      // concept. BFO marker recompute fires automatically after applyMutation.
+      const directChildIris = indices.iriToChildren
         ? [...(indices.iriToChildren.get(subjectIri) || [])]
         : [];
+      const concepts = graph['fandaws:concepts'] || [];
+      const conceptById = new Map(concepts.map((c) => [c['@id'], c]));
       const modifications = [];
-      for (const childIri of directChildren) {
-        modifications.push({
-          '@id': childIri,
-          'fandaws:field': 'skos:broader',
-          'fandaws:value': currentParentIri,
-          'skos:broader': currentParentIri,
-        });
+      for (const childIri of directChildIris) {
+        const childConcept = conceptById.get(childIri);
+        if (childConcept) {
+          modifications.push(
+            ...buildReclassifyModifications(childConcept, subjectIri, currentParentIri),
+          );
+        }
       }
-      modifications.push({
-        '@id': subjectIri,
-        'fandaws:field': 'skos:broader',
-        'fandaws:value': objectIri,
-        'skos:broader': objectIri,
-      });
+      modifications.push(
+        ...buildReclassifyModifications(existingSubject, currentParentIri, objectIri),
+      );
       const mutation = createGraphMutation({
         modifications,
         reason: `Reclassify "${rawSubject}" under "${rawObject}" (children re-homed to "${findLabelForIri(currentParentIri, graph)}")`,
@@ -460,15 +507,9 @@ export function processClassification(action, graph, indices, options = {}, adap
       }
     }
 
+    const reclassifyMods = buildReclassifyModifications(existingSubject, currentParentIri, objectIri);
     const mutation = createGraphMutation({
-      modifications: [
-        {
-          '@id': subjectIri,
-          'fandaws:field': 'skos:broader',
-          'fandaws:value': objectIri,
-          'skos:broader': objectIri, // dual format for validator cycle check
-        },
-      ],
+      modifications: reclassifyMods,
       reason: `Classify "${rawSubject}" as "${rawObject}"`,
     });
     return { ...noOp, mutation };

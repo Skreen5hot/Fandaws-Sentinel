@@ -110,10 +110,12 @@ describe('RCL-01: Close proximity reclassify (silent)', () => {
     expect(result.error).toBe(false);
     expect(result.prompts).toHaveLength(0);
     expect(result.mutation).not.toBeNull();
-    // Should modify dog's broader to cat
+    // Should modify dog's broader + rdfs:subClassOf to cat
     const mods = result.mutation['fandaws:modifications'];
-    expect(mods).toHaveLength(1);
+    expect(mods).toHaveLength(2);
+    expect(mods[0]['fandaws:field']).toBe('skos:broader');
     expect(mods[0]['fandaws:value']).toBe('iri:cat');
+    expect(mods[1]['fandaws:field']).toBe('rdfs:subClassOf');
   });
 });
 
@@ -178,8 +180,9 @@ describe('RCL-04: Confirmed move applies mutation', () => {
     expect(result.prompts).toHaveLength(0);
     expect(result.mutation).not.toBeNull();
     const mods = result.mutation['fandaws:modifications'];
-    expect(mods).toHaveLength(1);
+    expect(mods).toHaveLength(2);
     expect(mods[0]['@id']).toBe('iri:mouse');
+    expect(mods[0]['fandaws:field']).toBe('skos:broader');
     expect(mods[0]['fandaws:value']).toBe('iri:input');
   });
 });
@@ -326,8 +329,9 @@ describe('RCL-10: altLabel preserved on close reclassify', () => {
     // The mutation is a modification (set broader), not a replacement.
     // altLabel is on the original concept and won't be touched.
     const mods = result.mutation['fandaws:modifications'];
-    expect(mods).toHaveLength(1);
+    expect(mods).toHaveLength(2);
     expect(mods[0]['fandaws:field']).toBe('skos:broader');
+    expect(mods[1]['fandaws:field']).toBe('rdfs:subClassOf');
     // No field touching altLabel
     expect(mods.some((m) => m['fandaws:field'] === 'skos:altLabel')).toBe(false);
   });

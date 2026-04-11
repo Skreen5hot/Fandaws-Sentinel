@@ -397,9 +397,9 @@ export function initConverse(container, state) {
       } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'reclassificationConsequence')) {
         // Consequence-Aware Reclassification — user picks how to handle
         // inheritance loss when a reclassification would break inherited
-        // properties. Three options: add as additional parent (safest,
-        // first), keep current, reclassify anyway. Per architect Q8 the
-        // safest option is presented first.
+        // properties. Three options (safest-first): keep current,
+        // reclassify and move subtree, reclassify this concept only
+        // (children re-homed to old parent). No polyhierarchy.
         const cqPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'reclassificationConsequence');
         const text = cqPrompt['fandaws:text'] || 'Reclassification has consequences.';
         const opts = cqPrompt['fandaws:options'] || [];
@@ -423,32 +423,6 @@ export function initConverse(container, state) {
             const choice = btn.dataset.cqAction;
             const buttonsDiv = btn.closest('.wb-bfo-buttons');
             buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${escapeHtml(btn.textContent.trim().split('\n')[0])}</em>`;
-            pendingConsequenceChoice = choice;
-            chatInput.value = pendingUtterance;
-            sendUtterance();
-          });
-        });
-      } else if (result.prompts.find((p) => p['fandaws:promptType'] === 'secondaryParentPromotion')) {
-        // Secondary Parent Promotion — user is reclassifying to a parent
-        // that's already in fandaws:additionalParents. Two options:
-        // promote to primary, or keep as-is.
-        const spPrompt = result.prompts.find((p) => p['fandaws:promptType'] === 'secondaryParentPromotion');
-        const text = spPrompt['fandaws:text'] || 'Make this the primary classification?';
-
-        const msgDiv = appendMessage('wb-chat-msg--scope-prompt', `
-          <div>${escapeHtml(text)}</div>
-          <div class="wb-scope-buttons">
-            <button class="wb-scope-btn" data-sp-action="promote_secondary">Make primary</button>
-            <button class="wb-scope-btn" data-sp-action="keep_current">Keep as-is</button>
-          </div>
-        `);
-
-        pendingUtterance = utterance;
-        msgDiv.querySelectorAll('.wb-scope-btn').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const choice = btn.dataset.spAction;
-            const buttonsDiv = btn.closest('.wb-scope-buttons');
-            buttonsDiv.innerHTML = `<em style="color: var(--text-muted);">${escapeHtml(btn.textContent)}</em>`;
             pendingConsequenceChoice = choice;
             chatInput.value = pendingUtterance;
             sendUtterance();

@@ -276,10 +276,11 @@ export function formatLostPropertyLine(lost, subjectLabel, graph) {
 /**
  * Build a `reclassificationConsequence` prompt for the user.
  *
- * Options ordered safest-first per architect Q8:
- *   1. add_as_additional — preserves everything, captures the new assertion
- *   2. keep_current      — no change
- *   3. reclassify_anyway — destructive, loses inherited properties
+ * BFO is single-inheritance: every class has exactly one skos:broader
+ * parent. No polyhierarchy. Options ordered safest-first:
+ *   1. keep_current     — no change (safe default)
+ *   2. reclassify_subtree — move concept + all descendants
+ *   3. reclassify_only  — re-home children to old parent, move concept alone
  *
  * @param {object} params
  * @param {string} params.subjectLabel - Human-readable label of the concept
@@ -322,19 +323,19 @@ export function buildReclassificationConsequencePrompt({
     'fandaws:text': text,
     'fandaws:options': [
       {
-        action: 'add_as_additional',
-        label: 'Add as additional parent',
-        hint: `${subjectLabel} stays under ${oldParentLabel} AND gains ${newParentLabel} as a secondary classification (polyhierarchy). Nothing is lost.`,
-      },
-      {
         action: 'keep_current',
         label: 'Keep current classification',
         hint: `${subjectLabel} stays under ${oldParentLabel}. The new assertion is discarded.`,
       },
       {
-        action: 'reclassify_anyway',
-        label: 'Reclassify anyway',
-        hint: `${subjectLabel} moves to ${newParentLabel}. Inherited properties from the old branch will be lost.`,
+        action: 'reclassify_subtree',
+        label: 'Reclassify and move subtree',
+        hint: `${subjectLabel} and all descendants move to ${newParentLabel}. Inherited properties from the old branch will be lost.`,
+      },
+      {
+        action: 'reclassify_only',
+        label: `Reclassify ${subjectLabel} only`,
+        hint: `${subjectLabel} moves to ${newParentLabel}. Children are re-homed to ${oldParentLabel} and keep their inherited properties.`,
       },
     ],
     'fandaws:context': context,

@@ -185,18 +185,6 @@ function extractConceptTriples(concept, expanded) {
     triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(iri)));
   }
 
-  // fandaws:additionalParents → emitted as rdfs:subClassOf triples.
-  // Internal field used by the consequence-aware reclassification flow's
-  // "Add as additional parent" option. Stored separately from
-  // rdfs:subClassOf so the BFO recompute pass doesn't strip them.
-  // See reclassification-consequences.js + architect Q7.
-  const additionalParents = concept['fandaws:additionalParents'] || [];
-  for (const ap of [...additionalParents].sort()) {
-    if (ap === broader) continue;
-    if (bareIris.includes(ap)) continue; // already emitted via the bareIris loop
-    triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), expandIri(ap)));
-  }
-
   // rdfs:subClassOf — restrictions (properties and relationships)
   const restrictions = subClassOf.filter(isRestrictionNode);
   const sortedRestrictions = [...restrictions].sort((a, b) =>

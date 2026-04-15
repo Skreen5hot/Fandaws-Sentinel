@@ -1,0 +1,483 @@
+[
+  {
+    "id": "cls-basic-classification",
+    "note": "Basic classification — concept created under existing parent",
+    "utterance": "An organism is a material entity",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": "fandaws:class/aae5bf2e-7df0-5375-9ebc-c6cbd16946ea/independent-continuant", "isImported": true, "equivalentClass": ["bfo:BFO_0000040"] }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCount": 2,
+      "newConcept": {
+        "label": "organism",
+        "skosBroader": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity",
+        "rdfsSubClassOfContains": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity",
+        "rdfsSubClassOfExcludes": "bfo:BFO_0000040"
+      }
+    }
+  },
+  {
+    "id": "cls-self-reference-rejected",
+    "note": "Self-classification produces no mutation — 'table is table' is a no-op",
+    "utterance": "A table is a table",
+    "setup": [
+      { "id": "fandaws:class/aaa11111-1111-1111-1111-111111111111/table", "canonicalLabel": "table", "displayLabel": "table", "parent": null }
+    ],
+    "expect": {
+      "success": false,
+      "errorReasonContains": "self-classification",
+      "note": "Engine rejects self-reference as a classification error rather than a silent no-op. This is correct semantics — 'X is a X' is a null utterance."
+    }
+  },
+  {
+    "id": "cls-already-classified-noop",
+    "note": "Classifying a concept under its current parent produces no mutation",
+    "utterance": "A dog is a mammal",
+    "setup": [
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" }
+    ],
+    "expect": {
+      "success": true,
+      "mutationCount": 0,
+      "note": "Dog is already classified under mammal"
+    }
+  },
+  {
+    "id": "cls-imported-concept-guard",
+    "note": "Attempting to add a property to an imported BFO concept triggers the read-only guard",
+    "utterance": "Material entity has mass",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": "fandaws:class/aae5bf2e-7df0-5375-9ebc-c6cbd16946ea/independent-continuant", "isImported": true, "equivalentClass": ["bfo:BFO_0000040"] }
+    ],
+    "expect": {
+      "success": false,
+      "guardFired": true,
+      "guardType": "importedConceptGuard",
+      "mutationCount": 0,
+      "note": "Material entity is imported — read-only guard blocks property addition"
+    }
+  },
+  {
+    "id": "cls-imported-reclassify-guard",
+    "note": "Attempting to reclassify an imported BFO concept triggers the read-only guard",
+    "utterance": "Entity is a thing",
+    "setup": [
+      { "id": "fandaws:class/fc34d97d-8eac-5f32-95d0-b712a0dfb9ea/entity", "canonicalLabel": "entity", "displayLabel": "entity", "parent": null, "isImported": true, "equivalentClass": ["bfo:BFO_0000001"] }
+    ],
+    "expect": {
+      "success": false,
+      "guardFired": true,
+      "guardType": "importedConceptGuard",
+      "mutationCount": 0
+    }
+  },
+  {
+    "id": "reclass-weakening-with-inheritance-loss",
+    "note": "Reclassifying to an ancestor triggers consequence prompt showing lost inherited properties",
+    "utterance": "An animal is a material entity",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": "fandaws:class/aae5bf2e-7df0-5375-9ebc-c6cbd16946ea/independent-continuant", "isImported": true },
+      { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "restrictions": [{ "verb": "has", "object": "fandaws:class/4e2092c6-d2fd-50f7-8559-48909570435a/dna" }] },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism" },
+      { "id": "fandaws:class/4e2092c6-d2fd-50f7-8559-48909570435a/dna", "canonicalLabel": "dna", "displayLabel": "dna", "parent": null }
+    ],
+    "expect": {
+      "promptFired": false,
+      "mutationCount": 0,
+      "note": "Pure weakening (new parent is a transitive ancestor of old parent) is intentionally short-circuited by the transitive redundancy check at the top of Case A. Animal is already transitively a material entity via organism, so the assertion is a no-op. The consequence prompt is reserved for lateral and disconnected cases where structural change actually occurs."
+    }
+  },
+  {
+    "id": "reclass-lateral-with-inheritance-loss",
+    "note": "Reclassifying to a sibling branch triggers consequence prompt — lateral move",
+    "utterance": "A dog is a process",
+    "proximityConfirmed": "move",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": null, "isImported": true },
+      { "id": "fandaws:class/d1d1e615-4d5e-50ed-8547-7a5874a99526/process", "canonicalLabel": "process", "displayLabel": "process", "parent": null, "isImported": true },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "restrictions": [{ "verb": "has", "object": "fandaws:class/d53b304b-7798-5b5b-83dc-1fc0d9f569df/hair" }] },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/d53b304b-7798-5b5b-83dc-1fc0d9f569df/hair", "canonicalLabel": "hair", "displayLabel": "hair", "parent": null }
+    ],
+    "expect": {
+      "promptFired": true,
+      "promptType": "reclassificationConsequence",
+      "consequenceCase": "disconnected",
+      "lostProperties": [
+        { "ancestor": "mammal", "property": "has hair", "affectedDescendants": 0 }
+      ],
+      "options": ["keep_current", "reclassify_subtree", "reclassify_only"],
+      "note": "material-entity and process are both top-level imported concepts with no common ancestor in this fixture — the case is 'disconnected', not 'lateral'. Same consequence prompt + option set."
+    }
+  },
+  {
+    "id": "reclass-strengthening-no-prompt",
+    "note": "Reclassifying to a descendant (strengthening) does not trigger consequence prompt — properties are gained, not lost",
+    "utterance": "A dog is a mammal",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": null, "isImported": true },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" }
+    ],
+    "expect": {
+      "promptFired": false,
+      "success": true,
+      "newParent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal",
+      "note": "Strengthening — dog moves from material-entity to mammal (more specific). No inheritance loss."
+    }
+  },
+  {
+    "id": "reclass-subtree-moves-children",
+    "note": "User selects 'reclassify_subtree' — concept and all descendants move to new parent",
+    "utterance": "An animal is an object",
+    "userChoice": "reclassify_subtree",
+    "setup": [
+      { "id": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object", "canonicalLabel": "object", "displayLabel": "object", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "isImported": true },
+      { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" }
+    ],
+    "expect": {
+      "success": true,
+      "reclassified": "animal",
+      "newParent": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object",
+      "childrenFollowed": true,
+      "note": "Mammal and dog follow animal to the object branch via unchanged skos:broader chain"
+    }
+  },
+  {
+    "id": "reclass-only-rehomes-children",
+    "note": "User selects 'reclassify_only' — concept moves, direct children re-homed to old parent",
+    "utterance": "An animal is an object",
+    "userChoice": "reclassify_only",
+    "setup": [
+      { "id": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object", "canonicalLabel": "object", "displayLabel": "object", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "isImported": true },
+      { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism" },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" }
+    ],
+    "expect": {
+      "success": true,
+      "reclassified": "animal",
+      "newParent": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object",
+      "rehomedChildren": [
+        { "concept": "mammal", "newParent": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism" }
+      ],
+      "note": "Mammal re-homed to organism (animal's old parent). Dog stays under mammal via unchanged skos:broader."
+    }
+  },
+  {
+    "id": "reclass-keep-current-no-mutation",
+    "note": "User selects 'keep_current' — no mutation occurs",
+    "utterance": "An animal is a material entity",
+    "userChoice": "keep_current",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": null, "isImported": true },
+      { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism" }
+    ],
+    "expect": {
+      "success": true,
+      "mutationCount": 0,
+      "note": "User chose to keep current classification. No change."
+    }
+  },
+  {
+    "id": "reclass-intermediary-insertion",
+    "note": "User inserts an intermediary concept between parent and child — child re-homed under new intermediary (A057 scenario)",
+    "utterance": "A mammal is a mammalia",
+    "setup": [
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCreated": "mammalia",
+      "reclassified": "mammal",
+      "newParent": "mammalia",
+      "note": "Mammalia created under animal. Mammal reclassified under mammalia. Dog follows mammal via unchanged skos:broader."
+    }
+  },
+  {
+    "id": "reclass-cascading-child-repoint",
+    "note": "High-level reclassification with multiple children repointing (A058 scenario)",
+    "utterance": "A mammal is a mammalia",
+    "userChoice": "reclassify_subtree",
+    "setup": [
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null },
+      { "id": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal", "canonicalLabel": "mammal", "displayLabel": "mammal", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" },
+      { "id": "fandaws:class/bbb11111-1111-1111-1111-111111111111/canine", "canonicalLabel": "canine", "displayLabel": "canine", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/ccc11111-1111-1111-1111-111111111111/feline", "canonicalLabel": "feline", "displayLabel": "feline", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/ddd11111-1111-1111-1111-111111111111/rodent", "canonicalLabel": "rodent", "displayLabel": "rodent", "parent": "fandaws:class/321f3e84-d57c-5fb1-9be6-6c9ad741e313/mammal" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/bbb11111-1111-1111-1111-111111111111/canine" }
+    ],
+    "expect": {
+      "success": true,
+      "conceptCreated": "mammalia",
+      "reclassified": "mammal",
+      "newParent": "mammalia",
+      "childrenFollowed": true,
+      "descendantCount": 4,
+      "note": "Canine, feline, rodent all follow mammal to mammalia branch. Dog follows canine. Full subtree moves."
+    }
+  },
+  {
+    "id": "prop-has-verb-tier1",
+    "note": "Unresolved verb mints Tier 1 placeholder property — no BFO match for 'has'",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "canonicalLabel": "fur", "displayLabel": "fur", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "restrictionCreated": true,
+      "owlOnProperty": "fandaws:property/has",
+      "owlSomeValuesFrom": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur",
+      "note": "Tier 1 Human Frame — bare objectProperty, no BFO semantics. Parent removed from setup to avoid phantom-IRI scope-narrowing prompt."
+    }
+  },
+  {
+    "id": "prop-verb-bfo-match-tier2",
+    "note": "Verb matches BFO property label — resolves to BFO IRI (Tier 2A)",
+    "utterance": "A quality inheres in an organism",
+    "setup": [
+      { "id": "fandaws:class/8507d680-fe21-5742-a603-75723e801723/quality", "canonicalLabel": "quality", "displayLabel": "quality", "parent": null, "isImported": true },
+      { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "restrictionCreated": true,
+      "owlOnPropertyIsBFO": true,
+      "note": "Tier 2A — 'inheres in' matched BFO property index. owl:onProperty is a bfo: IRI."
+    }
+  },
+  {
+    "id": "prop-object-must-exist",
+    "note": "Property assertion requires object concept to exist — creates it if not present",
+    "utterance": "A dog has a tail",
+    "setup": [
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null }
+    ],
+    "expect": {
+      "promptFired": true,
+      "promptType": "objectResolution",
+      "note": "When the property's object concept does not exist, the property workflow emits an objectResolution prompt rather than silently creating the object. The human decides whether to create it."
+    }
+  },
+  {
+    "id": "prop-no-equivalentproperty-on-verb",
+    "note": "Verb property declaration carries no owl:equivalentProperty assertion",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "canonicalLabel": "fur", "displayLabel": "fur", "parent": null }
+    ],
+    "expect": {
+      "success": true,
+      "exportCheck": {
+        "propertyIRI": "fandaws:property/has",
+        "hasEquivalentProperty": false,
+        "note": "Critical — owl:equivalentProperty owl:topObjectProperty must never appear"
+      }
+    }
+  },
+  {
+    "id": "homonym-same-label-different-branch",
+    "note": "Two concepts with identical labels coexist in different branches (foot as body part vs foot as unit)",
+    "utterance": "A foot is a linear unit",
+    "setup": [
+      { "id": "fandaws:class/eee11111-1111-1111-1111-111111111111/foot", "canonicalLabel": "foot", "displayLabel": "foot", "parent": "fandaws:class/fff11111-1111-1111-1111-111111111111/extremity" },
+      { "id": "fandaws:class/fff11111-1111-1111-1111-111111111111/extremity", "canonicalLabel": "extremity", "displayLabel": "extremity", "parent": null },
+      { "id": "fandaws:class/ggg11111-1111-1111-1111-111111111111/linear-unit", "canonicalLabel": "linear unit", "displayLabel": "linear unit", "parent": null }
+    ],
+    "expect": {
+      "promptFired": true,
+      "promptType": "reclassificationConfirmation",
+      "note": "Saying 'A foot is a linear unit' when foot already exists fires the reclassification-confirmation prompt first (same concept being moved, or a different one?). Homonym creation happens only if the user selects 'new_concept', which is a second-turn flow. This test captures the first-turn prompt."
+    }
+  },
+  {
+    "id": "homonym-disambiguation-prompt",
+    "note": "Bare label matches multiple concepts — disambiguation prompt fires",
+    "utterance": "A toe is a foot",
+    "setup": [
+      { "id": "fandaws:class/eee11111-1111-1111-1111-111111111111/foot", "canonicalLabel": "foot (body part)", "displayLabel": "foot (body part)", "parent": "fandaws:class/fff11111-1111-1111-1111-111111111111/extremity", "hiddenLabel": "foot" },
+      { "id": "fandaws:class/hhh11111-1111-1111-1111-111111111111/foot", "canonicalLabel": "foot (unit)", "displayLabel": "foot (unit)", "parent": "fandaws:class/ggg11111-1111-1111-1111-111111111111/linear-unit", "hiddenLabel": "foot" },
+      { "id": "fandaws:class/fff11111-1111-1111-1111-111111111111/extremity", "canonicalLabel": "extremity", "displayLabel": "extremity", "parent": null },
+      { "id": "fandaws:class/ggg11111-1111-1111-1111-111111111111/linear-unit", "canonicalLabel": "linear unit", "displayLabel": "linear unit", "parent": null }
+    ],
+    "expect": {
+      "promptFired": true,
+      "promptType": "homonymDisambiguation",
+      "candidates": ["foot (body part)", "foot (unit)"],
+      "note": "Bare 'foot' matches two hidden labels — user must pick"
+    }
+  },
+  {
+    "id": "bfo-marker-most-specific",
+    "note": "BFO marker is the most-specific ingested ancestor, not Entity root",
+    "utterance": "A dog is an animal",
+    "setup": [
+      { "id": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object", "canonicalLabel": "object", "displayLabel": "object", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "isImported": true, "equivalentClass": ["bfo:BFO_0000030"] },
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": "fandaws:class/aae5bf2e-7df0-5375-9ebc-c6cbd16946ea/independent-continuant", "isImported": true, "equivalentClass": ["bfo:BFO_0000040"] },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object" }
+    ],
+    "expect": {
+      "success": true,
+      "newConcept": {
+        "label": "dog",
+        "bfoMarker": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object",
+        "bfoMarkerIsNot": "fandaws:class/fc34d97d-8eac-5f32-95d0-b712a0dfb9ea/entity"
+      },
+      "note": "BFO marker is object (most-specific ingested ancestor), not entity (root)"
+    }
+  },
+  {
+    "id": "bfo-marker-recomputed-on-reclassify",
+    "note": "BFO marker recomputed after reclassification — reflects new ancestor chain",
+    "utterance": "An animal is a process",
+    "userChoice": "reclassify_subtree",
+    "setup": [
+      { "id": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object", "canonicalLabel": "object", "displayLabel": "object", "parent": null, "isImported": true, "equivalentClass": ["bfo:BFO_0000030"] },
+      { "id": "fandaws:class/d1d1e615-4d5e-50ed-8547-7a5874a99526/process", "canonicalLabel": "process", "displayLabel": "process", "parent": null, "isImported": true, "equivalentClass": ["bfo:BFO_0000015"] },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/c06f1b5f-eaa8-5f9f-b1b1-9ecd720588a1/object" },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal" }
+    ],
+    "expect": {
+      "success": true,
+      "afterReclassification": {
+        "animal": { "bfoMarker": "fandaws:class/d1d1e615-4d5e-50ed-8547-7a5874a99526/process" },
+        "dog": { "bfoMarker": "fandaws:class/d1d1e615-4d5e-50ed-8547-7a5874a99526/process" }
+      },
+      "note": "Both animal and dog now have process as their BFO marker — recomputed from new ancestor chain"
+    }
+  },
+  {
+    "id": "export-self-contained-subclass-tree",
+    "note": "Export has zero raw bfo: IRIs in rdfs:subClassOf on any user concept",
+    "utterance": null,
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": "fandaws:class/aae5bf2e-7df0-5375-9ebc-c6cbd16946ea/independent-continuant", "isImported": true, "equivalentClass": ["bfo:BFO_0000040"] },
+      { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" },
+      { "id": "fandaws:class/d6123e71-7602-59f2-aaad-b86d549898c3/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism" }
+    ],
+    "expect": {
+      "exportCheck": {
+        "noPhantomBfoIrisInSubClassOf": true,
+        "owlImportsPresent": true,
+        "owlOntologyTypingPresent": true,
+        "internalMetadataStripped": ["fandaws:isImported", "fandaws:source", "fandaws:ingestSource", "fandaws:locallyModified"],
+        "equivalentClassOnImportedConcepts": true
+      }
+    }
+  },
+  {
+    "id": "export-equivalentclass-is-array",
+    "note": "owl:equivalentClass survives serialize/deserialize as an array, not bare string",
+    "utterance": null,
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": null, "isImported": true, "equivalentClass": ["bfo:BFO_0000040"] }
+    ],
+    "expect": {
+      "roundtripCheck": {
+        "field": "owl:equivalentClass",
+        "isArray": true,
+        "value": ["bfo:BFO_0000040"],
+        "note": "After serialize → deserialize, equivalentClass must remain an array per Ontology Ingestion v1.4 Q3"
+      }
+    }
+  },
+  {
+    "id": "export-verb-property-declared",
+    "note": "Verb property appears as owl:ObjectProperty declaration in export — no equivalence assertions",
+    "utterance": "A dog has fur",
+    "setup": [
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": null },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "canonicalLabel": "fur", "displayLabel": "fur", "parent": null }
+    ],
+    "expect": {
+      "exportCheck": {
+        "verbPropertyDeclared": "fandaws:property/has",
+        "isOwlObjectProperty": true,
+        "hasNoDomain": true,
+        "hasNoRange": true,
+        "hasNoEquivalentProperty": true,
+        "bfoPropertiesNotDeclared": true,
+        "note": "Tier 1 — bare declaration. Reasoner can traverse, cannot infer."
+      }
+    }
+  },
+  {
+    "id": "consistency-reclassify-creates-disjointness",
+    "note": "Reclassifying a concept causes an existing restriction to connect disjoint BFO types — conversational consistency check fires (Path A)",
+    "utterance": "Fur is a process",
+    "setup": [
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": null, "isImported": true },
+      { "id": "fandaws:class/d1d1e615-4d5e-50ed-8547-7a5874a99526/process", "canonicalLabel": "process", "displayLabel": "process", "parent": null, "isImported": true },
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "restrictions": [{ "verb": "has", "object": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur" }] },
+      { "id": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur", "canonicalLabel": "fur", "displayLabel": "fur", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" }
+    ],
+    "expect": {
+      "promptFired": true,
+      "promptType": "conversationalConsistencyCheck",
+      "checkPath": "A",
+      "invalidRestrictions": [
+        { "subject": "dog", "relation": "has", "object": "fur", "subjectBFO": "MaterialEntity", "objectNewBFO": "Process", "disjoint": true }
+      ],
+      "options": ["confirm_reclassification", "cancel", "review_each"],
+      "note": "Dog (MaterialEntity) has fur. If fur becomes Process, the restriction connects disjoint BFO types."
+    }
+  },
+  {
+    "id": "consistency-new-assertion-disjoint",
+    "note": "New assertion connects entities with disjoint BFO types — conversational consistency check fires (Path B)",
+    "utterance": "A dog participates in a quality",
+    "setup": [
+      { "id": "fandaws:class/4d6c7722-3b8d-554b-9506-9db415d16cda/dog", "canonicalLabel": "dog", "displayLabel": "dog", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity" },
+      { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": null, "isImported": true },
+      { "id": "fandaws:class/8507d680-fe21-5742-a603-75723e801723/quality", "canonicalLabel": "quality", "displayLabel": "quality", "parent": null, "isImported": true }
+    ],
+    "expect": {
+      "promptFired": true,
+      "promptType": "conversationalConsistencyCheck",
+      "checkPath": "B",
+      "note": "Path B — 'participates in' has domain/range expectations. Check fires if the assertion violates BFO type constraints."
+    }
+  },
+  {
+    "id": "ingestion-hash-shortcircuit",
+    "note": "Re-ingestion of unchanged BFO file short-circuits via hash match — no mutations",
+    "utterance": null,
+    "setup": [
+      { "id": "fandaws:class/fc34d97d-8eac-5f32-95d0-b712a0dfb9ea/entity", "canonicalLabel": "entity", "displayLabel": "entity", "parent": null, "isImported": true, "equivalentClass": ["bfo:BFO_0000001"], "ingestSource": { "contentHash": "sha256:abc123" } }
+    ],
+    "trigger": "ensureBfoIngestion with identical bundled file",
+    "expect": {
+      "success": true,
+      "mutationCount": 0,
+      "shortCircuited": true,
+      "note": "contentHash matches — pipeline skipped entirely"
+    }
+  },
+  {
+    "id": "ingestion-existing-graph-trigger",
+    "note": "Opening a pre-ingestion graph triggers BFO ingestion on first load",
+    "utterance": null,
+    "setup": [
+      { "id": "fandaws:class/aaa22222-2222-2222-2222-222222222222/animal", "canonicalLabel": "animal", "displayLabel": "animal", "parent": null, "rdfsSubClassOf": ["bfo:BFO_0000040"] }
+    ],
+    "trigger": "loadGraph on pre-ingestion graph",
+    "expect": {
+      "success": true,
+      "bfoIngested": true,
+      "phantomMigrated": true,
+      "note": "bfo:BFO_0000040 in rdfs:subClassOf rewritten to fandaws:class/.../material-entity after ingestion + migration"
+    }
+  }
+]

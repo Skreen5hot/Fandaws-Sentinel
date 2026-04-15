@@ -17,7 +17,7 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('produces output with no register fields present', () => {
       const prop = createProperty({
         id: 'fandaws:property/abc',
-        verbIri: 'fandaws:property/has',
+        verbIri: 'fandaws:objectProperty/has',
         verbLabel: 'has',
         objectConceptIri: 'has_color',
         propertyLabel: 'has_color',
@@ -33,7 +33,7 @@ describe('ERS Type Layer — Backward Compatibility', () => {
       // Core shape unchanged
       expect(prop['@id']).toBe('fandaws:property/abc');
       expect(prop['@type']).toBe('owl:Restriction');
-      expect(prop['owl:onProperty']).toBe('fandaws:property/has');
+      expect(prop['owl:onProperty']).toBe('fandaws:objectProperty/has');
       expect(prop['owl:someValuesFrom']).toBe('has_color');
       expect(prop['owl:hasValue']).toBe('brown');
       expect(prop['fandaws:attachedTo']).toBe('fandaws:class/dog');
@@ -46,7 +46,7 @@ describe('ERS Type Layer — Backward Compatibility', () => {
       const record = { '@id': 'fandaws:routing/test', '@type': 'fandaws:RegisterRoutingRecord' };
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        verbIri: 'fandaws:property/has',
+        verbIri: 'fandaws:objectProperty/has',
         verbLabel: 'has',
         objectConceptIri: 'has_arm',
         propertyLabel: 'has_arm',
@@ -67,7 +67,7 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('omits routingFlags when array is empty', () => {
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        verbIri: 'fandaws:property/has',
+        verbIri: 'fandaws:objectProperty/has',
         verbLabel: 'has',
         objectConceptIri: 'has_sides',
         propertyLabel: 'has_sides',
@@ -84,7 +84,7 @@ describe('ERS Type Layer — Backward Compatibility', () => {
     it('omits epistemicRegister when null', () => {
       const prop = createProperty({
         id: 'fandaws:property/xyz',
-        verbIri: 'fandaws:property/has',
+        verbIri: 'fandaws:objectProperty/has',
         verbLabel: 'has',
         objectConceptIri: 'has_sides',
         propertyLabel: 'has_sides',

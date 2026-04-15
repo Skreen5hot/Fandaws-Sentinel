@@ -31,7 +31,7 @@ function buildTestGraph() {
   });
   const prop = createProperty({
     id: 'fandaws:restriction/dog/fur',
-    verbIri: 'fandaws:property/has',
+    verbIri: 'fandaws:objectProperty/has',
     verbLabel: 'has',
     objectConceptIri: 'fandaws:property/fur',
     propertyLabel: 'fur',

@@ -5,7 +5,7 @@ import { createProperty } from '../../../src/types/property.js';
 // owl:someValuesFrom stores the noun (object concept IRI). See
 // Ontology Ingestion Spec v1.4 §11.2.
 
-const HAS = { verbIri: 'fandaws:property/has', verbLabel: 'has' };
+const HAS = { verbIri: 'fandaws:objectProperty/has', verbLabel: 'has' };
 
 describe('createProperty', () => {
   it('produces a node with @type owl:Restriction', () => {
@@ -30,7 +30,7 @@ describe('createProperty', () => {
       value: null,
     });
     expect(prop['@id']).toBe('fandaws:property/ef11b461-246b-5b66-9e06-67383dea04b2/animal-has-eyes');
-    expect(prop['owl:onProperty']).toBe('fandaws:property/has');
+    expect(prop['owl:onProperty']).toBe('fandaws:objectProperty/has');
     expect(prop['owl:someValuesFrom']).toBe('fandaws:class/00000000-0000-0000-0000-000000000001/eyes');
     expect(prop['fandaws:verbLabel']).toBe('has');
     expect(prop['fandaws:propertyLabel']).toBe('eyes');

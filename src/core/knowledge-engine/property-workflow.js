@@ -21,7 +21,7 @@ import { createProperty } from '../../types/property.js';
 // Tier 1 "Human Frame" verb IRI for the implicit "has" of "X has Y".
 // See architect-to-dev-communication-2026-04-07.md §3 (Progressive Formalization)
 // and Ontology Ingestion Spec v1.4 §6.5. Aligned to fandaws:property/ prefix.
-const LOCAL_HAS_VERB_IRI = 'fandaws:property/has';
+const LOCAL_HAS_VERB_IRI = 'fandaws:objectProperty/has';
 const LOCAL_HAS_VERB_LABEL = 'has';
 import { createGraphMutation } from '../../types/graph-mutation.js';
 import { createConversationPrompt } from '../../types/conversation-prompt.js';
@@ -313,7 +313,7 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
   // The verb in "X has Y" is the implicit "has". Look it up in the ingested
   // object-property index by label. If a BFO/CCO property uses "has" as its
   // label, owl:onProperty points at that IRI directly. Otherwise the
-  // restriction carries the local fandaws:property/has placeholder (Tier 1
+  // restriction carries the local fandaws:objectProperty/has placeholder (Tier 1
   // Human Frame — see architect-to-dev §3).
   let verbIri = LOCAL_HAS_VERB_IRI;
   if (adapter && typeof adapter.getIngestedPropertyIndex === 'function') {

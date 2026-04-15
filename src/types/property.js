@@ -6,7 +6,7 @@
  * unless overridden.
  *
  * Restriction Structural Correction v1.1 (Ontology Ingestion Spec v1.4 §11.2):
- *   - owl:onProperty stores the VERB IRI (e.g., fandaws:property/has, or a
+ *   - owl:onProperty stores the VERB IRI (e.g., fandaws:objectProperty/has, or a
  *     resolved BFO object property like bfo:BFO_0000052).
  *   - owl:someValuesFrom stores the OBJECT concept IRI (the noun, e.g., the
  *     class IRI for "fur").

@@ -237,7 +237,7 @@ describe('processProperty — root concept', () => {
     const additions = result.mutation['fandaws:additions'];
     expect(additions).toHaveLength(1);
     expect(additions[0]['@type']).toBe('owl:Restriction');
-    expect(additions[0]['owl:onProperty']).toBe('fandaws:property/has');
+    expect(additions[0]['owl:onProperty']).toBe('fandaws:objectProperty/has');
     expect(additions[0]['owl:someValuesFrom']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell');
     expect(additions[0]['fandaws:verbLabel']).toBe('has');
     expect(additions[0]['fandaws:propertyLabel']).toBe('cell');
@@ -348,7 +348,7 @@ describe('processProperty — mutation shape', () => {
     const result = processProperty(action, graph, indices);
     expect(result.mutation).not.toBeNull();
     const restriction = result.mutation['fandaws:additions'][0];
-    expect(restriction['owl:onProperty']).toBe('fandaws:property/has');
+    expect(restriction['owl:onProperty']).toBe('fandaws:objectProperty/has');
     expect(restriction['owl:someValuesFrom']).toBe('fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur');
     expect(restriction['fandaws:verbLabel']).toBe('has');
     expect(restriction['fandaws:propertyLabel']).toBe('fur');

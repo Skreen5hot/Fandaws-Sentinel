@@ -148,7 +148,7 @@
         "steps": [
           "User asserts a property: 'engine has part piston' (where 'engine' and 'piston' are pre-existing concepts)."
         ],
-        "expected_result": "System resolves the relationship. owl:onProperty = bfo:BFO_0000110 (not fandaws:property/has-part)."
+        "expected_result": "System resolves the relationship. owl:onProperty = bfo:BFO_0000110 (not fandaws:objectProperty/has-part)."
       },
       {
         "test_case_id": "TC-014",

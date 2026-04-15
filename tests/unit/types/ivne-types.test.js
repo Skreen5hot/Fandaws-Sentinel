@@ -205,7 +205,7 @@ describe('createReductionManifest', () => {
 describe('createCardinalityConstraint', () => {
   it('produces a node with @type fandaws:CardinalityConstraint', () => {
     const cc = createCardinalityConstraint({
-      property: 'fandaws:property/has-part',
+      property: 'fandaws:objectProperty/has-part',
       constrainedClass: 'fandaws:class/body',
       minCardinality: 1,
     });

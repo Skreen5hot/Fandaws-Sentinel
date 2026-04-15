@@ -205,7 +205,7 @@ function extractConceptTriples(concept, expanded) {
 
     if (kind === 'property') {
       // Restriction Structural Correction v1.1 (Ontology Ingestion Spec v1.4 §11.2):
-      //   owl:onProperty stores the verb IRI (typically fandaws:property/has,
+      //   owl:onProperty stores the verb IRI (typically fandaws:objectProperty/has,
       //   or a BFO/CCO object-property IRI when verb resolution matched).
       //   owl:someValuesFrom stores the noun (the object concept IRI).
       // Both are emitted directly — no translation, no inference.
@@ -221,7 +221,7 @@ function extractConceptTriples(concept, expanded) {
 
       if (isLegacyClassInOnProperty) {
         // Legacy shape — synthesize corrected triples on the fly.
-        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:property/has')));
+        triples.push(tripleUri(rIri, expandIri('owl:onProperty'), expandIri('fandaws:objectProperty/has')));
         triples.push(tripleUri(rIri, expandIri('owl:someValuesFrom'), expandIri(prop)));
       } else {
         if (prop) {
@@ -313,11 +313,11 @@ function emitVerbPropertyDeclarations(concepts) {
       // New shape: owl:onProperty IS the verb IRI.
       // Legacy shape: owl:onProperty holds the noun's class IRI and there is
       // no owl:someValuesFrom — in that case the export-time fallback synthesizes
-      // a `fandaws:property/has` declaration, so we add it here.
+      // a `fandaws:objectProperty/has` declaration, so we add it here.
       let verbIri;
       let verbLabel;
       if (typeof onProperty === 'string' && onProperty.startsWith('fandaws:class/') && !someValues) {
-        verbIri = 'fandaws:property/has';
+        verbIri = 'fandaws:objectProperty/has';
         verbLabel = 'has';
       } else if (typeof onProperty === 'string') {
         verbIri = onProperty;
@@ -327,11 +327,11 @@ function emitVerbPropertyDeclarations(concepts) {
       }
 
       // Only declare local verb IRIs. BFO/CCO/etc. are defined elsewhere.
-      if (!verbIri.startsWith('fandaws:property/')) continue;
+      if (!verbIri.startsWith('fandaws:objectProperty/')) continue;
 
       // Derive a fallback label from the IRI tail if none was stored.
       if (!verbLabel) {
-        const tail = verbIri.slice('fandaws:property/'.length);
+        const tail = verbIri.slice('fandaws:objectProperty/'.length);
         verbLabel = tail.replace(/-/g, ' ');
       }
 

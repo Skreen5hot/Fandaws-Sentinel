@@ -239,7 +239,7 @@
     "expect": {
       "success": true,
       "restrictionCreated": true,
-      "owlOnProperty": "fandaws:property/has",
+      "owlOnProperty": "fandaws:objectProperty/has",
       "owlSomeValuesFrom": "fandaws:class/ab397d07-2a1c-5b3f-9672-8aaaebde07da/fur",
       "note": "Tier 1 Human Frame — bare objectProperty, no BFO semantics. Parent removed from setup to avoid phantom-IRI scope-narrowing prompt."
     }
@@ -283,7 +283,7 @@
     "expect": {
       "success": true,
       "exportCheck": {
-        "propertyIRI": "fandaws:property/has",
+        "propertyIRI": "fandaws:objectProperty/has",
         "hasEquivalentProperty": false,
         "note": "Critical — owl:equivalentProperty owl:topObjectProperty must never appear"
       }
@@ -405,7 +405,7 @@
     ],
     "expect": {
       "exportCheck": {
-        "verbPropertyDeclared": "fandaws:property/has",
+        "verbPropertyDeclared": "fandaws:objectProperty/has",
         "isOwlObjectProperty": true,
         "hasNoDomain": true,
         "hasNoRange": true,

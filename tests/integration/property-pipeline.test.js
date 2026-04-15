@@ -87,7 +87,7 @@ describe('runPropertyPipeline', () => {
       (e) => e['fandaws:restrictionKind'] === 'property',
     );
     expect(props).toHaveLength(1);
-    expect(props[0]['owl:onProperty']).toBe('fandaws:property/has');
+    expect(props[0]['owl:onProperty']).toBe('fandaws:objectProperty/has');
     expect(props[0]['owl:someValuesFrom']).toBe('fandaws:class/ee4a893c-e26b-5753-bf66-91cc5fa3c1c3/cell');
     expect(props[0]['fandaws:verbLabel']).toBe('has');
     expect(props[0]['fandaws:propertyLabel']).toBe('cell');

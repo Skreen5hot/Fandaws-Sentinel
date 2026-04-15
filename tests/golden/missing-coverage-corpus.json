@@ -25,9 +25,8 @@
       { "id": "fandaws:class/aaa11111-1111-1111-1111-111111111111/table", "canonicalLabel": "table", "displayLabel": "table", "parent": null }
     ],
     "expect": {
-      "success": false,
-      "errorReasonContains": "self-classification",
-      "note": "Engine rejects self-reference as a classification error rather than a silent no-op. This is correct semantics — 'X is a X' is a null utterance."
+      "mutationCount": 0,
+      "note": "Self-reference is a silent no-op — machine-first, human-validate. The assertion is trivially true, no structural change possible."
     }
   },
   {
@@ -77,6 +76,7 @@
     "id": "reclass-weakening-with-inheritance-loss",
     "note": "Reclassifying to an ancestor triggers consequence prompt showing lost inherited properties",
     "utterance": "An animal is a material entity",
+    "proximityConfirmed": "move",
     "setup": [
       { "id": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "canonicalLabel": "material entity", "displayLabel": "material entity", "parent": "fandaws:class/aae5bf2e-7df0-5375-9ebc-c6cbd16946ea/independent-continuant", "isImported": true },
       { "id": "fandaws:class/ad2127e8-6cf4-5830-a222-1799a126cc9d/organism", "canonicalLabel": "organism", "displayLabel": "organism", "parent": "fandaws:class/cfaad382-310c-53c5-abe3-5018e21baf6f/material-entity", "restrictions": [{ "verb": "has", "object": "fandaws:class/4e2092c6-d2fd-50f7-8559-48909570435a/dna" }] },
@@ -84,9 +84,11 @@
       { "id": "fandaws:class/4e2092c6-d2fd-50f7-8559-48909570435a/dna", "canonicalLabel": "dna", "displayLabel": "dna", "parent": null }
     ],
     "expect": {
-      "promptFired": false,
-      "mutationCount": 0,
-      "note": "Pure weakening (new parent is a transitive ancestor of old parent) is intentionally short-circuited by the transitive redundancy check at the top of Case A. Animal is already transitively a material entity via organism, so the assertion is a no-op. The consequence prompt is reserved for lateral and disconnected cases where structural change actually occurs."
+      "promptFired": true,
+      "promptType": "reclassificationConsequence",
+      "consequenceCase": "weakening",
+      "options": ["keep_current", "reclassify_subtree", "reclassify_only"],
+      "note": "Pure weakening (new parent is a transitive ancestor of old parent) fires the consequence prompt. Moving animal from organism to material-entity loses inheritance from organism (has DNA). The machine presents this; the human decides."
     }
   },
   {

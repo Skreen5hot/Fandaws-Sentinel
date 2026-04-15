@@ -116,10 +116,9 @@
     "utterance": "A dog is a dog",
     "setup": [],
     "expect": {
-      "success": false,
-      "errorContains": "self-classification"
+      "mutationNull": true
     },
-    "note": "Self-classification rejected"
+    "note": "Self-classification is a silent no-op (machine-first, human-validate — the assertion is trivially true)"
   },
   {
     "id": "cls-deep-chain",

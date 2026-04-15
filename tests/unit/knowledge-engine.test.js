@@ -114,24 +114,24 @@ describe('Input validation', () => {
 // ─────────────────────────────────────────────────────────
 
 describe('Self-classification', () => {
-  it('rejects "dog is a dog"', () => {
+  it('treats "dog is a dog" as a silent no-op', () => {
     const result = processClassification(
       makeAction('dog', 'dog'),
       makeGraph(),
       EMPTY_INDICES,
     );
-    expect(result.error).toBe(true);
-    expect(result.errorReason).toBe('self-classification');
+    expect(result.error).toBe(false);
+    expect(result.mutation).toBeNull();
   });
 
-  it('rejects case-insensitive self-classification', () => {
+  it('treats case-insensitive self-classification as a silent no-op', () => {
     const result = processClassification(
       makeAction('DOG', 'dog'),
       makeGraph(),
       EMPTY_INDICES,
     );
-    expect(result.error).toBe(true);
-    expect(result.errorReason).toBe('self-classification');
+    expect(result.error).toBe(false);
+    expect(result.mutation).toBeNull();
   });
 });
 

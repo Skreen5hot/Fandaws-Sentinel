@@ -175,8 +175,13 @@ export function processClassification(action, graph, indices, options = {}, adap
   const objectCanonical = objectSimplified.canonicalLabel;
 
   // ── 3. Self-classification check ──
+  //
+  // "A table is a table" is trivially true — no structural change possible.
+  // Treat as a silent no-op (machine-first, human-validate) rather than an
+  // engine error so the user is not shown an error for a well-formed
+  // (if pointless) utterance.
   if (subjectCanonical === objectCanonical) {
-    return { ...noOp, error: true, errorReason: 'self-classification' };
+    return noOp;
   }
 
   // ── 4. Lookup existing concepts ──
@@ -297,22 +302,17 @@ export function processClassification(action, graph, indices, options = {}, adap
     return { ...noOp, prompts: [prompt] };
   }
 
-  // ── 6. Re-assertion idempotency + transitive redundancy ──
+  // ── 6. Re-assertion idempotency ──
+  //
+  // Exact-match idempotency only: the user is literally re-typing what is
+  // already in skos:broader.  Transitive redundancy ("dog is an animal" when
+  // dog's broader is mammal which is under animal) is NOT idempotent — it
+  // is a reclassification request (weakening) that should flow through to
+  // the Case A consequence detection, which will compute the inheritance
+  // loss and prompt the user.  Short-circuiting on transitive redundancy
+  // would make the consequence prompt unreachable for every weakening case.
   if (existingSubject && existingSubject['skos:broader'] === objectIri) {
-    return noOp; // already classified — no-op
-  }
-  // Transitive check: if objectIri is already an ancestor of subject,
-  // the assertion is transitively true and should be a no-op.
-  // e.g., "dog is an animal" when dog→mammal→animal already exists.
-  if (existingSubject && existingObject) {
-    let ancestor = existingSubject['skos:broader'];
-    const visited = new Set([subjectIri]);
-    while (ancestor != null) {
-      if (ancestor === objectIri) return noOp; // transitively redundant
-      if (visited.has(ancestor)) break; // cycle guard
-      visited.add(ancestor);
-      ancestor = indices.iriToParent.get(ancestor) ?? null;
-    }
+    return noOp; // already classified — exact-match no-op
   }
 
   // ── 7. Circular check (both exist) ──

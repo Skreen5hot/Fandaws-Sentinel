@@ -122,11 +122,10 @@ describe('Classification Pipeline', () => {
     expect(result.errorReason).toContain('parse-error');
   });
 
-  it('rejects self-classification', () => {
+  it('treats self-classification as a silent no-op', () => {
     const result = runClassificationPipeline('A dog is a dog', context);
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(true);
-    expect(result.errorReason).toContain('self-classification');
+    expect(result.error).toBe(false);
+    expect(result.mutation).toBeNull();
   });
 
   it('rejects circular classification', () => {

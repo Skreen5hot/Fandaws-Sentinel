@@ -283,8 +283,8 @@
     ]
   },
   {
-    "id": "conv-transitive-redundancy-noop",
-    "note": "Transitive redundancy: 'dog is an animal' when dog→mammal→animal is a no-op",
+    "id": "conv-weakening-reclassifies",
+    "note": "Weakening: 'dog is an animal' when dog→mammal→animal reclassifies dog directly under animal. No inherited properties to lose in this fixture, so the consequence prompt does not fire and the reclassification proceeds. Per the consequence-aware spec, transitive redundancy is NOT idempotency — it is a weakening request.",
     "turns": [
       {
         "utterance": "An animal is an organism",
@@ -307,12 +307,11 @@
       },
       {
         "utterance": "A dog is an animal",
-        "options": {},
+        "options": { "reclassificationConfirmed": "move" },
         "expect": {
           "success": true,
-          "mutationNull": true,
           "conceptCount": 4,
-          "concepts": { "dog": { "parent": "mammal" } }
+          "concepts": { "dog": { "parent": "animal" } }
         }
       }
     ]

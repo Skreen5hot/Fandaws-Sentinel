@@ -498,6 +498,8 @@ export function processClassification(action, graph, indices, options = {}, adap
               subjectIri,
               objectIri,
               subjectLabel: rawSubject,
+              oldParentLabel: findLabelForIri(currentParentIri, graph),
+              newParentLabel: findLabelForIri(objectIri, graph),
               caseType: caseInfo.case,
               lostPropertyCount: lostProperties.length,
             },

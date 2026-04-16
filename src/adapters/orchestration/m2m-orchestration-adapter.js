@@ -113,16 +113,24 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
     if (promptType === 'reclassificationConsequence') {
       enrichment.caseType = ctx.caseType;
       enrichment.subject = ctx.subjectLabel;
-      enrichment.currentParent = ctx.existingParentLabel || null;
+      enrichment.currentParent = ctx.oldParentLabel || null;
       enrichment.proposedParent = ctx.newParentLabel || null;
       enrichment.lostProperties = [];
       if (ctx.lostPropertyCount > 0) {
-        // Extract from prompt text
         const text = prompt['fandaws:text'] || '';
         const matches = text.match(/• (.+)/g);
         if (matches) {
           enrichment.lostProperties = matches.map((m) => {
             const line = m.replace('• ', '');
+            // Parse "Organism has DNA (inherited by animal)" format
+            const parts = line.match(/^(.+?) has (.+?) \(/);
+            if (parts) {
+              return {
+                ancestor: parts[1].toLowerCase(),
+                property: `has ${parts[2].toLowerCase()}`,
+                affectedDescendants: 0,
+              };
+            }
             return { description: line };
           });
         }
@@ -137,17 +145,38 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
       enrichment.candidates = [];
       enrichment.candidateIRIs = [];
       const opts = prompt['fandaws:options'] || [];
+      // Options may be objects with IRIs or plain label strings.
+      // Look up IRIs from the graph when options are strings.
+      const graph = context.stateAdapter?.loadGraph(context.graphId);
+      const concepts = graph?.['fandaws:concepts'] || [];
       for (const opt of opts) {
-        if (typeof opt === 'object') {
+        if (typeof opt === 'object' && (opt.iri || opt.conceptIri)) {
           enrichment.candidateIRIs.push(opt.iri || opt.conceptIri);
           enrichment.candidates.push(opt);
+        } else if (typeof opt === 'string') {
+          const concept = concepts.find((c) => c['skos:prefLabel'] === opt || c['rdfs:label'] === opt);
+          if (concept) {
+            const parentChain = [];
+            let cursor = concept['skos:broader'];
+            while (cursor) {
+              const p = concepts.find((c) => c['@id'] === cursor);
+              if (p) { parentChain.push(p['skos:prefLabel']); cursor = p['skos:broader']; }
+              else break;
+            }
+            enrichment.candidateIRIs.push(concept['@id']);
+            enrichment.candidates.push({
+              iri: concept['@id'],
+              displayLabel: opt,
+              parentChain,
+            });
+          }
         }
       }
       enrichment.hierarchyContext = {
         containsSubgraphFor: enrichment.candidateIRIs,
       };
     } else if (promptType === 'importedConceptGuard') {
-      enrichment.blockedConcept = ctx.subjectLabel || ctx.conceptLabel;
+      enrichment.blockedConcept = ctx.subjectLabel || ctx.subject || ctx.conceptLabel || null;
       enrichment.reason = prompt['fandaws:text'] || 'Imported concepts are read-only';
     } else if (promptType === 'staleCopyPrompt') {
       const ms = prompt['fandaws:machineSignal'] || {};

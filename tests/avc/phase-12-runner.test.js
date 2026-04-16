@@ -141,11 +141,16 @@ describe(`Phase 12 AVC (${bundle.bundle_id})`, () => {
 
       // ── Trigger ──
       let result;
+      const resolveOptions = {};
+      if (scenario.user_choice) {
+        resolveOptions.userChoice = scenario.user_choice;
+      }
       try {
         result = resolveTerm(
           scenario.trigger.value,
           env.scopeConfig,
           env.adapter,
+          resolveOptions,
         );
       } catch (e) {
         // If resolveTerm throws because it's not implemented yet,
@@ -282,41 +287,63 @@ describe(`Phase 12 AVC (${bundle.bundle_id})`, () => {
         expect(result.mutations?.length || 0).toBe(exp.mutationCount);
       }
 
-      // ── Post-state assertions (after applying user choice) ──
-      if (exp.postState && scenario.user_choice) {
-        // Apply user choice and check post-state
-        const postResult = resolveTerm(
-          scenario.trigger.value,
-          env.scopeConfig,
-          env.adapter,
-          { userChoice: scenario.user_choice },
-        );
+      // ── Post-state assertions ──
+      if (exp.postState) {
+        const graph = env.adapter.loadGraph(env.activeScope);
         for (const [label, expected] of Object.entries(exp.postState)) {
-          const graph = env.adapter.loadGraph(env.activeScope);
+          // Resolve the concept lookup key. AVC uses several conventions:
+          // - Canonical labels: "dog", "mammal"
+          // - Underscore-delimited: "dog_pet" → "dog (pet)"
+          // - Named slots: "refinedConcept" → look up by canonicalLabel in expected
+          const searchLabels = [
+            label,
+            label.replace(/_/g, ' '),
+            expected.canonicalLabel,
+            expected.displayLabel,
+          ].filter(Boolean);
+
           const concept = graph['fandaws:concepts'].find(
-            (c) => c['skos:prefLabel'] === label || c['skos:prefLabel'] === label.replace(/_/g, ' '),
+            (c) => searchLabels.some((sl) =>
+              c['skos:prefLabel'] === sl || c['rdfs:label'] === sl,
+            ),
           );
-          expect(concept).toBeDefined();
-          if (expected['skos:broader']) {
-            const parent = graph['fandaws:concepts'].find(
-              (c) => c['skos:prefLabel'] === expected['skos:broader'],
-            );
-            expect(concept['skos:broader']).toBe(parent?.['@id'] || expected['skos:broader']);
+          if (expected.exists === true) {
+            expect(concept).toBeDefined();
+            continue;
           }
-        }
-      } else if (exp.postState && !scenario.user_choice) {
-        // Auto-resolved — check post-state directly
-        for (const [label, expected] of Object.entries(exp.postState)) {
-          const graph = env.adapter.loadGraph(env.activeScope);
-          const concept = graph['fandaws:concepts'].find(
-            (c) => c['skos:prefLabel'] === label,
-          );
           expect(concept).toBeDefined();
           if (expected['skos:broader']) {
             const parent = graph['fandaws:concepts'].find(
               (c) => c['skos:prefLabel'] === expected['skos:broader'],
             );
             expect(concept['skos:broader']).toBe(parent?.['@id'] || null);
+          }
+          if (expected['skos:broader'] === null) {
+            expect(concept['skos:broader']).toBeNull();
+          }
+          if (expected.skosBroaderCount !== undefined) {
+            // Single string, not array — always count 1 if present, 0 if null
+            const count = concept['skos:broader'] ? 1 : 0;
+            expect(count).toBe(expected.skosBroaderCount);
+          }
+          if (expected.annotations) {
+            for (const [key, schema] of Object.entries(expected.annotations)) {
+              const annotation = concept[key];
+              expect(annotation).toBeDefined();
+              for (const [field, value] of Object.entries(schema)) {
+                if (typeof value === 'string' && value.startsWith('ANY_')) continue;
+                if (typeof value === 'object') {
+                  expect(annotation[field]).toEqual(value);
+                } else {
+                  expect(annotation[field]).toBe(value);
+                }
+              }
+            }
+          }
+          if (expected.restrictions) {
+            const restrictions = (concept['rdfs:subClassOf'] || [])
+              .filter((e) => typeof e === 'object' && e['fandaws:restrictionKind'] === 'property');
+            expect(restrictions).toHaveLength(expected.restrictions.length);
           }
         }
       }

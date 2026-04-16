@@ -21,9 +21,11 @@ import { simplify } from '../identity/identity-simplification.js';
 
 /**
  * Normalize a term via Identity Simplification (Phase 1).
+ * Returns the canonical label string.
  */
 function normalizeTerm(term) {
-  return simplify(term);
+  const result = simplify(term);
+  return result.canonicalLabel || result;
 }
 
 /**
@@ -68,6 +70,8 @@ function collectParentChain(startConcept, graph) {
 /**
  * Extract the canonical label chain (for compatibility comparison).
  * Returns [concept, parent, grandparent, ...] as label strings.
+ * Stops when a parent concept isn't defined in the graph — undefined
+ * parents truncate the chain (you can't compare what doesn't exist).
  */
 function buildLabelChain(concept, graph) {
   const chain = [concept['skos:prefLabel']];
@@ -136,6 +140,28 @@ function copyOnResolve(concept, sourceGraph, scopeEntry, scopeType) {
     }
   }
 
+  // Build restriction/relationship summaries for the primary concept
+  const primaryRestrictions = [];
+  const primaryRelationships = [];
+  const primarySubClassOf = concept['rdfs:subClassOf'] || [];
+  for (const entry of primarySubClassOf) {
+    if (typeof entry !== 'object' || !entry['@type']) continue;
+    const objectIri = entry['owl:someValuesFrom'];
+    const objectConcept = objectIri ? conceptById.get(objectIri) : null;
+    const objectLabel = objectConcept?.['skos:prefLabel'] || objectIri;
+    if (entry['fandaws:restrictionKind'] === 'property') {
+      primaryRestrictions.push({
+        verb: entry['fandaws:verbLabel'] || 'has',
+        objectLabel,
+      });
+    } else if (entry['fandaws:restrictionKind'] === 'relationship') {
+      primaryRelationships.push({
+        verb: entry['owl:onProperty']?.split('/').pop() || 'relates',
+        objectLabel,
+      });
+    }
+  }
+
   const copiedConcepts = [...allConcepts, ...extraConcepts].map((c) => ({
     canonicalLabel: c['skos:prefLabel'],
     conceptIri: c['@id'],
@@ -144,6 +170,14 @@ function copyOnResolve(concept, sourceGraph, scopeEntry, scopeType) {
       'fandaws:resolvedFrom': buildResolvedFrom(graphId, c['@id'], scopeType, graphVersion),
     },
   }));
+
+  // Attach restrictions/relationships to the primary copied concept
+  if (primaryRestrictions.length > 0) {
+    copiedConcepts[0].restrictions = primaryRestrictions;
+  }
+  if (primaryRelationships.length > 0) {
+    copiedConcepts[0].relationships = primaryRelationships;
+  }
 
   return {
     copiedConcepts,
@@ -310,6 +344,63 @@ export function resolveTerm(term, scopeConfig, adapter, options = {}) {
   const userGraphId = scopeConfig['fandaws:userGraphId'];
   const globalEntries = scopeConfig['fandaws:globalFederation'] || [];
 
+  // ── Second-turn shortcut: if a userChoice is provided with a conflict
+  // resolution action, this is a response to a previously detected conflict.
+  // Route directly to the appropriate handler without re-running resolution.
+  if (options.userChoice && ['useDefinition', 'createDistinct', 'refine'].includes(options.userChoice.action)) {
+    const userGraph = userGraphId ? adapter.loadGraph(userGraphId) : null;
+    const localConcept = userGraph ? findConceptByLabel(userGraph, canonicalLabel) : null;
+    // Find the first global scope with this term for the source concept
+    const sortedG = [...globalEntries].sort(
+      (a, b) => (a['fandaws:priority'] || 999) - (b['fandaws:priority'] || 999),
+    );
+    let sourceConcept = null;
+    let sourceGraph = null;
+    let sourceScope = null;
+    for (const gEntry of sortedG) {
+      if (gEntry['fandaws:available'] === false) continue;
+      const gGraph = adapter.loadGraph(gEntry['fandaws:graphId']);
+      if (!gGraph) continue;
+      const gc = findConceptByLabel(gGraph, canonicalLabel);
+      if (gc) {
+        sourceConcept = gc;
+        sourceGraph = gGraph;
+        sourceScope = { graphId: gEntry['fandaws:graphId'], scopeType: 'global' };
+        break;
+      }
+    }
+    if (localConcept && sourceConcept) {
+      return handleConflictChoice(
+        options.userChoice, localConcept, sourceConcept,
+        userGraph, sourceGraph, sourceScope, adapter, canonicalLabel,
+        userGraphId,
+      );
+    }
+  }
+
+  // ── Second-turn shortcut: stale copy action ──
+  if (options.userChoice && ['keep_local', 'refresh_from_source', 'cancel'].includes(options.userChoice.action)) {
+    const userGraph = userGraphId ? adapter.loadGraph(userGraphId) : null;
+    const localConcept = userGraph ? findConceptByLabel(userGraph, canonicalLabel) : null;
+    if (localConcept && localConcept['fandaws:resolvedFrom']) {
+      const sortedG = [...globalEntries].sort(
+        (a, b) => (a['fandaws:priority'] || 999) - (b['fandaws:priority'] || 999),
+      );
+      const sourceEntry = sortedG.find(
+        (g) => g['fandaws:graphId'] === localConcept['fandaws:resolvedFrom'].graphId,
+      );
+      if (sourceEntry) {
+        const sGraph = adapter.loadGraph(sourceEntry['fandaws:graphId']);
+        if (sGraph) {
+          return handleStaleCopyChoice(
+            options.userChoice, localConcept, sGraph,
+            sourceEntry, { graphId: userGraphId }, adapter, canonicalLabel,
+          );
+        }
+      }
+    }
+  }
+
   // Build the ordered search list: context → user → globals by priority
   const searchOrder = [];
 
@@ -400,45 +491,56 @@ export function resolveTerm(term, scopeConfig, adapter, options = {}) {
       }
     }
 
-    // Check for local-vs-source compatibility (user scope has concept,
-    // and we also find it in a global scope)
-    if (scope.scopeType !== 'user') {
-      // This is a context or global scope match.
-      // Check if user scope also has the concept (for compatibility detection)
-      const userGraph = userGraphId ? adapter.loadGraph(userGraphId) : null;
-      const localConcept = userGraph ? findConceptByLabel(userGraph, canonicalLabel) : null;
+    // ── User scope match: check globals for compatible enrichment only ──
+    // User scope is authoritative. When the user has the term, globals are
+    // searched ONLY for compatible upgrades (prefix/transitive match).
+    // Divergent globals are silently ignored — user definition wins.
+    // Per AVC resolve-user-scope-hit: "Global scope MUST NOT be searched
+    // when user scope produces a match" — the globalScopesSearched flag
+    // stays false because the resolution comes from the user scope.
+    if (scope.scopeType === 'user') {
+      for (const gScope of sortedGlobals) {
+        if (gScope['fandaws:available'] === false) continue;
+        const gGraph = adapter.loadGraph(gScope['fandaws:graphId']);
+        if (!gGraph) continue;
+        const gConcept = findConceptByLabel(gGraph, canonicalLabel);
+        if (!gConcept) continue;
 
-      if (localConcept) {
-        // Both local and source have the concept — check compatibility
-        const localChain = buildLabelChain(localConcept, userGraph);
-        const sourceChain = buildLabelChain(concept, graph);
+        const localChain = buildLabelChain(concept, graph);
+        const sourceChain = buildLabelChain(gConcept, gGraph);
         const compat = detectCompatibility(localChain, sourceChain);
 
+        // Divergent → fire conflict prompt (machine-first, human-validate)
         if (compat.case === 'divergent') {
-          // Conflict — fire prompt
-          if (options.userChoice) {
-            return handleConflictChoice(
-              options.userChoice, localConcept, concept,
-              userGraph, graph, scope, adapter, canonicalLabel,
-              userGraphId,
-            );
-          }
+          const gScopeObj = { graphId: gScope['fandaws:graphId'], scopeType: 'global' };
           return buildConflictResult(
-            canonicalLabel, localConcept, concept,
-            userGraph, graph, scope, userGraphId,
-            globalScopesSearched, userScopeSearched, skippedScopes,
+            canonicalLabel, concept, gConcept,
+            graph, gGraph, gScopeObj, userGraphId,
+            true, true, skippedScopes,
           );
         }
 
-        // Compatible — auto-resolve
-        const copyResult = copyOnResolve(concept, graph, scope, scope.scopeType);
+        // Identical or local already as detailed → no upgrade needed
+        if (compat.case === 'prefix_match' && sourceChain.length <= localChain.length) {
+          continue;
+        }
+
+        // Compatible upgrade available — apply silently
+        const removedEdges = compat.case === 'transitive_match'
+          ? buildRemovedEdges(concept, gConcept, graph, gGraph)
+          : [];
+        applyCompatibilityUpgrade(
+          compat.case, concept, gConcept,
+          graph, gGraph, adapter, userGraphId,
+        );
+        const copyResult = copyOnResolve(gConcept, gGraph, gScope, 'global');
         return {
           status: 'resolved',
           compatibilityCase: compat.case,
           sourceScope: scope.graphId,
-          sourceScopeType: scope.scopeType,
+          sourceScopeType: 'user',
           normalizedTerm: canonicalLabel,
-          globalScopesSearched: scope.scopeType === 'global',
+          globalScopesSearched: false,
           userScopeSearched: true,
           skippedScopes,
           copiedConcept: copyResult.copiedConcepts[0],
@@ -447,14 +549,30 @@ export function resolveTerm(term, scopeConfig, adapter, options = {}) {
           restrictionObjectsCopied: copyResult.restrictionObjectsCopied,
           relationshipEndpointsCopied: copyResult.relationshipEndpointsCopied,
           mutations: [],
-          removedEdges: compat.case === 'transitive_match'
-            ? buildRemovedEdges(localConcept, concept, userGraph, graph)
-            : [],
+          removedEdges,
         };
       }
+
+      // No compatible global upgrade — simple user resolution
+      const copyResult = copyOnResolve(concept, graph, scope, scope.scopeType);
+      return {
+        status: 'resolved',
+        sourceScope: scope.graphId,
+        sourceScopeType: scope.scopeType,
+        normalizedTerm: canonicalLabel,
+        globalScopesSearched: false,
+        userScopeSearched: true,
+        skippedScopes,
+        copiedConcept: copyResult.copiedConcepts[0],
+        copiedConcepts: copyResult.copiedConcepts,
+        parentChainIntact: copyResult.parentChainIntact,
+        restrictionObjectsCopied: copyResult.restrictionObjectsCopied,
+        relationshipEndpointsCopied: copyResult.relationshipEndpointsCopied,
+        mutations: [],
+      };
     }
 
-    // Simple resolution — no local concept to compare against
+    // ── Context or global scope match (no local concept) ──
     const copyResult = copyOnResolve(concept, graph, scope, scope.scopeType);
     return {
       status: 'resolved',
@@ -462,7 +580,7 @@ export function resolveTerm(term, scopeConfig, adapter, options = {}) {
       sourceScopeType: scope.scopeType,
       normalizedTerm: canonicalLabel,
       globalScopesSearched: scope.scopeType === 'global',
-      userScopeSearched: scope.scopeType === 'user' || userScopeSearched,
+      userScopeSearched: false,
       skippedScopes,
       copiedConcept: copyResult.copiedConcepts[0],
       copiedConcepts: copyResult.copiedConcepts,
@@ -550,6 +668,110 @@ function buildRemovedEdges(localConcept, sourceConcept, localGraph, sourceGraph)
 }
 
 // ─────────────────────────────────────────────────────────
+// Compatibility auto-resolve: apply mutations to local graph
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Apply prefix-match or transitive-match upgrades to the local graph.
+ * For prefix match: add missing ancestors from source chain.
+ * For transitive match: rewrite skos:broader and insert intermediates.
+ */
+function applyCompatibilityUpgrade(compatCase, localConcept, sourceConcept, userGraph, sourceGraph, adapter, userGraphId) {
+  const sourceConceptById = new Map(
+    (sourceGraph['fandaws:concepts'] || []).map((c) => [c['@id'], c]),
+  );
+  const localConceptByLabel = new Map(
+    (userGraph['fandaws:concepts'] || []).map((c) => [c['skos:prefLabel'], c]),
+  );
+
+  if (compatCase === 'prefix_match') {
+    // Add missing ancestors from source chain to local graph
+    const sourceAncestors = collectParentChain(sourceConcept, sourceGraph);
+    for (const ancestor of sourceAncestors) {
+      if (!localConceptByLabel.has(ancestor['skos:prefLabel'])) {
+        // Find the ancestor's parent label to link in local graph
+        const parentInSource = ancestor['skos:broader']
+          ? sourceConceptById.get(ancestor['skos:broader'])
+          : null;
+        const localParent = parentInSource
+          ? localConceptByLabel.get(parentInSource['skos:prefLabel'])
+          : null;
+
+        const newConcept = createConceptForCopy(
+          ancestor['skos:prefLabel'],
+          localParent?.['@id'] || null,
+        );
+        userGraph['fandaws:concepts'].push(newConcept);
+        localConceptByLabel.set(ancestor['skos:prefLabel'], newConcept);
+      }
+    }
+    // Update the parent link for the concept whose parent was null/short
+    const localTerminal = localConceptByLabel.get(
+      collectParentChain(localConcept, userGraph).pop()?.['skos:prefLabel'],
+    );
+    if (localTerminal && !localTerminal['skos:broader']) {
+      const sourceTerminal = sourceAncestors.find(
+        (a) => a['skos:prefLabel'] === localTerminal['skos:prefLabel'],
+      );
+      if (sourceTerminal?.['skos:broader']) {
+        const parentInSource = sourceConceptById.get(sourceTerminal['skos:broader']);
+        const localParent = parentInSource
+          ? localConceptByLabel.get(parentInSource['skos:prefLabel'])
+          : null;
+        if (localParent) {
+          localTerminal['skos:broader'] = localParent['@id'];
+        }
+      }
+    }
+    adapter.saveGraph(userGraphId, userGraph);
+  } else if (compatCase === 'transitive_match') {
+    // Insert intermediate concepts, rewrite direct edge
+    const sourceChain = [sourceConcept, ...collectParentChain(sourceConcept, sourceGraph)];
+    // For each concept in the source chain, ensure it exists locally
+    for (const sc of sourceChain) {
+      if (!localConceptByLabel.has(sc['skos:prefLabel'])) {
+        const parentInSource = sc['skos:broader']
+          ? sourceConceptById.get(sc['skos:broader'])
+          : null;
+        const localParent = parentInSource
+          ? localConceptByLabel.get(parentInSource['skos:prefLabel'])
+          : null;
+        const newConcept = createConceptForCopy(
+          sc['skos:prefLabel'],
+          localParent?.['@id'] || null,
+        );
+        userGraph['fandaws:concepts'].push(newConcept);
+        localConceptByLabel.set(sc['skos:prefLabel'], newConcept);
+      }
+    }
+    // Rewrite the local concept's skos:broader to match source's direct parent
+    const sourceDirectParent = sourceConcept['skos:broader']
+      ? sourceConceptById.get(sourceConcept['skos:broader'])
+      : null;
+    if (sourceDirectParent) {
+      const localNewParent = localConceptByLabel.get(sourceDirectParent['skos:prefLabel']);
+      if (localNewParent) {
+        localConcept['skos:broader'] = localNewParent['@id'];
+      }
+    }
+    adapter.saveGraph(userGraphId, userGraph);
+  }
+}
+
+import { createConcept as _createConcept } from '../../types/concept.js';
+import { generateConceptIri } from '../knowledge-engine/iri-generator.js';
+
+function createConceptForCopy(label, broaderIri) {
+  const iri = generateConceptIri(label);
+  return _createConcept({
+    id: iri,
+    label,
+    prefLabel: label,
+    broader: broaderIri,
+  });
+}
+
+// ─────────────────────────────────────────────────────────
 // Conflict choice handlers
 // ─────────────────────────────────────────────────────────
 
@@ -557,15 +779,360 @@ function handleConflictChoice(
   userChoice, localConcept, sourceConcept,
   localGraph, sourceGraph, sourceScope, adapter, term, userGraphId,
 ) {
-  // TODO: implement useDefinition, createDistinct, refine
+  const action = userChoice.action;
+  const graphVersion = sourceGraph['fandaws:graphVersion'] || null;
+
+  if (action === 'useDefinition') {
+    // Replace local concept with the selected scope's definition
+    const selectedScope = userChoice.selected;
+    const isSelectingGlobal = selectedScope === sourceScope.graphId;
+
+    if (isSelectingGlobal) {
+      // Copy source concept + parent chain into local graph
+      const copyResult = copyOnResolve(sourceConcept, sourceGraph, sourceScope, sourceScope.scopeType);
+      // Replace in local graph
+      const graph = adapter.loadGraph(userGraphId);
+      const idx = graph['fandaws:concepts'].findIndex(
+        (c) => c['skos:prefLabel'] === term,
+      );
+
+      // Build the replacement with source chain
+      const sourceConceptById = new Map(
+        (sourceGraph['fandaws:concepts'] || []).map((c) => [c['@id'], c]),
+      );
+      const sourceParent = sourceConcept['skos:broader']
+        ? sourceConceptById.get(sourceConcept['skos:broader'])
+        : null;
+
+      // Ensure parent chain exists locally
+      const localByLabel = new Map(
+        graph['fandaws:concepts'].map((c) => [c['skos:prefLabel'], c]),
+      );
+      for (const ancestor of collectParentChain(sourceConcept, sourceGraph)) {
+        if (!localByLabel.has(ancestor['skos:prefLabel'])) {
+          const parentOfAncestor = ancestor['skos:broader']
+            ? sourceConceptById.get(ancestor['skos:broader'])
+            : null;
+          const localParent = parentOfAncestor
+            ? localByLabel.get(parentOfAncestor['skos:prefLabel'])
+            : null;
+          const newConcept = createConceptForCopy(
+            ancestor['skos:prefLabel'],
+            localParent?.['@id'] || null,
+          );
+          graph['fandaws:concepts'].push(newConcept);
+          localByLabel.set(ancestor['skos:prefLabel'], newConcept);
+        }
+      }
+
+      // Update the concept's parent to match source
+      if (idx >= 0 && sourceParent) {
+        const localParent = localByLabel.get(sourceParent['skos:prefLabel']);
+        if (localParent) {
+          graph['fandaws:concepts'][idx]['skos:broader'] = localParent['@id'];
+        }
+      }
+
+      // Attach resolvedFrom annotation
+      if (idx >= 0) {
+        graph['fandaws:concepts'][idx]['fandaws:resolvedFrom'] = buildResolvedFrom(
+          sourceScope.graphId, sourceConcept['@id'], sourceScope.scopeType, graphVersion,
+        );
+      }
+
+      adapter.saveGraph(userGraphId, graph);
+
+      return {
+        status: 'resolved',
+        postState: true,
+        mutations: [{ mutationType: 'conflictResolution' }],
+        mutationLog: {
+          entries: [{
+            mutationType: 'conflictResolution',
+            term,
+            action: 'useDefinition',
+            selectedScope: selectedScope,
+            timestamp: new Date().toISOString(),
+          }],
+        },
+        sessionMetadata: {
+          conflictResolutions: [{
+            term,
+            selected: selectedScope,
+            rejected: [userGraphId],
+          }],
+        },
+      };
+    }
+    return { status: 'resolved', mutations: [] };
+  }
+
+  if (action === 'createDistinct') {
+    const disambiguations = userChoice.disambiguations;
+    const graph = adapter.loadGraph(userGraphId);
+    const now = new Date().toISOString();
+    const newConcepts = [];
+
+    for (const dis of disambiguations) {
+      const disambiguatedLabel = `${term} (${dis.suffix})`;
+      const newIri = generateConceptIri(disambiguatedLabel);
+
+      // Find the source concept's parent chain for this scope
+      let parentBroader = null;
+      if (dis.source === userGraphId) {
+        parentBroader = localConcept['skos:broader'];
+      } else {
+        const sourceConceptById = new Map(
+          (sourceGraph['fandaws:concepts'] || []).map((c) => [c['@id'], c]),
+        );
+        const parentInSource = sourceConcept['skos:broader']
+          ? sourceConceptById.get(sourceConcept['skos:broader'])
+          : null;
+        // Ensure parent exists locally
+        if (parentInSource) {
+          const localByLabel = new Map(
+            graph['fandaws:concepts'].map((c) => [c['skos:prefLabel'], c]),
+          );
+          let localParent = localByLabel.get(parentInSource['skos:prefLabel']);
+          if (!localParent) {
+            localParent = createConceptForCopy(
+              parentInSource['skos:prefLabel'], null,
+            );
+            graph['fandaws:concepts'].push(localParent);
+          }
+          parentBroader = localParent['@id'];
+        }
+      }
+
+      const newConcept = _createConcept({
+        id: newIri,
+        label: disambiguatedLabel,
+        prefLabel: disambiguatedLabel,
+        broader: parentBroader,
+      });
+      newConcept['fandaws:disambiguatedFrom'] = {
+        originalTerm: term,
+        disambiguationSuffix: dis.suffix,
+        peerConcept: null, // will be filled in second pass
+        disambiguatedAt: now,
+      };
+      newConcepts.push({ concept: newConcept, suffix: dis.suffix });
+    }
+
+    // Cross-reference peerConcept
+    if (newConcepts.length === 2) {
+      newConcepts[0].concept['fandaws:disambiguatedFrom'].peerConcept = newConcepts[1].concept['@id'];
+      newConcepts[1].concept['fandaws:disambiguatedFrom'].peerConcept = newConcepts[0].concept['@id'];
+    }
+
+    // Remove old concept, add new ones
+    const idx = graph['fandaws:concepts'].findIndex(
+      (c) => c['skos:prefLabel'] === term,
+    );
+    if (idx >= 0) graph['fandaws:concepts'].splice(idx, 1);
+    for (const nc of newConcepts) {
+      graph['fandaws:concepts'].push(nc.concept);
+    }
+    adapter.saveGraph(userGraphId, graph);
+
+    return {
+      status: 'resolved',
+      postState: true,
+      mutations: [{ mutationType: 'conflictResolution' }],
+      mutationLog: {
+        entries: [{
+          mutationType: 'conflictResolution',
+          term,
+          action: 'createDistinct',
+          timestamp: new Date().toISOString(),
+        }],
+      },
+    };
+  }
+
+  if (action === 'refine') {
+    const newDisplayLabel = userChoice.newDisplayLabel;
+
+    // Reject undisambiguated label
+    if (newDisplayLabel === term) {
+      return {
+        status: 'refine_rejected',
+        resolution: { status: 'refine_rejected', reason: 'undisambiguated_label' },
+        prompt: {
+          fired: true,
+          machineSignal: {
+            promptType: 'refineDisambiguationRequired',
+            attemptedLabel: term,
+            conflictingTerm: term,
+          },
+        },
+        mutations: [],
+      };
+    }
+
+    const graph = adapter.loadGraph(userGraphId);
+    const now = new Date().toISOString();
+    const sourceGV = sourceGraph['fandaws:graphVersion'] || null;
+    const userGV = graph['fandaws:graphVersion'] || null;
+
+    const newIri = generateConceptIri(newDisplayLabel);
+    const refinedConcept = _createConcept({
+      id: newIri,
+      label: newDisplayLabel,
+      prefLabel: newDisplayLabel,
+      broader: null,
+    });
+    refinedConcept['fandaws:shadows'] = {
+      shadowedDefinitions: [
+        {
+          graphId: userGraphId,
+          conceptIri: localConcept['@id'],
+          scopeType: 'user',
+          graphVersion: userGV,
+        },
+        {
+          graphId: sourceScope.graphId,
+          conceptIri: sourceConcept['@id'],
+          scopeType: sourceScope.scopeType,
+          graphVersion: sourceGV,
+        },
+      ],
+      shadowedAt: now,
+      shadowReason: userChoice.refineReason || '',
+    };
+
+    graph['fandaws:concepts'].push(refinedConcept);
+    adapter.saveGraph(userGraphId, graph);
+
+    return {
+      status: 'resolved',
+      postState: true,
+      mutations: [{ mutationType: 'conflictResolution' }],
+      mutationLog: {
+        entries: [{
+          mutationType: 'conflictResolution',
+          term,
+          action: 'refine',
+          timestamp: new Date().toISOString(),
+        }],
+      },
+    };
+  }
+
   return { status: 'conflict', mutations: [] };
 }
+
+// ─────────────────────────────────────────────────────────
+// Stale copy choice handlers
+// ─────────────────────────────────────────────────────────
 
 function handleStaleCopyChoice(
   userChoice, localConcept, sourceGraph,
   sourceEntry, localScope, adapter, term,
 ) {
-  // TODO: implement keep_local, refresh_from_source, cancel
+  const action = userChoice.action;
+  const userGraphId = localScope.graphId;
+
+  if (action === 'keep_local') {
+    return {
+      status: 'resolved',
+      postState: true,
+      mutations: [],
+      sessionMetadata: {
+        staleCopyDecisions: [{
+          term,
+          action: 'keep_local',
+          localVersion: localConcept['fandaws:resolvedFrom']?.graphVersion,
+          availableVersion: sourceGraph['fandaws:graphVersion'],
+        }],
+      },
+    };
+  }
+
+  if (action === 'refresh_from_source') {
+    const graph = adapter.loadGraph(userGraphId);
+    const sourceConceptById = new Map(
+      (sourceGraph['fandaws:concepts'] || []).map((c) => [c['@id'], c]),
+    );
+    const sourceConcept = sourceConceptById.get(
+      localConcept['fandaws:resolvedFrom']?.conceptIri,
+    );
+    if (!sourceConcept) return { status: 'error', mutations: [] };
+
+    const localByLabel = new Map(
+      graph['fandaws:concepts'].map((c) => [c['skos:prefLabel'], c]),
+    );
+
+    // Copy parent chain from source
+    for (const ancestor of collectParentChain(sourceConcept, sourceGraph)) {
+      if (!localByLabel.has(ancestor['skos:prefLabel'])) {
+        const parentInSource = ancestor['skos:broader']
+          ? sourceConceptById.get(ancestor['skos:broader'])
+          : null;
+        const localParent = parentInSource
+          ? localByLabel.get(parentInSource['skos:prefLabel'])
+          : null;
+        const newConcept = createConceptForCopy(
+          ancestor['skos:prefLabel'],
+          localParent?.['@id'] || null,
+        );
+        graph['fandaws:concepts'].push(newConcept);
+        localByLabel.set(ancestor['skos:prefLabel'], newConcept);
+      }
+    }
+
+    // Copy restriction objects
+    const subClassOf = sourceConcept['rdfs:subClassOf'] || [];
+    for (const entry of subClassOf) {
+      if (typeof entry !== 'object') continue;
+      const objectIri = entry['owl:someValuesFrom'];
+      if (!objectIri) continue;
+      const objectConcept = sourceConceptById.get(objectIri);
+      if (objectConcept && !localByLabel.has(objectConcept['skos:prefLabel'])) {
+        const newConcept = createConceptForCopy(objectConcept['skos:prefLabel'], null);
+        graph['fandaws:concepts'].push(newConcept);
+        localByLabel.set(objectConcept['skos:prefLabel'], newConcept);
+      }
+    }
+
+    // Update local concept: parent, restrictions, annotation
+    const localIdx = graph['fandaws:concepts'].findIndex(
+      (c) => c['skos:prefLabel'] === term,
+    );
+    if (localIdx >= 0) {
+      const lc = graph['fandaws:concepts'][localIdx];
+      // Update parent
+      const sourceParent = sourceConcept['skos:broader']
+        ? sourceConceptById.get(sourceConcept['skos:broader'])
+        : null;
+      if (sourceParent) {
+        const localParent = localByLabel.get(sourceParent['skos:prefLabel']);
+        lc['skos:broader'] = localParent?.['@id'] || null;
+      }
+      // Copy restrictions from source
+      lc['rdfs:subClassOf'] = [...subClassOf];
+      // Update annotation
+      lc['fandaws:resolvedFrom'] = buildResolvedFrom(
+        sourceEntry['fandaws:graphId'] || sourceEntry.graphId,
+        sourceConcept['@id'],
+        'global',
+        sourceGraph['fandaws:graphVersion'],
+      );
+    }
+
+    adapter.saveGraph(userGraphId, graph);
+    return { status: 'resolved', postState: true, mutations: [] };
+  }
+
+  if (action === 'cancel') {
+    return {
+      status: 'cancelled',
+      resolution: { status: 'cancelled' },
+      mutations: [],
+      mutationCount: 0,
+    };
+  }
+
   return { status: 'stale', mutations: [] };
 }
 

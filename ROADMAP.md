@@ -1157,10 +1157,11 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 ## Phase 13: M2M Conversation Protocol
 
 **Goal:** Enable machine-to-machine operation with structured negotiation and deadlock prevention.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Medium
 **Effort:** High
 **Depends on:** Phase 8
+**AVC Bundle:** `docs/architecture/phase-13-avc-bundle.json` (v3, ACTIVE — 24/24 scenarios passing, architect-confirmed 2026-04-16)
 
 ### 13.1 MachineSignal on ConversationPrompts
 
@@ -1171,22 +1172,23 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 - `tests/unit/m2m-orchestration.test.js`
 
 **Acceptance Criteria:**
-- [ ] When `callerMode="agent"`, every ConversationPrompt includes populated `machineSignal`
-- [ ] `machineSignal.expectedSchema` is valid JSON Schema for response
-- [ ] `machineSignal.validValues` lists enumerated options where applicable
-- [ ] `machineSignal.constraintType` correct per prompt type (subsumption, inherence, disjointness, scopeLevel)
-- [ ] `machineSignal.candidateIRIs` populated for disambiguation prompts
-- [ ] `machineSignal.hierarchyContext` shows relevant subgraph
-- [ ] Structured agent response correctly routed back into pipeline
-- [ ] When `callerMode="human"`, machineSignal is null (pipeline unchanged)
+- [x] When `callerMode="agent"`, every ConversationPrompt includes populated `machineSignal`
+- [x] `machineSignal.expectedSchema` is valid JSON Schema for response
+- [x] `machineSignal.validValues` lists enumerated options where applicable
+- [x] `machineSignal.constraintType` correct per prompt type (subsumption, inherence, disjointness, scopeLevel)
+- [x] `machineSignal.candidateIRIs` populated for disambiguation prompts
+- [x] `machineSignal.hierarchyContext` shows relevant subgraph
+- [x] Structured agent response correctly routed back into pipeline
+- [x] When `callerMode="human"`, machineSignal is null (pipeline unchanged)
 
 ### 13.2 Semantic Deadlock Prevention
 
 **Spec Reference:** Section 6.7
 
 **Deliverables:**
-- `src/core/validator/deadlock-detector.js`
-- `tests/unit/deadlock-detector.test.js`
+- `src/core/m2m/deadlock-tracker.js`
+- `src/core/m2m/rate-limiter.js`
+- `src/adapters/orchestration/m2m-orchestration-adapter.js`
 
 **Detection:** Track rejection count per `(conceptId, mutationType)` pair per session. Count exceeds `repetitionLimit` (default 5) → deadlock.
 
@@ -1197,27 +1199,29 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 4. EpistemicFailure event (final fallback)
 
 **Acceptance Criteria:**
-- [ ] 5 consecutive rejections for same (concept, mutationType) → deadlock detected
-- [ ] Rephrased assertions resolving to same pair counted together (Identity Simplification)
-- [ ] EpistemicFailure emitted with `attemptCount`, `rejectionReasons`, `suggestedActions`
-- [ ] EpistemicFailure matches Appendix A.6 shape
-- [ ] M2M simulation: scripted agent hits deadlock → EpistemicFailure returned, no infinite loop
-- [ ] Rate limiting: > `agentRateLimit` (100/min) → RateLimitExceeded error
-- [ ] Deadlock detection logged as GraphMutation with `mutationType: "deadlockResolution"`
+- [x] 5 consecutive rejections for same (concept, mutationType) → deadlock detected
+- [x] Rephrased assertions resolving to same pair counted together (Identity Simplification)
+- [x] EpistemicFailure emitted with `attemptCount`, `rejectionReasons`, `suggestedActions`
+- [x] EpistemicFailure matches Appendix A.6 shape
+- [x] M2M simulation: scripted agent hits deadlock → EpistemicFailure returned, no infinite loop
+- [x] Rate limiting: > `agentRateLimit` (100/min) → RateLimitExceeded error
+- [x] Deadlock detection logged as GraphMutation with `mutationType: "deadlockResolution"`
 
 ### 13.3 M2M Simulation Tests
 
 **Spec Reference:** Section 9.3
 
 **Deliverables:**
-- `tests/integration/m2m-simulation.test.js`
+- `tests/avc/phase-13-runner.test.js` (AVC-driven simulation)
 
 **Acceptance Criteria:**
-- [ ] Scripted agent completes a multi-turn knowledge building session via machineSignal
-- [ ] machineSignal populated on every prompt in agent mode
-- [ ] Deadlock breaker fires after `repetitionLimit` rejections
-- [ ] EpistemicFailure events emitted with correct metadata
-- [ ] Full pipeline < 40ms for assertions requiring no disambiguation (Section 10.8.4)
+- [x] Scripted agent completes a multi-turn knowledge building session via machineSignal
+- [x] machineSignal populated on every prompt in agent mode
+- [x] Deadlock breaker fires after `repetitionLimit` rejections
+- [x] EpistemicFailure events emitted with correct metadata
+- [x] Full pipeline < 40ms for assertions requiring no disambiguation (Section 10.8.4)
+
+**Phase 13 totals:** 24 AVC scenarios across MachineSignal schema (10), deadlock prevention (10), and M2M simulation (4). All passing with real field-level assertions. Architect-confirmed 2026-04-16. Layered MachineSignal (Decision A), prompt type registry (Decision B), JSON Schema expectedSchema (Decision C), deadlock cascade at 5 (Decision D), EpistemicFailure per-pair (Decision E), rate limiting 100/min (Decision F).
 
 **NOT in scope:** IEE ethical contestation integration, HIRI publication, IPFS.
 

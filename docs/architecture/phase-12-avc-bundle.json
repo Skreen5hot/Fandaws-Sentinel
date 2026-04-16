@@ -1,8 +1,10 @@
 {
   "bundle_id": "phase-12-scope-resolver-federation",
-  "bundle_version": 1,
+  "bundle_version": 2,
   "authored": "2026-04-16",
-  "status": "awaits_implementation",
+  "status": "active",
+  "confirmed": "2026-04-16",
+  "confirmation_notes": "25/25 passing. 0 discrepancy reports. 3 transcript spot-checks clean. IRI-4 added to locked decisions.",
   "verifies_phase": "Phase 12 — ScopeResolver & Federation",
   "locked_decisions": {
     "compatibility_rule": "Transitive Path Compatibility — less granular chain must be a valid transitive closure of the more granular chain",

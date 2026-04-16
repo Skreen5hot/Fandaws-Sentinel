@@ -175,6 +175,20 @@ The refined concept receives a freshly minted local IRI. It does NOT inherit the
 
 **Corollary:** The shadowed local concept (`user:dog-existing` in the example) REMAINS in the graph. It is not deleted or modified. It is simply no longer the active resolution for the term `dog`.
 
+### IRI-4: Fresh local IRI on transitive intermediary insertion
+
+When a transitive compatibility upgrade (Decision 1, Case B) inserts an intermediary concept that didn't previously exist in the local graph, the intermediary receives a freshly minted local IRI. The global scope's IRI is NOT used.
+
+**Pattern:** `fandaws:class/{uuid}/{intermediary-label-slug}`
+
+**Example:** Transitive match upgrades local `dog → mammal` with global `dog → canine → mammal`. The inserted `canine` gets `fandaws:class/2abffe54.../canine`, not `cco:canine`.
+
+**Reasoning:** The local graph remains authoritative after a compatibility upgrade. The intermediary is a local concept inferred from global structure, not a copy of a global concept. Using the global IRI would imply the concept is the global scope's concept, which would create identity confusion if the global concept later changes independently.
+
+**Corollary:** No `fandaws:resolvedFrom` annotation is attached to the intermediary. It is a locally created concept, not a resolved copy.
+
+**Verified by:** AVC scenario `no-polyhierarchy-after-transitive-match` (structural consequence) and transcript spot-check (2026-04-16).
+
 ### IRI-3: Source IRI preserved on useDefinition
 
 The copied concept retains the source scope's IRI in the local graph. No re-minting occurs.
@@ -193,5 +207,6 @@ The copied concept retains the source scope's IRI in the local graph. No re-mint
 | Decision 2 (Stale-Copy Prompt) | 2026-04-16 | v1 — locked |
 | Decision 3 (Annotation Schemas) | 2026-04-16 | v1 — locked |
 | IRI Minting Rules (IRI-1, IRI-2, IRI-3) | 2026-04-16 | v1 — locked |
+| IRI-4 (Transitive Intermediary) | 2026-04-16 | v1 — locked (added post-confirmation from transcript spot-check) |
 
 Changes to any locked decision require architect review and bundle version bump.

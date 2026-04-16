@@ -1078,9 +1078,10 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 ## Phase 12: ScopeResolver & Federation `[Track C — Lifecycle]`
 
 **Goal:** Implement term resolution across context/user/global scope hierarchy with copy-on-resolve and conflict detection.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Medium
 **Effort:** High
+**AVC Bundle:** `docs/architecture/phase-12-avc-bundle.json` (v2, ACTIVE — 25/25 scenarios passing, architect-confirmed 2026-04-16)
 **Depends on:** Phase 11, Phase 3 (explicit — uses `loadGraph`, `loadScopeConfig`, `saveScopeConfig`), Phase 0.5 (needs ConflictReport, ResolvedFromAnnotation, ShadowsAnnotation, DisambiguatedFromAnnotation factories — complete)
 
 ### 12.1 ScopeResolver
@@ -1103,29 +1104,29 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 **Acceptance Criteria:**
 
 *Resolution:*
-- [ ] Term found in user scope → status="resolved", concept copied with `resolvedFrom`
-- [ ] Term found in global scope → status="resolved", correct source scope metadata
-- [ ] Term not found anywhere → status="unknown"
-- [ ] Context scope searched before user scope (priority order)
-- [ ] Global scopes searched in `fandaws:priority` order
+- [x] Term found in user scope → status="resolved", concept copied with `resolvedFrom`
+- [x] Term found in global scope → status="resolved", correct source scope metadata
+- [x] Term not found anywhere → status="unknown"
+- [x] Context scope searched before user scope (priority order)
+- [x] Global scopes searched in `fandaws:priority` order
 
 *Copy-on-Resolve:*
-- [ ] Copied concept includes parent chain up to root
-- [ ] Copied concept includes direct properties
-- [ ] Copied concept includes direct relationships
-- [ ] Each copied node carries `fandaws:resolvedFrom` annotation with graphId, conceptIri, scopeType, resolvedAt, graphVersion
+- [x] Copied concept includes parent chain up to root
+- [x] Copied concept includes direct properties
+- [x] Copied concept includes direct relationships
+- [x] Each copied node carries `fandaws:resolvedFrom` annotation with graphId, conceptIri, scopeType, resolvedAt, graphVersion
 
 *Conflict Detection:*
-- [ ] Same term in two scopes with divergent IS_A chains → status="conflict"
-- [ ] Same term with compatible chains (one more specific) → NOT a conflict
-- [ ] ConflictReport includes both definitions, their scopes, parent chains, and resolution options
+- [x] Same term in two scopes with divergent IS_A chains → status="conflict"
+- [x] Same term with compatible chains (one more specific) → NOT a conflict
+- [x] ConflictReport includes both definitions, their scopes, parent chains, and resolution options
 
 *Offline:*
-- [ ] Unavailable scope graph → skipped, recorded in `skippedScopes`
-- [ ] Pipeline continues with remaining scopes
+- [x] Unavailable scope graph → skipped, recorded in `skippedScopes`
+- [x] Pipeline continues with remaining scopes
 
 *Stale Copy:*
-- [ ] Resolved concept already in local graph with different graphVersion → triggers staleCopyAction
+- [x] Resolved concept already in local graph with different graphVersion → triggers staleCopyAction
 
 ### 12.2 Cross-Scope Conflict Resolution
 
@@ -1141,13 +1142,15 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 3. `refine` — reject all, define fresh locally with `fandaws:shadows` annotation + mandatory display label disambiguation
 
 **Acceptance Criteria:**
-- [ ] `useDefinition` → selected concept copied, unselected noted in session metadata
-- [ ] `createDistinct` → both copied with disambiguated names, `disambiguatedFrom` annotation
-- [ ] `refine` → local concept created with `shadows` annotation listing overridden definitions
-- [ ] `refine` requires disambiguated display label (not same as shadowed concept)
-- [ ] Conflict resolutions logged as GraphMutations with `mutationType: "conflictResolution"`
+- [x] `useDefinition` → selected concept copied, unselected noted in session metadata
+- [x] `createDistinct` → both copied with disambiguated names, `disambiguatedFrom` annotation
+- [x] `refine` → local concept created with `shadows` annotation listing overridden definitions
+- [x] `refine` requires disambiguated display label (not same as shadowed concept)
+- [x] Conflict resolutions logged as GraphMutations with `mutationType: "conflictResolution"`
 
 **NOT in scope:** Term promotion, algorithmic curation, IPFS publication.
+
+**Phase 12 totals:** 25 AVC scenarios across resolution, copy-on-resolve, compatibility detection (prefix/transitive/divergent), conflict resolution (useDefinition/createDistinct/refine), offline handling, stale-copy lifecycle, and structural integrity (no-polyhierarchy tripwire). All passing. Architect-confirmed 2026-04-16. First phase using the AVC model — zero discrepancy reports, zero scenario modifications.
 
 ---
 

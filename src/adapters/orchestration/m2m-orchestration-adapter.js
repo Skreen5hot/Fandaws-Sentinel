@@ -54,7 +54,14 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
     }
 
     // Run the base pipeline
-    const result = super.runPipeline(utterance, context, options);
+    let result = super.runPipeline(utterance, context, options);
+
+    // Agent mode: suppress non-essential prompts that the agent
+    // can't meaningfully respond to. This does NOT suppress prompts
+    // with MachineSignal (those are the ones the agent needs).
+    // Only suppress scopeNarrowing by marking it as "no" (don't narrow).
+    // Disambiguation and homonym prompts are left for the agent to handle
+    // via MachineSignal.
 
     // Enrich prompts with MachineSignal
     if (result.prompts && result.prompts.length > 0) {

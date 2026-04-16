@@ -174,7 +174,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
         }
         result = runUtterance(env, trigger.value, opts);
         result._elapsedMs = Date.now() - start;
-        if (result.mutation) env.adapter.applyMutation(env.activeScope, result.mutation);
+        // Pipeline auto-applies mutations — don't re-apply
 
         // Handle agentResponse (second turn — validate + re-run)
         // If the mutation already succeeded without a prompt, the agentResponse
@@ -192,7 +192,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
                 rerunOpts.reclassificationConsequenceChoice = scenario.agentResponse.choice;
               }
               const r2 = runUtterance(env, trigger.value, rerunOpts);
-              if (r2.mutation) env.adapter.applyMutation(env.activeScope, r2.mutation);
+              // Pipeline auto-applies mutations
               result._responseAccepted = true;
               result._postResponse = r2;
             } else {
@@ -251,7 +251,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
         const results = [];
         for (let i = 0; i < trigger.repetitions; i++) {
           const r = runUtterance(env, trigger.value, { reclassificationConfirmed: 'move' });
-          if (r.mutation) env.adapter.applyMutation(env.activeScope, r.mutation);
+          // Pipeline auto-applies mutations
           results.push(r);
         }
         result = results[results.length - 1];
@@ -264,7 +264,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
           const r = runUtterance(env, turn.utterance, {
             reclassificationConfirmed: 'move', bfoCategoryChoice: 'entity',
           });
-          if (r.mutation) env.adapter.applyMutation(env.activeScope, r.mutation);
+          // Pipeline auto-applies mutations
           turnResults.push({ turn, result: r });
         }
         result = { _turnResults: turnResults, allTurnsCompleted: true, success: true };
@@ -273,7 +273,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
         const results = [];
         for (const assertion of trigger.assertions) {
           const r = runUtterance(env, assertion, { reclassificationConfirmed: 'move' });
-          if (r.mutation) env.adapter.applyMutation(env.activeScope, r.mutation);
+          // Pipeline auto-applies mutations
           results.push(r);
         }
         result = { _allResults: results, _rejectionCount: results.filter((r) => r.mutation === null && !r.error).length };
@@ -284,7 +284,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
         env._orchestrator = orch;
         for (let i = 0; i < trigger.count; i++) {
           const r = runUtterance(env, `concept-${i} is a thing`, { bfoCategoryChoice: 'entity' });
-          if (r.mutation) env.adapter.applyMutation(env.activeScope, r.mutation);
+          // Pipeline auto-applies mutations
           results.push(r);
         }
         // Check last result for rate limit error
@@ -431,15 +431,19 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
 
       // ── Deadlock escalation ──
       if (exp.remediationStep === 'humanEscalation' && exp.escalation) {
-        // Find the result with the cascade (might not be the last one if last was applied)
-        let cascadeResult = result;
-        if (result._allResults) {
-          cascadeResult = result._allResults.find((r) => r._deadlockCascade) || result;
+        // The cascade is on the result that triggered deadlock detection.
+        // Search all results for the one with the cascade.
+        let cascade = result._deadlockCascade;
+        if (!cascade && result._allResults) {
+          for (const r of result._allResults) {
+            if (r._deadlockCascade) { cascade = r._deadlockCascade; break; }
+          }
         }
-        const cascade = cascadeResult._deadlockCascade;
-        expect(cascade?.humanEscalation).toBeDefined();
-        expect(cascade.humanEscalation.fired).toBe(true);
-        expect(cascade.humanEscalation.channel).toBe('human');
+        expect(cascade).toBeDefined();
+        expect(cascade.humanEscalation).toBeDefined();
+        expect(cascade.humanEscalation.escalation.fired).toBe(true);
+        expect(cascade.humanEscalation.escalation.channel).toBe('human');
+        expect(cascade.epistemicFailure).toBeNull();
       }
 
       // ── EpistemicFailure ──

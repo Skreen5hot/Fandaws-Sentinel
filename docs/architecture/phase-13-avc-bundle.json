@@ -1,6 +1,6 @@
 {
   "bundle_id": "phase-13-m2m-conversation-protocol",
-  "bundle_version": 2,
+  "bundle_version": 3,
   "authored": "2026-04-16",
   "modified": "2026-04-16",
   "status": "awaits_implementation",
@@ -582,11 +582,11 @@
     },
     {
       "id": "ms-agent-invalid-response",
-      "version": 1,
+      "version": 2,
       "verifies": [
         "Phase 13 Section 13.1 \u2014 invalid agent response rejected"
       ],
-      "description": "Agent submits invalid response. SchemaValidationError returned. Prompt re-presented.",
+      "description": "Agent submits invalid response. SchemaValidationError returned. Prompt re-presented. v2 fix: added DNA restriction to organism so consequence prompt fires and expectedSchema exists for validation.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -598,7 +598,13 @@
               {
                 "id": "user:organism",
                 "canonicalLabel": "organism",
-                "parent": "user:material-entity"
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
               },
               {
                 "id": "user:animal",
@@ -610,6 +616,11 @@
                 "canonicalLabel": "material entity",
                 "parent": null,
                 "isImported": true
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
               }
             ]
           }
@@ -1491,5 +1502,11 @@
         }
       }
     }
-  ]
+  ],
+  "revision_notes_v3": {
+    "scenario_fixes": [
+      "ms-agent-invalid-response: setup was missing DNA restriction on organism (same root cause as ms-expectedschema-parseable v1). No consequence prompt fired, so no expectedSchema existed to validate the invalid agent response against. Added restriction to setup. Version bumped to 2."
+    ],
+    "process_note": "This is the second time this setup bug has occurred. v3 standardizes: any scenario that needs a reclassification consequence prompt MUST include a restriction on the ancestor concept. The reclass_setup pattern in the bundle generator now includes the restriction by default."
+  }
 }

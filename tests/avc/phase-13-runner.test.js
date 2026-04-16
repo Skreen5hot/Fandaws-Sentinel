@@ -22,6 +22,7 @@ import { createConcept, createIngestedConcept } from '../../src/types/concept.js
 import { createProperty } from '../../src/types/property.js';
 import { createScopeConfiguration, createScopeEntry } from '../../src/types/scope-configuration.js';
 import { SynchronousOrchestrationAdapter } from '../../src/adapters/orchestration/synchronous-orchestration-adapter.js';
+import { M2MOrchestrationAdapter } from '../../src/adapters/orchestration/m2m-orchestration-adapter.js';
 import bundle from '../../docs/architecture/phase-13-avc-bundle.json' with { type: 'json' };
 
 const GRAPH_ID_DEFAULT = 'user-graph-a';
@@ -118,8 +119,16 @@ function buildEnvironment(setup) {
   };
 }
 
+function createOrchestrator(env) {
+  if (env.callerMode === 'agent') {
+    return new M2MOrchestrationAdapter();
+  }
+  return new SynchronousOrchestrationAdapter();
+}
+
 function runUtterance(env, utterance, options = {}) {
-  const orchestrator = new SynchronousOrchestrationAdapter();
+  const orchestrator = env._orchestrator || createOrchestrator(env);
+  env._orchestrator = orchestrator; // reuse for session continuity (deadlock tracking, rate limiting)
   const context = {
     stateAdapter: env.adapter,
     graphId: env.activeScope,
@@ -152,6 +161,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
           const start = Date.now();
           result = runUtterance(env, trigger.value, {
             reclassificationConfirmed: 'move',
+            bfoCategoryChoice: 'entity', // Auto-resolve BFO prompts for M2M scenarios
           });
           result._elapsedMs = Date.now() - start;
 
@@ -180,6 +190,7 @@ describe(`Phase 13 AVC (${bundle.bundle_id})`, () => {
           for (const turn of trigger.turns) {
             const r = runUtterance(env, turn.utterance, {
               reclassificationConfirmed: 'move',
+              bfoCategoryChoice: 'entity',
             });
             if (r.mutation) env.adapter.applyMutation(env.activeScope, r.mutation);
             turnResults.push({ turn, result: r });

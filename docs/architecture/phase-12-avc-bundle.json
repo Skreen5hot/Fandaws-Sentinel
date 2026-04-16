@@ -1,0 +1,1267 @@
+{
+  "bundle_id": "phase-12-scope-resolver-federation",
+  "bundle_version": 1,
+  "authored": "2026-04-16",
+  "status": "awaits_implementation",
+  "verifies_phase": "Phase 12 — ScopeResolver & Federation",
+  "locked_decisions": {
+    "compatibility_rule": "Transitive Path Compatibility — less granular chain must be a valid transitive closure of the more granular chain",
+    "stale_copy_action": "staleCopyPrompt with options [keep_local, refresh_from_source, cancel]",
+    "annotation_schemas": {
+      "fandaws:resolvedFrom": ["graphId", "conceptIri", "scopeType", "resolvedAt", "graphVersion"],
+      "fandaws:shadows": ["shadowedDefinitions", "shadowedAt", "shadowReason"],
+      "fandaws:disambiguatedFrom": ["originalTerm", "disambiguationSuffix", "peerConcept", "disambiguatedAt"]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "resolve-user-scope-hit",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Resolution Algorithm Step 3 (user scope search)"],
+      "description": "Term found in user scope returns status='resolved' with user scope metadata. No global scope search occurs.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "user-graph-a",
+          "sourceScopeType": "user"
+        },
+        "globalScopesSearched": false,
+        "copiedConcept": {
+          "canonicalLabel": "dog",
+          "annotations": {
+            "fandaws:resolvedFrom": {
+              "graphId": "user-graph-a",
+              "conceptIri": "user:dog",
+              "scopeType": "user",
+              "resolvedAt": "ANY_ISO_DATETIME",
+              "graphVersion": "1.0.0"
+            }
+          }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "no global scope fallthrough", "description": "Global scope MUST NOT be searched when user scope produces a match." }
+      ]
+    },
+    {
+      "id": "resolve-global-scope-hit",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Resolution Algorithm Step 4 (global scope search)"],
+      "description": "Term not in user scope falls through to global scope. Global scope annotation records scopeType='global'.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:bicycle", "canonicalLabel": "bicycle", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "global-cco",
+          "sourceScopeType": "global"
+        },
+        "copiedConcept": {
+          "canonicalLabel": "dog",
+          "annotations": {
+            "fandaws:resolvedFrom": {
+              "graphId": "global-cco",
+              "conceptIri": "cco:dog",
+              "scopeType": "global",
+              "resolvedAt": "ANY_ISO_DATETIME",
+              "graphVersion": "1.4.0"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "resolve-context-scope-priority",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Resolution Algorithm Step 2 (context scope priority)"],
+      "description": "Context scope is searched BEFORE user scope. When context scope has a match, user scope is not searched even if it also has the term.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "context",
+            "graphId": "context-meeting-2026-q2",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "ctx:dog", "canonicalLabel": "dog", "parent": "ctx:service-animal" }
+            ]
+          },
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "activeContext": "context-meeting-2026-q2"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "context-meeting-2026-q2",
+          "sourceScopeType": "context"
+        },
+        "userScopeSearched": false,
+        "copiedConcept": {
+          "annotations": {
+            "fandaws:resolvedFrom": {
+              "scopeType": "context"
+            }
+          }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "context precedence", "description": "User scope MUST NOT be searched when context scope produces a match." }
+      ]
+    },
+    {
+      "id": "resolve-global-priority-order",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Resolution Algorithm Step 4 (priority order)"],
+      "description": "Multiple global scopes are searched in fandaws:priority order. Lower priority number = higher priority (searched first).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-domain",
+            "priority": 2,
+            "graphVersion": "0.9.0",
+            "concepts": [
+              { "id": "domain:dog", "canonicalLabel": "dog", "parent": "domain:pet" }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "global-cco"
+        },
+        "copiedConcept": {
+          "annotations": {
+            "fandaws:resolvedFrom": {
+              "graphId": "global-cco",
+              "conceptIri": "cco:dog"
+            }
+          }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "priority respected", "description": "global-domain (priority 2) MUST NOT be selected when global-cco (priority 1) has a match." }
+      ]
+    },
+    {
+      "id": "resolve-unknown-term",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Resolution Algorithm Step 7 (unknown)"],
+      "description": "Term not found in any scope returns status='unknown'. Normal concept creation proceeds.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "quokka" },
+      "expect": {
+        "resolution": {
+          "status": "unknown"
+        },
+        "mutation": "none",
+        "allScopesSearched": true
+      }
+    },
+    {
+      "id": "resolve-identity-simplification",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Resolution Algorithm Step 1 (normalization)"],
+      "description": "Term 'Dogs' (plural, capitalized) normalizes to 'dog' via Identity Simplification before scope search.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "Dogs" },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "global-cco",
+          "normalizedTerm": "dog"
+        }
+      }
+    },
+    {
+      "id": "copy-parent-chain-to-root",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Copy-on-Resolve (parent chain to root)"],
+      "description": "Resolution copies the entire parent chain from the resolved concept up to the root of the source scope.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": "cco:animal" },
+              { "id": "cco:animal", "canonicalLabel": "animal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": { "status": "resolved" },
+        "copiedConcepts": [
+          { "canonicalLabel": "dog", "hasAnnotation": "fandaws:resolvedFrom" },
+          { "canonicalLabel": "canine", "hasAnnotation": "fandaws:resolvedFrom" },
+          { "canonicalLabel": "mammal", "hasAnnotation": "fandaws:resolvedFrom" },
+          { "canonicalLabel": "animal", "hasAnnotation": "fandaws:resolvedFrom" }
+        ],
+        "copiedConceptCount": 4,
+        "parentChainIntact": true
+      }
+    },
+    {
+      "id": "copy-includes-direct-properties",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Copy-on-Resolve (direct properties)"],
+      "description": "Resolution copies direct properties (restrictions) of the resolved concept. Properties on ancestors are not duplicated — they inherit via parent chain.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:mammal",
+                "restrictions": [
+                  { "verb": "has", "object": "cco:tail" },
+                  { "verb": "has", "object": "cco:fur" }
+                ]
+              },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null },
+              { "id": "cco:tail", "canonicalLabel": "tail", "parent": null },
+              { "id": "cco:fur", "canonicalLabel": "fur", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "copiedConcept": {
+          "canonicalLabel": "dog",
+          "restrictions": [
+            { "verb": "has", "objectLabel": "tail" },
+            { "verb": "has", "objectLabel": "fur" }
+          ]
+        },
+        "restrictionObjectsCopied": ["tail", "fur"]
+      }
+    },
+    {
+      "id": "copy-includes-direct-relationships",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Copy-on-Resolve (direct relationships)"],
+      "description": "Resolution copies direct relationships of the resolved concept. Endpoint concepts are also copied.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:mammal",
+                "relationships": [
+                  { "verb": "chase", "object": "cco:cat" }
+                ]
+              },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null },
+              { "id": "cco:cat", "canonicalLabel": "cat", "parent": "cco:mammal" }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "copiedConcept": {
+          "canonicalLabel": "dog",
+          "relationships": [
+            { "verb": "chase", "objectLabel": "cat" }
+          ]
+        },
+        "relationshipEndpointsCopied": ["cat"]
+      }
+    },
+    {
+      "id": "annotation-resolvedfrom-schema-complete",
+      "version": 1,
+      "verifies": ["Phase 12 Annotation Schema — fandaws:resolvedFrom (locked)"],
+      "description": "Every copied node carries fandaws:resolvedFrom with all five required fields. Missing or renamed fields are a schema violation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "copiedConcept": {
+          "annotations": {
+            "fandaws:resolvedFrom": {
+              "graphId": "global-cco",
+              "conceptIri": "cco:dog",
+              "scopeType": "global",
+              "resolvedAt": "ANY_ISO_DATETIME",
+              "graphVersion": "1.4.0",
+              "requiredFieldsPresent": ["graphId", "conceptIri", "scopeType", "resolvedAt", "graphVersion"],
+              "noExtraFields": true
+            }
+          }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "no user tracking field", "description": "fandaws:resolvedFrom MUST NOT contain a resolvedBy field — user provenance is handled at the metadata envelope level (locked decision 3)." }
+      ]
+    },
+    {
+      "id": "compat-prefix-match",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 1 — Prefix Match (compatible)"],
+      "description": "Local chain 'dog → mammal' and global chain 'dog → mammal → animal'. Local is prefix of global. Auto-resolves, upgrades local chain to include 'animal'.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": "cco:animal" },
+              { "id": "cco:animal", "canonicalLabel": "animal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": { "status": "resolved", "compatibilityCase": "prefix_match" },
+        "postState": {
+          "dog": { "skos:broader": "mammal" },
+          "mammal": { "skos:broader": "animal" },
+          "animal": { "skos:broader": null }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "no conflict prompt", "description": "System MUST NOT fire a conflict prompt for prefix-match compatibility." }
+      ]
+    },
+    {
+      "id": "compat-transitive-match",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 1 — Transitive Path Compatibility (silent upgrade)"],
+      "description": "Local chain 'dog → mammal' and global chain 'dog → canine → mammal'. Global is transitive refinement of local. System silently upgrades: dog's direct parent becomes canine, canine's parent is mammal. The direct dog→mammal edge is REMOVED.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": { "status": "resolved", "compatibilityCase": "transitive_match" },
+        "postState": {
+          "dog": { "skos:broader": "canine" },
+          "canine": { "skos:broader": "mammal" },
+          "mammal": { "skos:broader": null }
+        },
+        "removedEdges": [
+          { "subject": "dog", "predicate": "skos:broader", "object": "mammal", "reason": "replaced by transitive closure dog → canine → mammal" }
+        ]
+      },
+      "negative_assertions": [
+        { "condition": "no conflict prompt", "description": "System MUST NOT fire a conflict prompt — the local chain is a valid transitive closure of the global chain." },
+        { "condition": "direct edge removed", "description": "The direct dog→mammal edge MUST be removed. Leaving both dog→canine and dog→mammal creates polyhierarchy, which violates single-inheritance commitment." }
+      ]
+    },
+    {
+      "id": "conflict-divergent-parent",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 1 — Divergent chains (conflict)", "Phase 12 Section 12.1 — Conflict Detection"],
+      "description": "Local 'dog → pet' and global 'dog → mammal'. Different parents, neither chain is transitive closure of the other. System fires conflict prompt.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:pet" },
+              { "id": "user:pet", "canonicalLabel": "pet", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": { "status": "conflict" },
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "promptType": "conflictResolution",
+            "term": "dog",
+            "definitions": [
+              { "scope": "user-graph-a", "scopeType": "user", "parentChain": ["pet"] },
+              { "scope": "global-cco", "scopeType": "global", "parentChain": ["mammal"] }
+            ],
+            "options": ["useDefinition", "createDistinct", "refine"]
+          }
+        },
+        "mutation": "none_until_user_choice"
+      }
+    },
+    {
+      "id": "conflict-resolve-use-definition",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.2 — useDefinition action"],
+      "description": "User selects 'useDefinition' with the global definition. Selected concept is copied into local graph. Unselected definition is noted in session metadata.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:pet" },
+              { "id": "user:pet", "canonicalLabel": "pet", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": {
+        "action": "useDefinition",
+        "selected": "global-cco"
+      },
+      "expect": {
+        "postState": {
+          "dog": {
+            "skos:broader": "mammal",
+            "annotations": {
+              "fandaws:resolvedFrom": {
+                "graphId": "global-cco",
+                "conceptIri": "cco:dog",
+                "scopeType": "global"
+              }
+            }
+          }
+        },
+        "sessionMetadata": {
+          "conflictResolutions": [
+            {
+              "term": "dog",
+              "selected": "global-cco",
+              "rejected": ["user-graph-a"]
+            }
+          ]
+        },
+        "mutationLog": {
+          "containsMutation": { "mutationType": "conflictResolution" }
+        }
+      }
+    },
+    {
+      "id": "conflict-resolve-create-distinct",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.2 — createDistinct action", "Phase 12 Annotation Schema — fandaws:disambiguatedFrom"],
+      "description": "User selects 'createDistinct' with disambiguated labels 'dog (pet)' and 'dog (animal)'. Both copied with fandaws:disambiguatedFrom annotations cross-referencing each other.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:pet" },
+              { "id": "user:pet", "canonicalLabel": "pet", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": {
+        "action": "createDistinct",
+        "disambiguations": [
+          { "source": "user-graph-a", "suffix": "pet" },
+          { "source": "global-cco", "suffix": "animal" }
+        ]
+      },
+      "expect": {
+        "postState": {
+          "dog_pet": {
+            "canonicalLabel": "dog (pet)",
+            "skos:broader": "pet",
+            "annotations": {
+              "fandaws:disambiguatedFrom": {
+                "originalTerm": "dog",
+                "disambiguationSuffix": "pet",
+                "peerConcept": "ANY_IRI_MATCHING(dog_animal)",
+                "disambiguatedAt": "ANY_ISO_DATETIME"
+              }
+            }
+          },
+          "dog_animal": {
+            "canonicalLabel": "dog (animal)",
+            "skos:broader": "mammal",
+            "annotations": {
+              "fandaws:disambiguatedFrom": {
+                "originalTerm": "dog",
+                "disambiguationSuffix": "animal",
+                "peerConcept": "ANY_IRI_MATCHING(dog_pet)",
+                "disambiguatedAt": "ANY_ISO_DATETIME"
+              }
+            }
+          }
+        },
+        "peerReferencesSymmetric": true
+      }
+    },
+    {
+      "id": "conflict-resolve-refine",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.2 — refine action", "Phase 12 Annotation Schema — fandaws:shadows"],
+      "description": "User selects 'refine' — rejects both external definitions and defines fresh locally. Concept carries fandaws:shadows annotation listing both overridden definitions. Display label MUST be disambiguated (not 'dog').",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog-existing", "canonicalLabel": "dog", "parent": "user:pet" },
+              { "id": "user:pet", "canonicalLabel": "pet", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": {
+        "action": "refine",
+        "newDisplayLabel": "dog (domain-specific)",
+        "refineReason": "Our domain uses 'dog' to mean the service-trained companion animal, distinct from pet or biological dog."
+      },
+      "expect": {
+        "postState": {
+          "refinedConcept": {
+            "canonicalLabel": "dog (domain-specific)",
+            "displayLabel": "dog (domain-specific)",
+            "annotations": {
+              "fandaws:shadows": {
+                "shadowedDefinitions": [
+                  { "graphId": "user-graph-a", "conceptIri": "user:dog-existing", "scopeType": "user", "graphVersion": "1.0.0" },
+                  { "graphId": "global-cco", "conceptIri": "cco:dog", "scopeType": "global", "graphVersion": "1.4.0" }
+                ],
+                "shadowedAt": "ANY_ISO_DATETIME",
+                "shadowReason": "Our domain uses 'dog' to mean the service-trained companion animal, distinct from pet or biological dog."
+              }
+            }
+          }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "mandatory disambiguation", "description": "System MUST reject refine with newDisplayLabel='dog' (same as shadowed concept). Disambiguated label is required by spec 12.2." }
+      ]
+    },
+    {
+      "id": "conflict-resolve-refine-rejects-undisambiguated-label",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.2 — refine disambiguation requirement"],
+      "description": "User attempts refine with a display label identical to the shadowed term. System rejects and re-prompts for disambiguated label.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:pet" }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": {
+        "action": "refine",
+        "newDisplayLabel": "dog"
+      },
+      "expect": {
+        "resolution": { "status": "refine_rejected", "reason": "undisambiguated_label" },
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "promptType": "refineDisambiguationRequired",
+            "attemptedLabel": "dog",
+            "conflictingTerm": "dog"
+          }
+        },
+        "mutation": "none"
+      }
+    },
+    {
+      "id": "offline-scope-skipped",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Offline behavior"],
+      "description": "Unavailable scope graph is skipped and recorded in skippedScopes. Pipeline continues with remaining scopes. Resolution succeeds if any available scope matches.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "available": false,
+            "unavailableReason": "ipfs_timeout"
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-domain",
+            "priority": 2,
+            "graphVersion": "0.9.0",
+            "concepts": [
+              { "id": "domain:dog", "canonicalLabel": "dog", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "global-domain",
+          "skippedScopes": [
+            { "graphId": "global-cco", "reason": "ipfs_timeout" }
+          ]
+        }
+      },
+      "negative_assertions": [
+        { "condition": "no crash on unavailable", "description": "System MUST NOT crash or abort resolution when a scope is unavailable. It MUST skip and continue." }
+      ]
+    },
+    {
+      "id": "offline-all-scopes-unavailable",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.1 — Offline behavior (all unavailable)"],
+      "description": "All global scopes unavailable. Resolution proceeds with user scope only. If user scope has no match, status is 'unknown' with skippedScopes populated.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "available": false,
+            "unavailableReason": "ipfs_timeout"
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-domain",
+            "priority": 2,
+            "graphVersion": "0.9.0",
+            "available": false,
+            "unavailableReason": "network_error"
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "resolution": {
+          "status": "unknown",
+          "skippedScopes": [
+            { "graphId": "global-cco", "reason": "ipfs_timeout" },
+            { "graphId": "global-domain", "reason": "network_error" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "stale-copy-prompt-fired",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 2 — staleCopyPrompt trigger"],
+      "description": "Concept was resolved at graphVersion 1.4.0. Source scope is now at 1.5.0 with structural differences. Re-resolution fires staleCopyPrompt showing differences.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "annotations": {
+                  "fandaws:resolvedFrom": {
+                    "graphId": "global-cco",
+                    "conceptIri": "cco:dog",
+                    "scopeType": "global",
+                    "resolvedAt": "2026-01-01T00:00:00Z",
+                    "graphVersion": "1.4.0"
+                  }
+                }
+              },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.5.0",
+            "concepts": [
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:canine",
+                "restrictions": [{ "verb": "has", "object": "cco:tail" }]
+              },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null },
+              { "id": "cco:tail", "canonicalLabel": "tail", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "promptType": "staleCopyPrompt",
+            "term": "dog",
+            "localVersion": "1.4.0",
+            "sourceVersion": "1.5.0",
+            "differences": [
+              { "type": "parentChange", "from": "mammal", "to": "canine" },
+              { "type": "restrictionAdded", "verb": "has", "object": "tail" }
+            ],
+            "options": ["keep_local", "refresh_from_source", "cancel"]
+          }
+        },
+        "mutation": "none_until_user_choice"
+      }
+    },
+    {
+      "id": "stale-copy-keep-local",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 2 — staleCopyPrompt keep_local"],
+      "description": "User selects 'keep_local' on staleCopyPrompt. Local concept unchanged. Annotation NOT updated. Session records user's choice to decline the upgrade.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "annotations": {
+                  "fandaws:resolvedFrom": {
+                    "graphId": "global-cco",
+                    "conceptIri": "cco:dog",
+                    "scopeType": "global",
+                    "resolvedAt": "2026-01-01T00:00:00Z",
+                    "graphVersion": "1.4.0"
+                  }
+                }
+              },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.5.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": { "action": "keep_local" },
+      "expect": {
+        "postState": {
+          "dog": {
+            "skos:broader": "mammal",
+            "annotations": {
+              "fandaws:resolvedFrom": { "graphVersion": "1.4.0" }
+            }
+          }
+        },
+        "sessionMetadata": {
+          "staleCopyDecisions": [
+            { "term": "dog", "action": "keep_local", "localVersion": "1.4.0", "availableVersion": "1.5.0" }
+          ]
+        }
+      },
+      "negative_assertions": [
+        { "condition": "no version update", "description": "fandaws:resolvedFrom.graphVersion MUST remain 1.4.0. User chose not to upgrade." }
+      ]
+    },
+    {
+      "id": "stale-copy-refresh-from-source",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 2 — staleCopyPrompt refresh_from_source"],
+      "description": "User selects 'refresh_from_source'. Local concept replaced by source version. Parent chain updated. New annotation reflects new version. Structural changes (new restrictions, new parents) materialized.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "annotations": {
+                  "fandaws:resolvedFrom": {
+                    "graphId": "global-cco",
+                    "conceptIri": "cco:dog",
+                    "scopeType": "global",
+                    "resolvedAt": "2026-01-01T00:00:00Z",
+                    "graphVersion": "1.4.0"
+                  }
+                }
+              },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.5.0",
+            "concepts": [
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:canine",
+                "restrictions": [{ "verb": "has", "object": "cco:tail" }]
+              },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null },
+              { "id": "cco:tail", "canonicalLabel": "tail", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": { "action": "refresh_from_source" },
+      "expect": {
+        "postState": {
+          "dog": {
+            "skos:broader": "canine",
+            "restrictions": [{ "verb": "has", "objectLabel": "tail" }],
+            "annotations": {
+              "fandaws:resolvedFrom": { "graphVersion": "1.5.0", "resolvedAt": "ANY_ISO_DATETIME_AFTER(2026-01-01T00:00:00Z)" }
+            }
+          },
+          "canine": { "skos:broader": "mammal" },
+          "tail": { "exists": true }
+        }
+      }
+    },
+    {
+      "id": "stale-copy-cancel",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 2 — staleCopyPrompt cancel"],
+      "description": "User selects 'cancel' on staleCopyPrompt. No mutation. Resolution attempt is aborted. Local graph unchanged.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "annotations": {
+                  "fandaws:resolvedFrom": {
+                    "graphId": "global-cco",
+                    "conceptIri": "cco:dog",
+                    "scopeType": "global",
+                    "resolvedAt": "2026-01-01T00:00:00Z",
+                    "graphVersion": "1.4.0"
+                  }
+                }
+              },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.5.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": { "action": "cancel" },
+      "expect": {
+        "postState": {
+          "dog": {
+            "skos:broader": "mammal",
+            "annotations": {
+              "fandaws:resolvedFrom": { "graphVersion": "1.4.0" }
+            }
+          }
+        },
+        "resolution": { "status": "cancelled" },
+        "mutationCount": 0
+      }
+    },
+    {
+      "id": "mutation-log-conflict-resolution",
+      "version": 1,
+      "verifies": ["Phase 12 Section 12.2 — Conflict resolutions logged as GraphMutations"],
+      "description": "Every conflict resolution action produces a GraphMutation with mutationType='conflictResolution'. Mutation log is the audit trail for cross-scope decisions.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:pet" }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "user_choice": { "action": "useDefinition", "selected": "global-cco" },
+      "expect": {
+        "mutationLog": {
+          "entries": [
+            {
+              "mutationType": "conflictResolution",
+              "term": "dog",
+              "action": "useDefinition",
+              "selectedScope": "global-cco",
+              "timestamp": "ANY_ISO_DATETIME"
+            }
+          ],
+          "mutationTypeCount": { "conflictResolution": 1 }
+        }
+      }
+    },
+    {
+      "id": "no-polyhierarchy-after-transitive-match",
+      "version": 1,
+      "verifies": ["Phase 12 Decision 1 — Transitive Path Compatibility (no polyhierarchy)", "Single-inheritance commitment"],
+      "description": "After transitive match silently upgrades local chain, the concept has exactly ONE skos:broader edge. No polyhierarchy is created. This is a structural integrity test that catches the most likely implementation bug for this case.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
+              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
+              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
+              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "expect": {
+        "postState": {
+          "dog": {
+            "skosBroaderCount": 1,
+            "skos:broader": "canine",
+            "rdfsSubClassOfContainsOnly": ["canine"]
+          }
+        }
+      },
+      "negative_assertions": [
+        { "condition": "single skos:broader", "description": "dog MUST have exactly one skos:broader edge (pointing to canine). MUST NOT have both dog→canine AND dog→mammal." },
+        { "condition": "single rdfs:subClassOf user concept", "description": "dog's rdfs:subClassOf MUST contain canine only, not both canine and mammal. BFO marker entries are separate." }
+      ]
+    }
+  ]
+}

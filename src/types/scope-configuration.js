@@ -36,6 +36,8 @@ export function createScopeConfiguration({
  * @param {number} params.priority - Resolution order (lower = searched first)
  * @param {string} [params.trustLevel] - "authoritative" | "community" | "experimental"
  * @param {string|null} [params.staleCopyAction] - Per-scope override
+ * @param {boolean} [params.available] - Whether the scope is currently reachable (offline-first)
+ * @param {string|null} [params.unavailableReason] - Why the scope is unreachable (e.g., "ipfs_timeout")
  * @returns {object} JSON-LD ScopeEntry
  */
 export function createScopeEntry({
@@ -45,8 +47,10 @@ export function createScopeEntry({
   priority,
   trustLevel = 'community',
   staleCopyAction = null,
+  available,
+  unavailableReason = null,
 }) {
-  return {
+  const node = {
     'fandaws:graphId': graphId,
     'fandaws:label': label,
     'fandaws:ipfsCid': ipfsCid,
@@ -54,4 +58,7 @@ export function createScopeEntry({
     'fandaws:trustLevel': trustLevel,
     'fandaws:staleCopyAction': staleCopyAction,
   };
+  if (available !== undefined) node['fandaws:available'] = available;
+  if (unavailableReason) node['fandaws:unavailableReason'] = unavailableReason;
+  return node;
 }

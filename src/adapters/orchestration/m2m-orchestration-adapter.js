@@ -86,16 +86,28 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
       }
     }
 
-    // Track rejections for deadlock detection (agent mode)
-    if (callerMode === 'agent' && result.mutation === null && result.prompts.length === 0) {
-      // Rejection — no mutation, no prompt (silent rejection)
-      // Parse the utterance to extract concept and mutation type
-      const pair = this._extractPair(utterance);
-      if (pair) {
-        const dl = this._deadlockTracker.recordRejection(
-          pair.concept, pair.mutationType, result.errorReason || 'rejected',
-        );
-        result._deadlockState = dl;
+    // Track rejections for deadlock detection (agent mode).
+    // A "rejection" is any result where the mutation was blocked:
+    // - Silent rejection (no mutation, no prompts)
+    // - Blocking guard prompt (importedConceptGuard, etc.)
+    if (callerMode === 'agent' && result.mutation === null) {
+      const isBlockingGuard = result.prompts?.some(
+        (p) => p['fandaws:promptType'] === 'importedConceptGuard',
+      );
+      const isSilentRejection = result.prompts.length === 0;
+
+      if (isSilentRejection || isBlockingGuard) {
+        const pair = this._extractPair(utterance);
+        if (pair) {
+          const reason = isBlockingGuard ? 'importedConceptGuard' : (result.errorReason || 'rejected');
+          const dl = this._deadlockTracker.recordRejection(pair.concept, pair.mutationType, reason);
+          result._deadlockState = dl;
+
+          // If deadlock threshold reached, emit cascade
+          if (dl.deadlockDetected && !dl.epistemicFailureAlreadyFired) {
+            result._deadlockCascade = this._runCascade(pair, dl, context);
+          }
+        }
       }
     }
 
@@ -203,6 +215,108 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
       return { concept: hasMatch[1].trim(), mutationType: 'property' };
     }
     return null;
+  }
+
+  /**
+   * Run the deadlock remediation cascade (Decision D).
+   *
+   * Synchronous cascade: auto-repair → deferred → human escalation → EpistemicFailure.
+   * Returns the cascade result with prompts, mutation log, and EpistemicFailure if terminal.
+   */
+  _runCascade(pair, dl, context) {
+    const concept = pair.concept;
+    const mutationType = pair.mutationType;
+    const rejectionCount = dl.rejectionCount;
+    const reasons = this._deadlockTracker.getRejectionReasons(concept, mutationType);
+
+    // Step 1: Auto-repair
+    const autoRepairPrompt = {
+      step: 'autoRepair',
+      prompt: {
+        'fandaws:promptType': 'deadlockRemediation',
+        'fandaws:options': ['accept_repair', 'reject_repair'],
+        'fandaws:machineSignal': buildMachineSignal('agent', {
+          'fandaws:promptType': 'deadlockRemediation',
+          'fandaws:options': ['accept_repair', 'reject_repair'],
+          'fandaws:context': {},
+        }, {
+          constraintType: 'inherence',
+          concept,
+          mutationType,
+          rejectionCount,
+          suggestedRepair: `Consider a different classification for "${concept}". The current assertion has been rejected ${rejectionCount} times.`,
+        }),
+      },
+    };
+
+    // Step 2: Deferred resolution
+    const deferralPrompt = {
+      step: 'deferredResolution',
+      prompt: {
+        'fandaws:promptType': 'deadlockRemediation',
+        'fandaws:options': ['accept_deferral', 'reject_deferral'],
+        'fandaws:machineSignal': buildMachineSignal('agent', {
+          'fandaws:promptType': 'deadlockRemediation',
+          'fandaws:options': ['accept_deferral', 'reject_deferral'],
+          'fandaws:context': {},
+        }, {
+          constraintType: 'inherence',
+          concept,
+          mutationType,
+          rejectionCount,
+          deferralReason: `Park the "${concept}" ${mutationType} for later resolution. The assertion can be retried in a future session.`,
+        }),
+      },
+    };
+
+    // Step 3: Human escalation (conditional)
+    // If human channel is available, escalation is the resolution — no EpistemicFailure.
+    const humanEscalation = context.humanChannelAvailable ? {
+      step: 'humanEscalation',
+      escalation: {
+        fired: true,
+        concept,
+        mutationType,
+        rejectionCount,
+        channel: 'human',
+      },
+    } : null;
+
+    // Step 4: EpistemicFailure (terminal) — only if human escalation NOT available
+    let epistemicFailure = null;
+    if (!context.humanChannelAvailable) {
+      epistemicFailure = {
+        type: 'EpistemicFailure',
+        concept,
+        mutationType,
+        attemptCount: rejectionCount,
+        rejectionReasons: reasons.length > 0 ? reasons : ['Repeated rejection'],
+        suggestedActions: [
+          `Reclassify "${concept}" under a different parent`,
+          `Review the classification constraints for "${concept}"`,
+        ],
+      };
+      // Tag the pair
+      this._deadlockTracker.markEpistemicFailure(concept, mutationType, epistemicFailure);
+    }
+
+    // Mutation log entry
+    const mutationLogEntry = {
+      mutationType: 'deadlockResolution',
+      concept,
+      outcome: epistemicFailure ? 'EpistemicFailure' : (humanEscalation ? 'humanEscalation' : 'unknown'),
+      attemptCount: rejectionCount,
+      timestamp: new Date().toISOString(),
+    };
+
+    return {
+      steps: [autoRepairPrompt, deferralPrompt, humanEscalation, epistemicFailure].filter(Boolean),
+      autoRepairPrompt,
+      deferralPrompt,
+      humanEscalation,
+      epistemicFailure,
+      mutationLogEntry,
+    };
   }
 
   /**

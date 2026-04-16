@@ -1,11 +1,20 @@
 {
   "bundle_id": "phase-13-m2m-conversation-protocol",
-  "bundle_version": 1,
+  "bundle_version": 2,
   "authored": "2026-04-16",
+  "modified": "2026-04-16",
   "status": "awaits_implementation",
-  "verifies_phase": "Phase 13 — M2M Conversation Protocol",
+  "verifies_phase": "Phase 13 \u2014 M2M Conversation Protocol",
+  "revision_notes_v2": {
+    "scenario_fixes": [
+      "ms-expectedschema-parseable: setup was missing DNA restriction on organism \u2014 prompt never fired. Added restriction. Version bumped to 2.",
+      "sim-multiturn-knowledge-building: postState asserted on nonexistent concept 'dog_chases_cat'. Relationships are restrictions on the subject concept, not standalone concepts. Fixed to assert restriction on dog. Version bumped to 2.",
+      "All deadlock scenarios (dl-*) and sim-agent-hits-deadlock-continues: trigger changed from 'a dog is a process' (disjointness) to 'entity is a thing' (imported concept guard). Imported concept guard IS implemented and reliably rejects. Deadlock cascade tested against rejection behavior that exists NOW. All affected scenarios version bumped to 2."
+    ],
+    "deadlock_trigger_rationale": "The purpose of the deadlock scenarios is to verify the cascade mechanism, not to verify disjointness checking. When the conversational consistency check (v2.0 spec Section 3.8 Path A) ships, a new scenario will be added testing deadlock triggered specifically by disjointness rejection."
+  },
   "locked_decisions": {
-    "A_schema_model": "Layered — common envelope (promptType, constraintType, options, expectedSchema) plus prompt-type-specific extension payload. No flat schema with null fields.",
+    "A_schema_model": "Layered \u2014 common envelope plus prompt-type-specific extension payload.",
     "B_prompt_type_registry": {
       "registered_types": [
         "reclassificationConsequence",
@@ -14,23 +23,26 @@
         "refineDisambiguationRequired",
         "objectResolution",
         "homonymDisambiguation",
-        "importedConceptGuard"
+        "importedConceptGuard",
+        "deadlockRemediation"
       ],
       "extensible": true,
       "validation": "Unregistered promptType triggers SchemaValidationError"
     },
-    "C_expectedSchema": "Full JSON Schema (draft-07 or newer). The schema IS the SDK. No required prior coordination.",
-    "D_deadlock_graduation": "Cascade at rejection 5. System detects deadlock, then tries in order: auto-repair → deferred resolution → human escalation (if channel available) → EpistemicFailure (terminal for pair).",
-    "E_epistemic_failure": "Terminal for the (concept, mutationType) pair. Session continues for other pairs. Failed pair tagged with resolutionStatus: EpistemicFailure.",
-    "F_rate_limiting": "Per session. 100 assertions/minute. Exceeded → RateLimitExceeded error with retryAfter field. Does not affect other sessions."
+    "C_expectedSchema": "Full JSON Schema (draft-07 or newer). The schema IS the SDK.",
+    "D_deadlock_graduation": "Cascade at rejection 5: auto-repair \u2192 deferred \u2192 human escalation \u2192 EpistemicFailure.",
+    "E_epistemic_failure": "Terminal for (concept, mutationType) pair. Session continues for other pairs.",
+    "F_rate_limiting": "Per session. 100/min. RateLimitExceeded with retryAfter."
   },
   "scenarios": [
-
     {
       "id": "ms-agent-mode-reclassification",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — MachineSignal on reclassificationConsequence", "Decision A — Layered schema"],
-      "description": "In agent mode, a reclassification prompt carries a fully populated MachineSignal with common envelope fields plus reclassification-specific extension payload. expectedSchema is valid JSON Schema that describes the response contract.",
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 MachineSignal on reclassificationConsequence",
+        "Decision A \u2014 Layered schema"
+      ],
+      "description": "In agent mode, a reclassification prompt carries a fully populated MachineSignal with common envelope fields plus reclassification-specific extension payload.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -39,16 +51,42 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:organism", "canonicalLabel": "organism", "parent": "user:material-entity", "restrictions": [{ "verb": "has", "object": "user:dna" }] },
-              { "id": "user:animal", "canonicalLabel": "animal", "parent": "user:organism" },
-              { "id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true },
-              { "id": "user:dna", "canonicalLabel": "dna", "parent": null }
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "an animal is a material entity" },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
       "expect": {
         "prompt": {
           "fired": true,
@@ -56,13 +94,23 @@
             "envelope": {
               "promptType": "reclassificationConsequence",
               "constraintType": "subsumption",
-              "options": ["keep_current", "reclassify_subtree", "reclassify_only"],
+              "options": [
+                "keep_current",
+                "reclassify_subtree",
+                "reclassify_only"
+              ],
               "expectedSchema": {
                 "isValidJsonSchema": true,
                 "describesResponseShape": {
                   "type": "object",
-                  "requiredProperties": ["choice"],
-                  "choiceEnum": ["keep_current", "reclassify_subtree", "reclassify_only"]
+                  "requiredProperties": [
+                    "choice"
+                  ],
+                  "choiceEnum": [
+                    "keep_current",
+                    "reclassify_subtree",
+                    "reclassify_only"
+                  ]
                 }
               }
             },
@@ -72,18 +120,24 @@
               "currentParent": "organism",
               "proposedParent": "material entity",
               "lostProperties": [
-                { "ancestor": "organism", "property": "has dna", "affectedDescendants": 0 }
+                {
+                  "ancestor": "organism",
+                  "property": "has dna",
+                  "affectedDescendants": 0
+                }
               ]
             }
           }
         }
       }
     },
-
     {
       "id": "ms-agent-mode-conflict",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — MachineSignal on conflictResolution", "Decision A — Layered schema"],
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 MachineSignal on conflictResolution",
+        "Decision A \u2014 Layered schema"
+      ],
       "description": "In agent mode, a conflict resolution prompt carries envelope with candidateIRIs populated and extension with both definitions.",
       "setup": {
         "callerMode": "agent",
@@ -93,8 +147,16 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:pet" },
-              { "id": "user:pet", "canonicalLabel": "pet", "parent": null }
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:pet"
+              },
+              {
+                "id": "user:pet",
+                "canonicalLabel": "pet",
+                "parent": null
+              }
             ]
           },
           {
@@ -103,14 +165,25 @@
             "priority": 1,
             "graphVersion": "1.4.0",
             "concepts": [
-              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:mammal" },
-              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:mammal"
+              },
+              {
+                "id": "cco:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "trigger": {
+        "type": "resolveTerm",
+        "value": "dog"
+      },
       "expect": {
         "prompt": {
           "fired": true,
@@ -118,8 +191,15 @@
             "envelope": {
               "promptType": "conflictResolution",
               "constraintType": "scopeLevel",
-              "options": ["useDefinition", "createDistinct", "refine"],
-              "candidateIRIs": ["user:dog", "cco:dog"],
+              "options": [
+                "useDefinition",
+                "createDistinct",
+                "refine"
+              ],
+              "candidateIRIs": [
+                "user:dog",
+                "cco:dog"
+              ],
               "expectedSchema": {
                 "isValidJsonSchema": true
               }
@@ -127,20 +207,33 @@
             "extension": {
               "term": "dog",
               "definitions": [
-                { "scope": "user-graph-a", "scopeType": "user", "parentChain": ["pet"] },
-                { "scope": "global-cco", "scopeType": "global", "parentChain": ["mammal"] }
+                {
+                  "scope": "user-graph-a",
+                  "scopeType": "user",
+                  "parentChain": [
+                    "pet"
+                  ]
+                },
+                {
+                  "scope": "global-cco",
+                  "scopeType": "global",
+                  "parentChain": [
+                    "mammal"
+                  ]
+                }
               ]
             }
           }
         }
       }
     },
-
     {
       "id": "ms-agent-mode-disambiguation",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — candidateIRIs on disambiguation prompts"],
-      "description": "In agent mode, a homonym disambiguation prompt carries candidateIRIs listing both homonym IRIs plus hierarchyContext showing the relevant subgraph for each candidate.",
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 candidateIRIs on disambiguation prompts"
+      ],
+      "description": "In agent mode, a homonym disambiguation prompt carries candidateIRIs plus hierarchyContext.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -149,45 +242,87 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:foot-body", "canonicalLabel": "foot (body part)", "displayLabel": "foot (body part)", "parent": "user:extremity", "hiddenLabel": "foot" },
-              { "id": "user:foot-unit", "canonicalLabel": "foot (unit)", "displayLabel": "foot (unit)", "parent": "user:linear-unit", "hiddenLabel": "foot" },
-              { "id": "user:extremity", "canonicalLabel": "extremity", "parent": null },
-              { "id": "user:linear-unit", "canonicalLabel": "linear unit", "parent": null }
+              {
+                "id": "user:foot-body",
+                "canonicalLabel": "foot (body part)",
+                "displayLabel": "foot (body part)",
+                "parent": "user:extremity",
+                "hiddenLabel": "foot"
+              },
+              {
+                "id": "user:foot-unit",
+                "canonicalLabel": "foot (unit)",
+                "displayLabel": "foot (unit)",
+                "parent": "user:linear-unit",
+                "hiddenLabel": "foot"
+              },
+              {
+                "id": "user:extremity",
+                "canonicalLabel": "extremity",
+                "parent": null
+              },
+              {
+                "id": "user:linear-unit",
+                "canonicalLabel": "linear unit",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "a toe is a foot" },
+      "trigger": {
+        "type": "utterance",
+        "value": "a toe is a foot"
+      },
       "expect": {
         "prompt": {
           "fired": true,
           "machineSignal": {
             "envelope": {
               "promptType": "homonymDisambiguation",
-              "candidateIRIs": ["user:foot-body", "user:foot-unit"],
+              "candidateIRIs": [
+                "user:foot-body",
+                "user:foot-unit"
+              ],
               "expectedSchema": {
                 "isValidJsonSchema": true
               }
             },
             "extension": {
               "candidates": [
-                { "iri": "user:foot-body", "displayLabel": "foot (body part)", "parentChain": ["extremity"] },
-                { "iri": "user:foot-unit", "displayLabel": "foot (unit)", "parentChain": ["linear unit"] }
+                {
+                  "iri": "user:foot-body",
+                  "displayLabel": "foot (body part)",
+                  "parentChain": [
+                    "extremity"
+                  ]
+                },
+                {
+                  "iri": "user:foot-unit",
+                  "displayLabel": "foot (unit)",
+                  "parentChain": [
+                    "linear unit"
+                  ]
+                }
               ],
               "hierarchyContext": {
-                "containsSubgraphFor": ["user:foot-body", "user:foot-unit"]
+                "containsSubgraphFor": [
+                  "user:foot-body",
+                  "user:foot-unit"
+                ]
               }
             }
           }
         }
       }
     },
-
     {
       "id": "ms-agent-mode-stale-copy",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — MachineSignal on staleCopyPrompt"],
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 MachineSignal on staleCopyPrompt"
+      ],
       "description": "In agent mode, a stale copy prompt carries version comparison in envelope and structural differences in extension.",
       "setup": {
         "callerMode": "agent",
@@ -211,7 +346,11 @@
                   }
                 }
               },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null }
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
             ]
           },
           {
@@ -220,23 +359,44 @@
             "priority": 1,
             "graphVersion": "1.5.0",
             "concepts": [
-              { "id": "cco:dog", "canonicalLabel": "dog", "parent": "cco:canine" },
-              { "id": "cco:canine", "canonicalLabel": "canine", "parent": "cco:mammal" },
-              { "id": "cco:mammal", "canonicalLabel": "mammal", "parent": null }
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:canine"
+              },
+              {
+                "id": "cco:canine",
+                "canonicalLabel": "canine",
+                "parent": "cco:mammal"
+              },
+              {
+                "id": "cco:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "resolveTerm", "value": "dog" },
+      "trigger": {
+        "type": "resolveTerm",
+        "value": "dog"
+      },
       "expect": {
         "prompt": {
           "fired": true,
           "machineSignal": {
             "envelope": {
               "promptType": "staleCopyPrompt",
-              "options": ["keep_local", "refresh_from_source", "cancel"],
-              "expectedSchema": { "isValidJsonSchema": true }
+              "options": [
+                "keep_local",
+                "refresh_from_source",
+                "cancel"
+              ],
+              "expectedSchema": {
+                "isValidJsonSchema": true
+              }
             },
             "extension": {
               "term": "dog",
@@ -248,12 +408,13 @@
         }
       }
     },
-
     {
       "id": "ms-agent-mode-imported-guard",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — MachineSignal on importedConceptGuard"],
-      "description": "In agent mode, attempting to modify an imported concept produces a MachineSignal with constraintType='inherence' explaining why the mutation was blocked.",
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 MachineSignal on importedConceptGuard"
+      ],
+      "description": "In agent mode, attempting to modify an imported concept produces a MachineSignal with constraintType='inherence'.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -262,13 +423,24 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true, "equivalentClass": ["bfo:BFO_0000040"] }
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000040"
+                ]
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "material entity has mass" },
+      "trigger": {
+        "type": "utterance",
+        "value": "material entity has mass"
+      },
       "expect": {
         "prompt": {
           "fired": true,
@@ -277,7 +449,9 @@
               "promptType": "importedConceptGuard",
               "constraintType": "inherence",
               "options": [],
-              "expectedSchema": { "isValidJsonSchema": true }
+              "expectedSchema": {
+                "isValidJsonSchema": true
+              }
             },
             "extension": {
               "blockedConcept": "material entity",
@@ -289,12 +463,13 @@
         "mutation": "none"
       }
     },
-
     {
       "id": "ms-human-mode-null",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — human mode machineSignal is null"],
-      "description": "In human mode, the same trigger that would produce a MachineSignal in agent mode produces a prompt with machineSignal=null. The human-readable prompt text is unchanged.",
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 human mode machineSignal is null"
+      ],
+      "description": "In human mode, machineSignal is strictly null.",
       "setup": {
         "callerMode": "human",
         "scopes": [
@@ -303,16 +478,42 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:organism", "canonicalLabel": "organism", "parent": "user:material-entity", "restrictions": [{ "verb": "has", "object": "user:dna" }] },
-              { "id": "user:animal", "canonicalLabel": "animal", "parent": "user:organism" },
-              { "id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true },
-              { "id": "user:dna", "canonicalLabel": "dna", "parent": null }
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "an animal is a material entity" },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
       "expect": {
         "prompt": {
           "fired": true,
@@ -321,15 +522,19 @@
         }
       },
       "negative_assertions": [
-        { "condition": "machineSignal strictly null", "description": "machineSignal MUST be null, not an empty object, not undefined, not omitted. The field is present and its value is null." }
+        {
+          "condition": "machineSignal strictly null",
+          "description": "machineSignal MUST be null, not empty object, not undefined, not omitted."
+        }
       ]
     },
-
     {
       "id": "ms-agent-roundtrip",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — structured agent response routed back into pipeline"],
-      "description": "Agent receives MachineSignal with expectedSchema, constructs a valid response, submits it. The pipeline processes the response and produces the correct mutation. Full round-trip.",
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 structured agent response routed back into pipeline"
+      ],
+      "description": "Full round-trip: agent receives MachineSignal, responds, mutation applied.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -338,29 +543,50 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:organism", "canonicalLabel": "organism", "parent": "user:material-entity" },
-              { "id": "user:animal", "canonicalLabel": "animal", "parent": "user:organism" },
-              { "id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true }
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "an animal is a material entity" },
-      "agentResponse": { "choice": "reclassify_subtree" },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
+      "agentResponse": {
+        "choice": "reclassify_subtree"
+      },
       "expect": {
         "responseAccepted": true,
         "postState": {
-          "animal": { "skos:broader": "user:material-entity" }
+          "animal": {
+            "skos:broader": "user:material-entity"
+          }
         }
       }
     },
-
     {
       "id": "ms-agent-invalid-response",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.1 — invalid agent response rejected"],
-      "description": "Agent submits a response that does not conform to the expectedSchema. System rejects with SchemaValidationError and re-presents the prompt.",
+      "verifies": [
+        "Phase 13 Section 13.1 \u2014 invalid agent response rejected"
+      ],
+      "description": "Agent submits invalid response. SchemaValidationError returned. Prompt re-presented.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -369,59 +595,97 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:organism", "canonicalLabel": "organism", "parent": "user:material-entity" },
-              { "id": "user:animal", "canonicalLabel": "animal", "parent": "user:organism" },
-              { "id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true }
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "an animal is a material entity" },
-      "agentResponse": { "choice": "destroy_everything" },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
+      "agentResponse": {
+        "choice": "destroy_everything"
+      },
       "expect": {
         "responseAccepted": false,
         "error": {
           "type": "SchemaValidationError",
           "invalidValue": "destroy_everything",
-          "validValues": ["keep_current", "reclassify_subtree", "reclassify_only"]
+          "validValues": [
+            "keep_current",
+            "reclassify_subtree",
+            "reclassify_only"
+          ]
         },
         "promptRepresented": true,
         "mutation": "none"
       }
     },
-
     {
       "id": "ms-unregistered-prompttype",
       "version": 1,
-      "verifies": ["Decision B — Prompt type registry validation"],
-      "description": "An internal code path attempting to emit an unregistered promptType triggers SchemaValidationError. Unregistered types do not silently pass.",
+      "verifies": [
+        "Decision B \u2014 Prompt type registry validation"
+      ],
+      "description": "Unregistered promptType triggers SchemaValidationError.",
       "setup": {
         "callerMode": "agent",
         "injectUnregisteredPrompt": {
-          "promptType": "inventedPromptType",
-          "note": "This simulates a coding error where a developer adds a new prompt without registering the type"
+          "promptType": "inventedPromptType"
         }
       },
-      "trigger": { "type": "internalEmit", "value": "inventedPromptType" },
+      "trigger": {
+        "type": "internalEmit",
+        "value": "inventedPromptType"
+      },
       "expect": {
         "error": {
           "type": "SchemaValidationError",
           "reason": "unregistered_prompt_type",
           "attemptedType": "inventedPromptType",
-          "registeredTypes": ["reclassificationConsequence", "conflictResolution", "staleCopyPrompt", "refineDisambiguationRequired", "objectResolution", "homonymDisambiguation", "importedConceptGuard"]
+          "registeredTypes": [
+            "reclassificationConsequence",
+            "conflictResolution",
+            "staleCopyPrompt",
+            "refineDisambiguationRequired",
+            "objectResolution",
+            "homonymDisambiguation",
+            "importedConceptGuard",
+            "deadlockRemediation"
+          ]
         }
       },
       "negative_assertions": [
-        { "condition": "no silent acceptance", "description": "System MUST NOT silently accept an unregistered promptType. MUST NOT emit it to the agent. MUST throw SchemaValidationError." }
+        {
+          "condition": "no silent acceptance",
+          "description": "System MUST NOT silently accept an unregistered promptType."
+        }
       ]
     },
-
     {
       "id": "ms-expectedschema-parseable",
-      "version": 1,
-      "verifies": ["Decision C — expectedSchema is valid JSON Schema"],
-      "description": "Every MachineSignal's expectedSchema field is parseable as valid JSON Schema (draft-07+). An external JSON Schema validator would accept it without errors.",
+      "version": 2,
+      "verifies": [
+        "Decision C \u2014 expectedSchema is valid JSON Schema"
+      ],
+      "description": "expectedSchema is valid JSON Schema (draft-07+). v2 fix: added DNA restriction to setup so consequence prompt fires.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -430,15 +694,42 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:organism", "canonicalLabel": "organism", "parent": "user:material-entity" },
-              { "id": "user:animal", "canonicalLabel": "animal", "parent": "user:organism" },
-              { "id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true }
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "an animal is a material entity" },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
       "expect": {
         "prompt": {
           "fired": true,
@@ -456,12 +747,13 @@
         }
       }
     },
-
     {
       "id": "dl-no-deadlock-at-four",
-      "version": 1,
-      "verifies": ["Phase 13 Section 13.2 — 5 consecutive rejections threshold"],
-      "description": "Four consecutive rejections for the same (concept, mutationType) pair do NOT trigger deadlock detection. System continues normal rejection handling.",
+      "version": 2,
+      "verifies": [
+        "Phase 13 Section 13.2 \u2014 5 consecutive rejections threshold"
+      ],
+      "description": "4 rejections do NOT trigger deadlock. v2: imported concept guard trigger.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -470,9 +762,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -480,10 +778,8 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
-        "repetitions": 4,
-        "agentResponseToEachPrompt": { "choice": "reclassify_subtree" },
-        "note": "Agent asserts the same reclassification 4 times. Each is rejected by the engine (e.g., disjointness constraint)."
+        "value": "entity is a thing",
+        "repetitions": 4
       },
       "expect": {
         "deadlockDetected": false,
@@ -491,15 +787,20 @@
         "epistemicFailure": false
       },
       "negative_assertions": [
-        { "condition": "no deadlock at 4", "description": "System MUST NOT trigger deadlock cascade before the 5th rejection." }
+        {
+          "condition": "no deadlock at 4",
+          "description": "System MUST NOT trigger deadlock cascade before the 5th rejection."
+        }
       ]
     },
-
     {
       "id": "dl-deadlock-at-five-autorepair",
-      "version": 1,
-      "verifies": ["Phase 13 Section 13.2 — Deadlock detection at rejection 5", "Decision D — Cascade step 1 (auto-repair)"],
-      "description": "Fifth consecutive rejection triggers deadlock detection. System attempts auto-repair as the first remediation step. Auto-repair suggestion is presented to the agent via MachineSignal.",
+      "version": 2,
+      "verifies": [
+        "Phase 13 Section 13.2 \u2014 Deadlock detection at rejection 5",
+        "Decision D \u2014 Cascade step 1"
+      ],
+      "description": "5th rejection triggers deadlock. Auto-repair presented. v2: imported concept guard trigger.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -508,9 +809,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -518,7 +825,7 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
+        "value": "entity is a thing",
         "repetitions": 5
       },
       "expect": {
@@ -529,11 +836,14 @@
           "machineSignal": {
             "envelope": {
               "promptType": "deadlockRemediation",
-              "constraintType": "disjointness",
-              "options": ["accept_repair", "reject_repair"]
+              "constraintType": "inherence",
+              "options": [
+                "accept_repair",
+                "reject_repair"
+              ]
             },
             "extension": {
-              "concept": "dog",
+              "concept": "entity",
               "mutationType": "reclassification",
               "rejectionCount": 5,
               "suggestedRepair": "ANY_NONEMPTY_STRING"
@@ -542,12 +852,13 @@
         }
       }
     },
-
     {
       "id": "dl-autorepair-accepted",
-      "version": 1,
-      "verifies": ["Decision D — Cascade step 1 accepted"],
-      "description": "Agent accepts auto-repair suggestion. Deadlock resolved. Mutation applied per the repair. No further cascade steps.",
+      "version": 2,
+      "verifies": [
+        "Decision D \u2014 Cascade step 1 accepted"
+      ],
+      "description": "Agent accepts auto-repair. Deadlock resolved. v2: imported concept guard trigger.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -556,9 +867,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -566,25 +883,30 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
+        "value": "entity is a thing",
         "repetitions": 5
       },
-      "agentResponse": { "choice": "accept_repair" },
+      "agentResponse": {
+        "choice": "accept_repair"
+      },
       "expect": {
         "deadlockResolved": true,
         "epistemicFailure": false,
         "mutationApplied": true,
         "mutationLog": {
-          "containsMutation": { "mutationType": "deadlockResolution" }
+          "containsMutation": {
+            "mutationType": "deadlockResolution"
+          }
         }
       }
     },
-
     {
       "id": "dl-autorepair-rejected-deferred",
-      "version": 1,
-      "verifies": ["Decision D — Cascade step 1 rejected → step 2 (deferred resolution)"],
-      "description": "Agent rejects auto-repair. System falls through to step 2: deferred resolution. Mutation is parked for later resolution.",
+      "version": 2,
+      "verifies": [
+        "Decision D \u2014 Cascade step 1 rejected \u2192 step 2"
+      ],
+      "description": "Agent rejects auto-repair. Deferred resolution offered. v2: imported concept guard trigger.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -593,9 +915,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -603,10 +931,12 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
+        "value": "entity is a thing",
         "repetitions": 5
       },
-      "agentResponse": { "choice": "reject_repair" },
+      "agentResponse": {
+        "choice": "reject_repair"
+      },
       "expect": {
         "remediationStep": "deferredResolution",
         "prompt": {
@@ -614,10 +944,13 @@
           "machineSignal": {
             "envelope": {
               "promptType": "deadlockRemediation",
-              "options": ["accept_deferral", "reject_deferral"]
+              "options": [
+                "accept_deferral",
+                "reject_deferral"
+              ]
             },
             "extension": {
-              "concept": "dog",
+              "concept": "entity",
               "mutationType": "reclassification",
               "rejectionCount": 5,
               "deferralReason": "ANY_NONEMPTY_STRING"
@@ -626,12 +959,15 @@
         }
       }
     },
-
     {
       "id": "dl-all-remediation-exhausted-epistemic-failure",
-      "version": 1,
-      "verifies": ["Decision D — Cascade terminal", "Decision E — EpistemicFailure terminal for pair", "Appendix A.6 shape"],
-      "description": "Agent rejects all remediation steps. No human channel available. System emits EpistemicFailure for the (dog, reclassification) pair. Session continues.",
+      "version": 2,
+      "verifies": [
+        "Decision D \u2014 Cascade terminal",
+        "Decision E \u2014 EpistemicFailure",
+        "Appendix A.6"
+      ],
+      "description": "All remediation rejected. No human channel. EpistemicFailure emitted. v2: imported concept guard trigger.",
       "setup": {
         "callerMode": "agent",
         "humanChannelAvailable": false,
@@ -641,10 +977,20 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true },
-              { "id": "user:cat", "canonicalLabel": "cat", "parent": "user:mammal" }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              },
+              {
+                "id": "user:cat",
+                "canonicalLabel": "cat",
+                "parent": null
+              }
             ]
           }
         ],
@@ -652,14 +998,14 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
+        "value": "entity is a thing",
         "repetitions": 5,
         "agentRejectsAllRemediation": true
       },
       "expect": {
         "epistemicFailure": {
           "fired": true,
-          "concept": "dog",
+          "concept": "entity",
           "mutationType": "reclassification",
           "attemptCount": 5,
           "rejectionReasons": "ANY_NONEMPTY_ARRAY",
@@ -668,18 +1014,19 @@
         },
         "sessionContinues": true,
         "pairTagged": {
-          "concept": "dog",
+          "concept": "entity",
           "mutationType": "reclassification",
           "resolutionStatus": "EpistemicFailure"
         }
       }
     },
-
     {
       "id": "dl-session-continues-after-failure",
-      "version": 1,
-      "verifies": ["Decision E — Session continues for other pairs after EpistemicFailure"],
-      "description": "After EpistemicFailure on (dog, reclassification), the agent successfully asserts 'a cat is a feline'. Different concept, no deadlock. Proves session isolation.",
+      "version": 2,
+      "verifies": [
+        "Decision E \u2014 Session continues for other pairs"
+      ],
+      "description": "After EpistemicFailure on entity, agent classifies cat successfully. v2: imported concept trigger.",
       "setup": {
         "callerMode": "agent",
         "humanChannelAvailable": false,
@@ -689,39 +1036,62 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true },
-              { "id": "user:cat", "canonicalLabel": "cat", "parent": "user:mammal" }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              },
+              {
+                "id": "user:cat",
+                "canonicalLabel": "cat",
+                "parent": null
+              }
             ]
           }
         ],
         "activeScope": "user-graph-a",
         "priorState": {
           "epistemicFailures": [
-            { "concept": "dog", "mutationType": "reclassification", "resolutionStatus": "EpistemicFailure" }
+            {
+              "concept": "entity",
+              "mutationType": "reclassification",
+              "resolutionStatus": "EpistemicFailure"
+            }
           ]
         }
       },
-      "trigger": { "type": "utterance", "value": "a cat is a feline" },
+      "trigger": {
+        "type": "utterance",
+        "value": "a cat is a feline"
+      },
       "expect": {
         "success": true,
         "conceptCreated": "feline",
         "postState": {
-          "cat": { "skos:broader": "ANY_IRI_MATCHING(feline)" }
+          "cat": {
+            "skos:broader": "ANY_IRI_MATCHING(feline)"
+          }
         },
         "sessionActive": true
       },
       "negative_assertions": [
-        { "condition": "no cross-pair contamination", "description": "EpistemicFailure on (dog, reclassification) MUST NOT block assertions about cat or any other concept." }
+        {
+          "condition": "no cross-pair contamination",
+          "description": "EpistemicFailure on (entity, reclassification) MUST NOT block assertions about cat."
+        }
       ]
     },
-
     {
       "id": "dl-rephrased-counted-together",
-      "version": 1,
-      "verifies": ["Phase 13 Section 13.2 — rephrased assertions counted via Identity Simplification"],
-      "description": "Agent asserts 'a dog is a process', 'dogs are processes', 'a Dog is Process'. All three normalize to the same (dog, reclassification) pair. Three distinct utterances, one pair count.",
+      "version": 2,
+      "verifies": [
+        "Phase 13 Section 13.2 \u2014 rephrased assertions counted via Identity Simplification"
+      ],
+      "description": "Three phrasings of same assertion normalize to one pair. v2: imported concept trigger.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -730,9 +1100,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -741,28 +1117,31 @@
       "trigger": {
         "type": "sequentialAssertions",
         "assertions": [
-          "a dog is a process",
-          "dogs are processes",
-          "a Dog is Process"
+          "entity is a thing",
+          "Entity is Thing",
+          "an entity is a thing"
         ]
       },
       "expect": {
         "deadlockTracker": {
-          "pair": { "concept": "dog", "mutationType": "reclassification" },
+          "pair": {
+            "concept": "entity",
+            "mutationType": "reclassification"
+          },
           "rejectionCount": 3,
           "uniqueUtterances": 3,
           "normalizedToSamePair": true
         },
-        "deadlockDetected": false,
-        "note": "Only 3 rejections. Deadlock threshold is 5. But all three count toward the same pair."
+        "deadlockDetected": false
       }
     },
-
     {
       "id": "dl-human-escalation",
-      "version": 1,
-      "verifies": ["Decision D — Cascade step 3 (human escalation when channel available)"],
-      "description": "Auto-repair rejected. Deferral rejected. Human channel IS available. System escalates to human before emitting EpistemicFailure.",
+      "version": 2,
+      "verifies": [
+        "Decision D \u2014 Cascade step 3 (human escalation)"
+      ],
+      "description": "Human channel available. Escalation fires before EpistemicFailure. v2: imported concept trigger.",
       "setup": {
         "callerMode": "agent",
         "humanChannelAvailable": true,
@@ -772,9 +1151,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -782,7 +1167,7 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
+        "value": "entity is a thing",
         "repetitions": 5,
         "agentRejectsAutoRepairAndDeferral": true
       },
@@ -790,21 +1175,21 @@
         "remediationStep": "humanEscalation",
         "escalation": {
           "fired": true,
-          "concept": "dog",
+          "concept": "entity",
           "mutationType": "reclassification",
           "rejectionCount": 5,
           "channel": "human"
         },
-        "epistemicFailure": false,
-        "note": "Human escalation is step 3. EpistemicFailure only fires if human escalation is not available OR if the human also cannot resolve."
+        "epistemicFailure": false
       }
     },
-
     {
       "id": "dl-mutation-log-entry",
-      "version": 1,
-      "verifies": ["Phase 13 Section 13.2 — deadlock logged as GraphMutation"],
-      "description": "Every deadlock resolution (whether by auto-repair, deferral, escalation, or EpistemicFailure) produces a GraphMutation with mutationType='deadlockResolution'.",
+      "version": 2,
+      "verifies": [
+        "Phase 13 Section 13.2 \u2014 deadlock logged as GraphMutation"
+      ],
+      "description": "Deadlock resolution produces GraphMutation. v2: imported concept trigger.",
       "setup": {
         "callerMode": "agent",
         "humanChannelAvailable": false,
@@ -814,9 +1199,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:dog", "canonicalLabel": "dog", "parent": "user:mammal" },
-              { "id": "user:mammal", "canonicalLabel": "mammal", "parent": null },
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -824,7 +1215,7 @@
       },
       "trigger": {
         "type": "repeatedAssertion",
-        "value": "a dog is a process",
+        "value": "entity is a thing",
         "repetitions": 5,
         "agentRejectsAllRemediation": true
       },
@@ -833,22 +1224,26 @@
           "entries": [
             {
               "mutationType": "deadlockResolution",
-              "concept": "dog",
+              "concept": "entity",
               "outcome": "EpistemicFailure",
               "attemptCount": 5,
               "timestamp": "ANY_ISO_DATETIME"
             }
           ],
-          "mutationTypeCount": { "deadlockResolution": 1 }
+          "mutationTypeCount": {
+            "deadlockResolution": 1
+          }
         }
       }
     },
-
     {
       "id": "rate-limit-exceeded",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.2 — rate limiting", "Decision F — per session, 100/min"],
-      "description": "Agent exceeds 100 assertions in under 60 seconds. System returns RateLimitExceeded error with retryAfter field. Session paused, not terminated.",
+      "verifies": [
+        "Phase 13 Section 13.2 \u2014 rate limiting",
+        "Decision F \u2014 per session, 100/min"
+      ],
+      "description": "101 assertions in 60s triggers RateLimitExceeded. Session paused, not terminated.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -879,15 +1274,19 @@
         "sessionPaused": true
       },
       "negative_assertions": [
-        { "condition": "session not terminated", "description": "RateLimitExceeded pauses the session. It does NOT terminate it. After retryAfter seconds, the agent can resume." }
+        {
+          "condition": "session not terminated",
+          "description": "RateLimitExceeded pauses the session, does NOT terminate it."
+        }
       ]
     },
-
     {
       "id": "rate-limit-not-exceeded-at-100",
       "version": 1,
-      "verifies": ["Decision F — boundary: exactly 100 is within limit"],
-      "description": "Exactly 100 assertions in 60 seconds is within the limit. No error. Assertion 101 within the same window triggers the error.",
+      "verifies": [
+        "Decision F \u2014 boundary: exactly 100 is within limit"
+      ],
+      "description": "Exactly 100 assertions in 60s is within limit. No error.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -910,15 +1309,19 @@
         "allAssertionsProcessed": true
       },
       "negative_assertions": [
-        { "condition": "100 is not an error", "description": "The limit is 100/min. Exactly 100 within 60 seconds MUST succeed. The error fires at 101." }
+        {
+          "condition": "100 is not an error",
+          "description": "Exactly 100 within 60s MUST succeed. Error fires at 101."
+        }
       ]
     },
-
     {
       "id": "sim-multiturn-knowledge-building",
-      "version": 1,
-      "verifies": ["Phase 13 Section 13.3 — scripted agent multi-turn session"],
-      "description": "Scripted agent completes a multi-turn knowledge building session. Asserts classification, receives MachineSignal, responds, mutation applied. Three-turn sequence.",
+      "version": 2,
+      "verifies": [
+        "Phase 13 Section 13.3 \u2014 scripted agent multi-turn session"
+      ],
+      "description": "Multi-turn knowledge building. v2 fix: relationship is a restriction on dog, not a standalone concept.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -934,28 +1337,49 @@
       "trigger": {
         "type": "agentScript",
         "turns": [
-          { "utterance": "a dog is a mammal", "expectedPrompt": null, "expectedMutation": "classification" },
-          { "utterance": "a cat is a mammal", "expectedPrompt": null, "expectedMutation": "classification" },
-          { "utterance": "a dog chases a cat", "expectedPrompt": null, "expectedMutation": "relationship" }
+          {
+            "utterance": "a dog is a mammal",
+            "expectedPrompt": null,
+            "expectedMutation": "classification"
+          },
+          {
+            "utterance": "a cat is a mammal",
+            "expectedPrompt": null,
+            "expectedMutation": "classification"
+          },
+          {
+            "utterance": "a dog chases a cat",
+            "expectedPrompt": null,
+            "expectedMutation": "relationship"
+          }
         ]
       },
       "expect": {
         "allTurnsCompleted": true,
         "postState": {
-          "dog": { "skos:broader": "ANY_IRI_MATCHING(mammal)" },
-          "cat": { "skos:broader": "ANY_IRI_MATCHING(mammal)" },
-          "dog_chases_cat": { "exists": true, "verb": "chase" }
+          "dog": {
+            "skos:broader": "ANY_IRI_MATCHING(mammal)",
+            "restrictions": [
+              {
+                "verb": "chase",
+                "objectLabel": "cat"
+              }
+            ]
+          },
+          "cat": {
+            "skos:broader": "ANY_IRI_MATCHING(mammal)"
+          }
         },
-        "machineSignalOnEveryPrompt": true,
-        "note": "Simple assertions with no disambiguation needed. No prompts expected. MachineSignal presence is verified only when prompts fire."
+        "machineSignalOnEveryPrompt": true
       }
     },
-
     {
       "id": "sim-agent-hits-deadlock-continues",
-      "version": 1,
-      "verifies": ["Phase 13 Section 13.3 — agent hits deadlock, session continues"],
-      "description": "Agent builds some knowledge, then repeatedly asserts an impossible reclassification until deadlock. EpistemicFailure fires. Agent then successfully asserts an unrelated classification. Session is alive.",
+      "version": 2,
+      "verifies": [
+        "Phase 13 Section 13.3 \u2014 agent hits deadlock, session continues"
+      ],
+      "description": "Agent builds knowledge, hits deadlock on imported concept, session continues. v2: imported concept guard trigger.",
       "setup": {
         "callerMode": "agent",
         "humanChannelAvailable": false,
@@ -965,7 +1389,15 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "concepts": [
-              { "id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true }
+              {
+                "id": "user:entity",
+                "canonicalLabel": "entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000001"
+                ]
+              }
             ]
           }
         ],
@@ -974,33 +1406,68 @@
       "trigger": {
         "type": "agentScript",
         "turns": [
-          { "utterance": "a dog is a mammal", "expectedPrompt": null, "expectedMutation": "classification" },
-          { "utterance": "a dog is a process", "expectedPrompt": "reclassificationConsequence", "agentResponse": { "choice": "reclassify_subtree" }, "expectedOutcome": "rejected" },
-          { "utterance": "a dog is a process", "expectedOutcome": "rejected" },
-          { "utterance": "a dog is a process", "expectedOutcome": "rejected" },
-          { "utterance": "a dog is a process", "expectedOutcome": "rejected" },
-          { "utterance": "a dog is a process", "expectedOutcome": "deadlock_cascade" },
-          { "utterance": "a cat is a feline", "expectedPrompt": null, "expectedMutation": "classification" }
+          {
+            "utterance": "a dog is a mammal",
+            "expectedPrompt": null,
+            "expectedMutation": "classification"
+          },
+          {
+            "utterance": "entity is a thing",
+            "expectedOutcome": "rejected"
+          },
+          {
+            "utterance": "entity is a thing",
+            "expectedOutcome": "rejected"
+          },
+          {
+            "utterance": "entity is a thing",
+            "expectedOutcome": "rejected"
+          },
+          {
+            "utterance": "entity is a thing",
+            "expectedOutcome": "rejected"
+          },
+          {
+            "utterance": "entity is a thing",
+            "expectedOutcome": "deadlock_cascade"
+          },
+          {
+            "utterance": "a cat is a feline",
+            "expectedPrompt": null,
+            "expectedMutation": "classification"
+          }
         ]
       },
       "expect": {
         "allTurnsCompleted": true,
         "epistemicFailures": [
-          { "concept": "dog", "mutationType": "reclassification" }
+          {
+            "concept": "entity",
+            "mutationType": "reclassification"
+          }
         ],
         "postState": {
-          "dog": { "skos:broader": "ANY_IRI_MATCHING(mammal)", "note": "Still under mammal — reclassification never succeeded" },
-          "cat": { "skos:broader": "ANY_IRI_MATCHING(feline)", "note": "Successfully classified after deadlock on different pair" }
+          "entity": {
+            "isImported": true,
+            "note": "Unchanged \u2014 reclassification never succeeded"
+          },
+          "dog": {
+            "skos:broader": "ANY_IRI_MATCHING(mammal)"
+          },
+          "cat": {
+            "skos:broader": "ANY_IRI_MATCHING(feline)"
+          }
         },
         "sessionActive": true
       }
     },
-
     {
       "id": "sim-performance-no-disambiguation",
       "version": 1,
-      "verifies": ["Phase 13 Section 13.3 — performance < 40ms for assertions requiring no disambiguation"],
-      "description": "A simple assertion in agent mode with no disambiguation completes in under 40ms. Performance boundary test.",
+      "verifies": [
+        "Phase 13 Section 13.3 \u2014 performance < 40ms"
+      ],
+      "description": "Simple assertion in agent mode completes in under 40ms.",
       "setup": {
         "callerMode": "agent",
         "scopes": [
@@ -1013,11 +1480,15 @@
         ],
         "activeScope": "user-graph-a"
       },
-      "trigger": { "type": "utterance", "value": "a dog is a mammal" },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is a mammal"
+      },
       "expect": {
         "success": true,
-        "performanceMs": { "lessThan": 40 },
-        "note": "Wall-clock time from trigger to mutation-applied. No disambiguation, no prompt. Straight-through pipeline."
+        "performanceMs": {
+          "lessThan": 40
+        }
       }
     }
   ]

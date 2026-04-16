@@ -1025,7 +1025,7 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 ## Phase 11: Session Lifecycle `[Track C — Lifecycle]`
 
 **Goal:** Implement pause/resume, abandon, nested negotiation, expiration, and concurrent session limits.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** Medium
 **Effort:** High
 **Depends on:** Phase 3 (needs StateAdapter for session persistence)
@@ -1035,39 +1035,43 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 **Spec Reference:** Section 5.12
 
 **Deliverables:**
-- `src/core/session/session-manager.js`
-- `tests/unit/session-manager.test.js`
+- `src/core/session/session-lifecycle.js`
+- `tests/unit/session-lifecycle.test.js`
+- `tests/integration/session-lifecycle.test.js`
+- `tests/golden/session-lifecycle-golden.test.js`
 
 **States:** `negotiating` → `paused` | `nested` | `conflict` | `complete` | `abandoned` | `expired`
 
 **Acceptance Criteria:**
 
 *Pause/Resume:*
-- [ ] Caller pauses → session state="paused", full state persisted
-- [ ] Resume → session reloads, last unanswered prompt re-presented
-- [ ] Pipeline state reconstructed from dialogue history (no mutable in-memory state assumed)
-- [ ] Paused session expires after `sessionExpiryDuration` (default 7 days) → state="expired"
+- [x] Caller pauses → session state="paused", full state persisted
+- [x] Resume → session reloads, last unanswered prompt re-presented
+- [x] Pipeline state reconstructed from dialogue history (no mutable in-memory state assumed)
+- [x] Paused session expires after `sessionExpiryDuration` (default 7 days) → state="expired"
 
 *Nested Negotiation:*
-- [ ] Unknown parent "canine" during "dog is a canine" → child session created for "canine"
-- [ ] Child session: `parentSessionId` set, `nestingDepth` incremented
-- [ ] Child completes → parent resumes with new concept available
-- [ ] Nesting depth > `maxNestingDepth` (10) → ConversationPrompt suggesting existing concept
-- [ ] Nested sessions form a clean stack (no orphans)
+- [x] Unknown parent "canine" during "dog is a canine" → child session created for "canine"
+- [x] Child session: `parentSessionId` set, `nestingDepth` incremented
+- [x] Child completes → parent resumes with new concept available
+- [x] Nesting depth > `maxNestingDepth` (10) → ConversationPrompt suggesting existing concept
+- [x] Nested sessions form a clean stack (no orphans)
 
 *Abandon:*
-- [ ] Abandon → state="abandoned", dialogue archived, NO partial mutations committed
-- [ ] Nested children also abandoned
+- [x] Abandon → state="abandoned", dialogue archived, NO partial mutations committed
+- [x] Nested children also abandoned
 
 *Concurrent Limits:*
-- [ ] 6th active session (default limit 5) → rejected with suggestion to resume/abandon
-- [ ] Paused sessions do NOT count toward limit
+- [x] 6th active session (default limit 5) → rejected with suggestion to resume/abandon
+- [x] Paused sessions do NOT count toward limit
 
 *State transitions:*
-- [ ] No invalid transitions (e.g., complete→negotiating)
-- [ ] Each transition logged in dialogue history
+- [x] No invalid transitions (e.g., complete→negotiating)
+- [x] Each transition logged in dialogue history
 
 **NOT in scope:** Cross-scope conflict state (Phase 12), M2M deadlock interaction.
+
+**Phase 11 totals:** 73 new tests across 3 suites (unit, integration, golden), all passing. 7-state machine with transition validation, ISO 8601 duration parsing, expiry with grace window, concurrent session limits, nested negotiation stack, and cascade abandon.
 
 ---
 

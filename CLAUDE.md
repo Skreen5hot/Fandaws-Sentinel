@@ -6,14 +6,23 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
 
 ## Current Status
 
-- **Phase:** 0–1 Complete → Tracks A/B/C now unblocked
-- **Priority:** Begin parallel tracks — Track A: P2 (NLParser), Track B: P3 (StateAdapter), Track C: P11 (Sessions)
+- **Phase:** 0–11 Complete (15 of 17 roadmap phases — 88%)
+- **Test Suite:** 96 suites, 2,034 tests passing (11 skipped for unimplemented features)
+- **Build:** 311.9 KB bundled (esbuild)
 - **Blockers:** None
-- **Roadmap:** 15 phases (0–14) across 3 parallel tracks. See `ROADMAP.md` for full dependency graph and acceptance criteria
-- **Track A (Linguistics & IO):** P2, P7, P10 — NLParser, DescriptionEngine, ExportEngine
-- **Track B (Graph Mechanics):** P3, P4, P5, P6, P9 — StateAdapter, Validator, Workflows, Termidium
-- **Track C (Lifecycle):** P11, P12 — Sessions, ScopeResolver
-- **Convergence:** P2 + P5 + P7 → Phase 8 (Pipeline Integration + TagTeam Decision Gate)
+- **Completed Tracks:**
+  - **Track A (Linguistics & IO):** P2, P7, P10, P10b — all complete
+  - **Track B (Graph Mechanics):** P3, P4, P4b, P5, P6, P8, P9 — all complete
+  - **Track C (Lifecycle):** P11 — complete. P12 unblocked.
+  - **Convergence Gate (P8):** Passed — regex NLParser at 100%, ADR-003 accepted
+- **Cross-Cutting Specs (post-roadmap):**
+  - BFO Ontology Ingestion Phase A (v1.4) — complete
+  - OWL Restriction Structural Correction (v1.1) — complete
+  - Consequence-Aware Reclassification — complete (3 options: keep/subtree/only)
+  - Homonym Detection (v1.3) — Phase A complete
+  - Workbench v0.1 — complete (GitHub Pages)
+- **Remaining Roadmap:** P12 (ScopeResolver+Federation), P13 (M2M Protocol), P14 (Ecosystem Adapters)
+- **Remaining Specs:** Ontology Ingestion Phase B (general ontology import, needs Workbench v0.2 UI)
 
 ## Key Files
 

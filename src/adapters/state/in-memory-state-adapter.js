@@ -56,6 +56,29 @@ export class InMemoryStateAdapter extends StateAdapter {
     this._ingestedPropertyIndex = new Map();
 
     /**
+     * Execution Lane: per-graph compiled artifacts derived from the Canonical Lane.
+     * Populated by compile() after every mutation. Keyed by graphId.
+     * Each value is { epoch, artifacts: Map<conceptIri, executionArtifact> }.
+     * @type {Map<string, object>}
+     */
+    this._executionLanes = new Map();
+
+    /**
+     * Monotonically increasing compilation epoch counter per graph.
+     * Incremented by compile() on each pass.
+     * @type {Map<string, number>}
+     */
+    this._compilationEpochs = new Map();
+
+    /**
+     * BFO Disjointness Map: Set of frozen "A|B" pair strings (alphabetically ordered)
+     * representing all disjoint BFO class pairs (explicit + inferred via transitive
+     * closure). Computed during ensureBfoIngestion(), rebuilt on re-ingestion.
+     * @type {Set<string>}
+     */
+    this._bfoDisjointnessMap = new Set();
+
+    /**
      * Cumulative rewrite counter for the current ingestion call.
      * Reset at the start of ensureBfoIngestion(); incremented every time
      * _recomputeBfoMarkers rewrites a marker (whether called from applyMutation
@@ -206,6 +229,11 @@ export class InMemoryStateAdapter extends StateAdapter {
     // Merge property index
     this._mergeIngestedPropertyIndex(ingested.propertyIndex);
 
+    // Build BFO Disjointness Map (CC-4)
+    // Parse explicit owl:disjointWith pairs from the Turtle and compute
+    // transitive closure through rdfs:subClassOf chains.
+    this._buildDisjointnessMap(graphId, ingested.disjointPairs || [], ingested.parentMap);
+
     return {
       ingested: true,
       skipped: false,
@@ -213,6 +241,85 @@ export class InMemoryStateAdapter extends StateAdapter {
       conceptsAdded: additions.length,
       migratedReferences: totalRewrites,
     };
+  }
+
+  /**
+   * Build the BFO Disjointness Map from explicit owl:disjointWith pairs
+   * and their transitive closure through rdfs:subClassOf chains (Rule CC-4).
+   *
+   * @param {string} graphId
+   * @param {Array<[string, string]>} explicitPairs - [sourceIriA, sourceIriB] from Turtle
+   * @param {Map<string, string>} parentMap - sourceIri → fandawsIri
+   */
+  _buildDisjointnessMap(graphId, explicitPairs, parentMap) {
+    this._bfoDisjointnessMap.clear();
+    const graph = this._graphs.get(graphId);
+    if (!graph) return;
+
+    const concepts = graph['fandaws:concepts'] || [];
+    const conceptById = new Map(concepts.map((c) => [c['@id'], c]));
+
+    // Build source IRI → fandaws IRI lookup (for explicit pairs which use source IRIs)
+    const sourceToFandaws = new Map();
+    for (const c of concepts) {
+      if (c['owl:equivalentClass']) {
+        const equivs = Array.isArray(c['owl:equivalentClass']) ? c['owl:equivalentClass'] : [c['owl:equivalentClass']];
+        for (const eq of equivs) {
+          sourceToFandaws.set(eq, c['@id']);
+        }
+      }
+    }
+
+    // Collect all descendants of a concept (fandaws IRI → Set<fandaws IRI>)
+    const getDescendants = (startIri) => {
+      const descendants = new Set();
+      const queue = [startIri];
+      while (queue.length > 0) {
+        const current = queue.shift();
+        for (const c of concepts) {
+          if (c['skos:broader'] === current && !descendants.has(c['@id'])) {
+            descendants.add(c['@id']);
+            queue.push(c['@id']);
+          }
+        }
+      }
+      return descendants;
+    };
+
+    // For each explicit disjoint pair, propagate to all descendants
+    for (const [sourceA, sourceB] of explicitPairs) {
+      const fandawsA = sourceToFandaws.get(sourceA);
+      const fandawsB = sourceToFandaws.get(sourceB);
+      if (!fandawsA || !fandawsB) continue;
+
+      const conceptA = conceptById.get(fandawsA);
+      const conceptB = conceptById.get(fandawsB);
+      if (!conceptA || !conceptB) continue;
+
+      const labelA = conceptA['rdfs:label'] || conceptA['skos:prefLabel'];
+      const labelB = conceptB['rdfs:label'] || conceptB['skos:prefLabel'];
+
+      // Add the explicit pair
+      this._bfoDisjointnessMap.add([labelA, labelB].sort().join('|'));
+
+      // Add all descendant combinations (transitive closure)
+      const descendantsA = getDescendants(fandawsA);
+      descendantsA.add(fandawsA); // include A itself
+      const descendantsB = getDescendants(fandawsB);
+      descendantsB.add(fandawsB); // include B itself
+
+      for (const dA of descendantsA) {
+        const cA = conceptById.get(dA);
+        if (!cA) continue;
+        const lA = cA['rdfs:label'] || cA['skos:prefLabel'];
+        for (const dB of descendantsB) {
+          const cB = conceptById.get(dB);
+          if (!cB) continue;
+          const lB = cB['rdfs:label'] || cB['skos:prefLabel'];
+          this._bfoDisjointnessMap.add([lA, lB].sort().join('|'));
+        }
+      }
+    }
   }
 
   /**
@@ -563,14 +670,221 @@ export class InMemoryStateAdapter extends StateAdapter {
       this._rebuildIndices(id, this._graphs.get(id));
     }
 
+    // Compile: produce Execution Lane artifacts from the canonical graph.
+    // Runs synchronously after every mutation, same trigger as BFO recompute.
+    this.compile(id);
+
+    // Update compilation status on canonical concepts
+    const compiledGraph = this._graphs.get(id);
+    for (const c of (compiledGraph['fandaws:concepts'] || [])) {
+      if (!c['fandaws:compilationStatus']) {
+        c['fandaws:compilationStatus'] = 'Compiled';
+      }
+    }
+
     // Notify mutation listeners (post-commit, post-index-rebuild).
     // Listeners are synchronous and block this return. Async listeners
     // must not be used — v0.2 should evaluate queueMicrotask() if needed.
     for (const listener of this._mutationListeners) {
-      try { listener(mutation, draft); } catch { /* swallow listener errors */ }
+      try { listener(mutation, compiledGraph); } catch { /* swallow listener errors */ }
     }
 
-    return draft;
+    return compiledGraph;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Compilation (Canonical Lane → Execution Lane)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Compile the canonical graph into Execution Lane artifacts.
+   *
+   * Reads canonical concepts + restrictions from the graph. For each
+   * concept, produces an execution artifact containing only compiled
+   * OWL output (rdfs:subClassOf, owl:Restriction). No canonical metadata
+   * (fandaws:isImported, fandaws:source, etc.) enters the Execution Lane.
+   *
+   * Applies RECC structural conformance checks: restrictions connecting
+   * BFO-disjoint types are not compiled (they stay in the Canonical Lane
+   * with compilationStatus=Uncompiled).
+   *
+   * @param {string} graphId
+   */
+  compile(graphId) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return;
+
+    // Increment epoch
+    const prevEpoch = this._compilationEpochs.get(graphId) || 0;
+    const epoch = prevEpoch + 1;
+    this._compilationEpochs.set(graphId, epoch);
+
+    const concepts = graph['fandaws:concepts'] || [];
+    const artifacts = new Map();
+
+    for (const concept of concepts) {
+      const iri = concept['@id'];
+      const subClassOf = concept['rdfs:subClassOf'] || [];
+
+      // Build execution artifact: only compiled OWL output
+      const artifact = {
+        '@id': iri,
+        '@type': ['owl:Class', 'skos:Concept'],
+        'rdfs:label': concept['rdfs:label'],
+        'skos:prefLabel': concept['skos:prefLabel'],
+        'rdfs:subClassOf': [],
+        'fandaws:compilationEpoch': epoch,
+        'fandaws:compilationStatus': 'Compiled',
+      };
+
+      // Broader as rdfs:subClassOf
+      if (concept['skos:broader']) {
+        artifact['rdfs:subClassOf'].push(concept['skos:broader']);
+      }
+
+      // BFO markers (string entries)
+      for (const entry of subClassOf) {
+        if (typeof entry === 'string' && entry !== concept['skos:broader']) {
+          artifact['rdfs:subClassOf'].push(entry);
+        }
+      }
+
+      // Restrictions: apply RECC structural conformance check
+      for (const entry of subClassOf) {
+        if (typeof entry !== 'object' || !entry['@type']) continue;
+
+        // RECC check: is this restriction type-valid?
+        const isValid = this._checkRestrictionValidity(entry, concepts);
+
+        if (isValid) {
+          // Strip canonical metadata from the restriction
+          const compiledRestriction = {
+            '@id': entry['@id'],
+            '@type': entry['@type'],
+            'owl:onProperty': entry['owl:onProperty'],
+            'owl:someValuesFrom': entry['owl:someValuesFrom'],
+            'owl:hasValue': entry['owl:hasValue'],
+            'fandaws:restrictionKind': entry['fandaws:restrictionKind'],
+            'fandaws:propertyLabel': entry['fandaws:propertyLabel'],
+            'fandaws:verbLabel': entry['fandaws:verbLabel'],
+            'fandaws:compilationEpoch': epoch,
+          };
+          artifact['rdfs:subClassOf'].push(compiledRestriction);
+        }
+        // Invalid restrictions stay in Canonical Lane only
+      }
+
+      // owl:equivalentClass (for imported concepts)
+      if (concept['owl:equivalentClass']) {
+        artifact['owl:equivalentClass'] = concept['owl:equivalentClass'];
+      }
+
+      // skos:definition
+      if (concept['skos:definition']) {
+        artifact['skos:definition'] = concept['skos:definition'];
+      }
+
+      // fandaws:algorithmicDefinition
+      if (concept['fandaws:algorithmicDefinition']) {
+        artifact['fandaws:algorithmicDefinition'] = concept['fandaws:algorithmicDefinition'];
+      }
+
+      artifacts.set(iri, artifact);
+    }
+
+    this._executionLanes.set(graphId, { epoch, artifacts });
+  }
+
+  /**
+   * RECC structural conformance check: is this restriction type-valid?
+   *
+   * A restriction connecting BFO-disjoint types (e.g., MaterialEntity subject
+   * with Process object) is type-invalid and should not be compiled to the
+   * Execution Lane.
+   *
+   * @param {object} restriction
+   * @param {object[]} concepts
+   * @returns {boolean}
+   */
+  _checkRestrictionValidity(restriction, concepts) {
+    if (this._bfoDisjointnessMap.size === 0) return true; // No map → no check
+
+    const attachedToIri = restriction['fandaws:attachedTo'];
+    const objectIri = restriction['owl:someValuesFrom'];
+    if (!attachedToIri || !objectIri) return true;
+
+    const subjectConcept = concepts.find((c) => c['@id'] === attachedToIri);
+    const objectConcept = concepts.find((c) => c['@id'] === objectIri);
+    if (!subjectConcept || !objectConcept) return true;
+
+    const subjectBfo = this._getBfoCategory(subjectConcept);
+    const objectBfo = this._getBfoCategory(objectConcept);
+    if (!subjectBfo || !objectBfo) return true;
+
+    return !this.areDisjoint(subjectBfo, objectBfo);
+  }
+
+  /**
+   * Get the BFO category label for a concept (from its nearest ingested ancestor).
+   */
+  _getBfoCategory(concept) {
+    const subClassOf = concept['rdfs:subClassOf'] || [];
+    // Find ingested ancestor IRI in rdfs:subClassOf
+    for (const entry of subClassOf) {
+      if (typeof entry === 'string' && entry.startsWith('fandaws:class/')) {
+        // This might be a BFO marker — check if it's an ingested concept
+        // For now, return the label from the concept's BFO marker
+        // The BFO category is derived from the ingested concept's label
+        for (const [graphId, graph] of this._graphs) {
+          const ingested = (graph['fandaws:concepts'] || []).find(
+            (c) => c['@id'] === entry && c['fandaws:isImported'],
+          );
+          if (ingested) return ingested['rdfs:label'] || ingested['skos:prefLabel'];
+        }
+      }
+    }
+    // Check if the concept itself is imported
+    if (concept['fandaws:isImported']) {
+      return concept['rdfs:label'] || concept['skos:prefLabel'];
+    }
+    return null;
+  }
+
+  /**
+   * Check if two BFO category labels are disjoint per the Disjointness Map.
+   *
+   * @param {string} categoryA - BFO category label (e.g., "Material Entity")
+   * @param {string} categoryB - BFO category label (e.g., "Process")
+   * @returns {boolean}
+   */
+  areDisjoint(categoryA, categoryB) {
+    if (!categoryA || !categoryB) return false;
+    const key = [categoryA, categoryB].sort().join('|');
+    return this._bfoDisjointnessMap.has(key);
+  }
+
+  /**
+   * Get the Execution Lane for a graph.
+   *
+   * @param {string} graphId
+   * @returns {{ epoch: number, artifacts: Map<string, object> } | null}
+   */
+  getExecutionLane(graphId) {
+    return this._executionLanes.get(graphId) || null;
+  }
+
+  /**
+   * Get the current compilation epoch for a graph.
+   */
+  getCompilationEpoch(graphId) {
+    return this._compilationEpochs.get(graphId) || 0;
+  }
+
+  /**
+   * Get the BFO Disjointness Map.
+   */
+  getDisjointnessMap() {
+    return this._bfoDisjointnessMap;
   }
 
   // ─────────────────────────────────────────────────────────

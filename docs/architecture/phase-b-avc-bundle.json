@@ -1,0 +1,1475 @@
+{
+  "bundle_id": "phase-b-ontology-ingestion-dual-lane",
+  "bundle_version": 1,
+  "authored": "2026-04-16",
+  "status": "awaits_implementation",
+  "verifies_phase": "Phase B \u2014 Ontology Ingestion (FANDAWS v2.1 Roadmap Phase 2)",
+  "locked_decisions": {
+    "dual_lane": "Option (b): existing graph is Canonical Lane. compile() method produces Execution Lane as derived _executionLane Map on StateAdapter. Runs synchronously after every mutation. Export reads from Execution Lane.",
+    "disjointness_map": "Parsed from ingested BFO Turtle owl:disjointWith triples. Transitive closure through rdfs:subClassOf chains. Computed once at ingestion, rebuilt on re-ingestion. NOT hardcoded.",
+    "cc_path_a": "Third consequence category in buildReclassificationConsequencePrompt: 'Restrictions that would become type-invalid.' Fires on reclassification.",
+    "cc_path_b": "Pre-commit gate at entry of processProperty and processRelationship. Fires BEFORE any restriction or relationship node is created. Not inside the workflow \u2014 before it.",
+    "recc_scope": "Phase B: structural conformance as JavaScript index lookups only. No OWL restrictions in export. No provenance authority enforcement. Full RECC is Phase C.",
+    "compilation_status": "Two-state only: Uncompiled and Compiled. Stale/Retracted states are Phase C.",
+    "export_source": "Export reads from Execution Lane. Exclusion list pattern replaced. Metadata fields never enter Execution Lane.",
+    "epoch": "Integer on every execution artifact. Increments per compile() pass. Trivially cheap.",
+    "namespace": "Continue using fandaws: for everything. Namespace split (fan: vs fandaws:) deferred to Phase D."
+  },
+  "scenarios": [
+    {
+      "id": "dl-compile-produces-execution-lane",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 2.3 \u2014 Dual Representation",
+        "Q1 answer \u2014 compile() after every mutation"
+      ],
+      "description": "After a classification mutation, the Execution Lane is populated with a compiled artifact. The Canonical Lane retains the raw assertion data. Both exist simultaneously.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is a mammal"
+      },
+      "expect": {
+        "canonicalLane": {
+          "conceptExists": "dog",
+          "skosBroader": "ANY_IRI_MATCHING(mammal)",
+          "retainsMetadata": true,
+          "note": "Canonical Lane holds the raw concept with skos:broader, provenance, metadata"
+        },
+        "executionLane": {
+          "populated": true,
+          "containsArtifactFor": "dog",
+          "hasEpoch": true,
+          "note": "Execution Lane holds compiled artifact produced by compile() pass"
+        }
+      }
+    },
+    {
+      "id": "dl-compile-runs-after-every-mutation",
+      "version": 1,
+      "verifies": [
+        "Q1 answer \u2014 compile() runs synchronously after every mutation"
+      ],
+      "description": "Two sequential mutations each trigger a compile pass. Execution Lane epoch increments twice. Each artifact carries its own epoch.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "agentScript",
+        "turns": [
+          {
+            "utterance": "a dog is a mammal",
+            "expectedMutation": "classification"
+          },
+          {
+            "utterance": "a cat is a mammal",
+            "expectedMutation": "classification"
+          }
+        ]
+      },
+      "expect": {
+        "executionLane": {
+          "artifactCount": "ANY_GTE(2)",
+          "epochAfterTurn1": 1,
+          "epochAfterTurn2": 2,
+          "note": "Each mutation triggers compile(). Epoch increments each time."
+        }
+      }
+    },
+    {
+      "id": "dl-execution-lane-no-metadata",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.5 \u2014 What Is Not Mixed",
+        "Export source decision"
+      ],
+      "description": "Execution Lane artifacts do NOT contain canonical metadata fields (fandaws:isImported, fandaws:source, fandaws:ingestSource, fandaws:locallyModified, fandaws:normalizationStatus). These exist only in the Canonical Lane.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000040"
+                ]
+              },
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is an organism"
+      },
+      "expect": {
+        "executionLane": {
+          "artifactFor": "animal",
+          "doesNotContain": [
+            "fandaws:isImported",
+            "fandaws:source",
+            "fandaws:ingestSource",
+            "fandaws:locallyModified",
+            "fandaws:normalizationStatus"
+          ],
+          "doesContain": [
+            "rdfs:subClassOf",
+            "fandaws:compilationEpoch"
+          ]
+        },
+        "canonicalLane": {
+          "conceptFor": "animal",
+          "doesContain": [
+            "skos:broader",
+            "skos:prefLabel"
+          ]
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no metadata leakage",
+          "description": "Execution Lane MUST NOT contain any fandaws: metadata fields. These belong exclusively in the Canonical Lane."
+        }
+      ]
+    },
+    {
+      "id": "dl-canonical-lane-unchanged-by-compile",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 2.4 \u2014 Compiler Sovereignty"
+      ],
+      "description": "The compile() pass does not modify the Canonical Lane. It reads from canonical and writes to execution. The canonical graph is identical before and after compile().",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is a mammal"
+      },
+      "expect": {
+        "canonicalLane": {
+          "conceptCount": 2,
+          "noCompilerArtifacts": true,
+          "note": "Canonical Lane has mammal + dog. No compilation epoch, no execution artifacts injected."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "compiler does not write to canonical",
+          "description": "fandaws:compilationEpoch MUST NOT appear on canonical concepts. It appears only on execution artifacts."
+        }
+      ]
+    },
+    {
+      "id": "dl-export-reads-execution-lane",
+      "version": 1,
+      "verifies": [
+        "Export source decision \u2014 Execution Lane replaces exclusion list"
+      ],
+      "description": "Turtle export reads from the Execution Lane. The exported output contains compiled restrictions and subclass declarations but no canonical metadata. The exclusion list filtering pattern is replaced.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000040"
+                ]
+              },
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "containsSubClassOf": true,
+          "containsOwlRestriction": true,
+          "containsOwlImports": true,
+          "doesNotContain": [
+            "fandaws:isImported",
+            "fandaws:source",
+            "fandaws:ingestSource",
+            "fandaws:normalizationStatus",
+            "fandaws:compilationStatus"
+          ],
+          "note": "Export is a serialization of the Execution Lane, not a filtered view of the Canonical Lane."
+        }
+      }
+    },
+    {
+      "id": "dl-compilation-status-lifecycle",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.1.4 \u2014 compilationStatus",
+        "Q6 answer \u2014 two-state only"
+      ],
+      "description": "New canonical record starts with compilationStatus=Uncompiled. After compile() runs, it transitions to Compiled. No Stale or Retracted states in Phase B.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is a mammal"
+      },
+      "expect": {
+        "canonicalLane": {
+          "dog": {
+            "compilationStatus": "Compiled",
+            "note": "After mutation + compile(), status is Compiled. The Uncompiled state exists only transiently between mutation and compile()."
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no Stale or Retracted",
+          "description": "compilationStatus MUST NOT be 'Stale' or 'Retracted' in Phase B. Those states require Phase C stale detection machinery."
+        }
+      ]
+    },
+    {
+      "id": "dl-epoch-increments-per-compile",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 2.4.3 \u2014 Compilation Epoch"
+      ],
+      "description": "Every execution artifact carries the epoch at which it was materialized. Epoch is monotonically increasing. Three mutations produce artifacts at epochs 1, 2, 3.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "agentScript",
+        "turns": [
+          {
+            "utterance": "a dog is a mammal",
+            "expectedMutation": "classification"
+          },
+          {
+            "utterance": "a cat is a mammal",
+            "expectedMutation": "classification"
+          },
+          {
+            "utterance": "a dog has fur",
+            "expectedMutation": "property"
+          }
+        ]
+      },
+      "expect": {
+        "executionLane": {
+          "epochs": [
+            1,
+            2,
+            3
+          ],
+          "monotonicallyIncreasing": true,
+          "allArtifactsHaveEpoch": true
+        }
+      }
+    },
+    {
+      "id": "dl-restriction-compiled-to-execution",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.2 \u2014 What Is Generated (Execution Lane)"
+      ],
+      "description": "A property assertion ('dog has fur') produces an owl:Restriction in the Execution Lane. The restriction carries owl:onProperty and owl:someValuesFrom. The Canonical Lane stores the raw assertion.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "executionLane": {
+          "containsRestriction": {
+            "owlOnProperty": "fandaws:objectProperty/has",
+            "owlSomeValuesFrom": "ANY_IRI_MATCHING(fur)",
+            "onConcept": "ANY_IRI_MATCHING(dog)",
+            "hasEpoch": true
+          }
+        }
+      }
+    },
+    {
+      "id": "disj-explicit-pairs-detected",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CC-4 \u2014 Disjointness Map includes explicit pairs",
+        "Q2 answer \u2014 parsed from Turtle"
+      ],
+      "description": "After BFO ingestion, the Disjointness Map contains the explicitly declared owl:disjointWith pairs from BFO 2020 (e.g., Continuant/Occurrent).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "queryDisjointnessMap"
+      },
+      "expect": {
+        "disjointnessMap": {
+          "containsPair": [
+            "Continuant",
+            "Occurrent"
+          ],
+          "sourceType": "explicit",
+          "note": "Continuant owl:disjointWith Occurrent is explicitly declared in BFO 2020 Turtle."
+        }
+      }
+    },
+    {
+      "id": "disj-inferred-via-transitive-closure",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CC-4 \u2014 inferred disjointness via transitive closure"
+      ],
+      "description": "MaterialEntity (under Continuant) and Process (under Occurrent) are disjoint by inference. They are NOT explicitly declared disjoint in BFO \u2014 their disjointness is inherited from Continuant/Occurrent. The map MUST contain this inferred pair.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "queryDisjointnessMap"
+      },
+      "expect": {
+        "disjointnessMap": {
+          "containsPair": [
+            "MaterialEntity",
+            "Process"
+          ],
+          "sourceType": "inferred",
+          "inferenceChain": "MaterialEntity \u2192 IndependentContinuant \u2192 Continuant | Process \u2192 Occurrent; Continuant disjointWith Occurrent"
+        }
+      }
+    },
+    {
+      "id": "disj-non-disjoint-not-in-map",
+      "version": 1,
+      "verifies": [
+        "CC-4 negative \u2014 non-disjoint pairs absent"
+      ],
+      "description": "MaterialEntity and IndependentContinuant are NOT disjoint (MaterialEntity is a subclass of IndependentContinuant). The map MUST NOT contain this pair.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "queryDisjointnessMap"
+      },
+      "expect": {
+        "disjointnessMap": {
+          "doesNotContainPair": [
+            "MaterialEntity",
+            "IndependentContinuant"
+          ]
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "ancestor-descendant is not disjoint",
+          "description": "A class and its ancestor are NEVER disjoint. The map MUST NOT contain any ancestor-descendant pairs."
+        }
+      ]
+    },
+    {
+      "id": "disj-sibling-under-same-parent-not-disjoint",
+      "version": 1,
+      "verifies": [
+        "CC-4 precision \u2014 siblings not automatically disjoint"
+      ],
+      "description": "MaterialEntity and ImmaterialEntity are siblings under IndependentContinuant. They ARE explicitly declared disjoint in BFO. But Quality and RealizableEntity (siblings under SpecificallyDependentContinuant) are NOT declared disjoint. Siblinghood alone does not imply disjointness \u2014 only explicit owl:disjointWith declarations (and their transitive closure) do.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "queryDisjointnessMap"
+      },
+      "expect": {
+        "disjointnessMap": {
+          "containsPair": [
+            "MaterialEntity",
+            "ImmaterialEntity"
+          ],
+          "doesNotContainPair": [
+            "Quality",
+            "RealizableEntity"
+          ],
+          "note": "MaterialEntity/ImmaterialEntity: explicitly disjoint. Quality/RealizableEntity: siblings but NOT declared disjoint in BFO 2020."
+        }
+      }
+    },
+    {
+      "id": "disj-map-rebuilt-on-reingestion",
+      "version": 1,
+      "verifies": [
+        "Q2 answer \u2014 rebuilt on re-ingestion"
+      ],
+      "description": "After BFO re-ingestion (e.g., updated Turtle file), the Disjointness Map is recomputed from scratch. Stale pairs from a hypothetical prior version do not persist.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "reingestion",
+        "target": "bfo"
+      },
+      "expect": {
+        "disjointnessMap": {
+          "recomputed": true,
+          "containsPair": [
+            "Continuant",
+            "Occurrent"
+          ],
+          "containsPair2": [
+            "MaterialEntity",
+            "Process"
+          ],
+          "note": "Map is freshly computed from the re-ingested Turtle. Not carried over from prior ingestion."
+        }
+      }
+    },
+    {
+      "id": "cc-path-a-disjointness-fires",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CC-1 \u2014 Path A fires on reclassification",
+        "FANDAWS v2.1 Section 3.8.1"
+      ],
+      "description": "Reclassifying a concept causes an existing restriction to connect disjoint BFO types. The consequence prompt gains a third category: 'Restrictions that would become type-invalid.'",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "fur is a process"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "envelope": {
+              "promptType": "reclassificationConsequence"
+            },
+            "extension": {
+              "invalidRestrictions": [
+                {
+                  "subject": "dog",
+                  "relation": "has",
+                  "object": "fur",
+                  "subjectBFO": "MaterialEntity",
+                  "objectNewBFO": "Process",
+                  "disjoint": true
+                }
+              ]
+            }
+          }
+        },
+        "mutation": "none_until_user_choice"
+      }
+    },
+    {
+      "id": "cc-path-a-no-disjointness-no-third-category",
+      "version": 1,
+      "verifies": [
+        "CC-1 negative \u2014 no disjointness, no third category"
+      ],
+      "description": "Reclassifying a concept where no existing restriction would become type-invalid. The consequence prompt fires (for inheritance loss) but does NOT include the disjointness category.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:object",
+                "canonicalLabel": "object",
+                "parent": "user:material-entity",
+                "isImported": true
+              },
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is an object"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "extension": {
+              "invalidRestrictions": [],
+              "note": "Animal moving from organism to object. Both are under MaterialEntity. No disjointness violation. But inheritance loss (organism has DNA) is still surfaced."
+            }
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no false positive",
+          "description": "When no restriction connects disjoint types after reclassification, invalidRestrictions MUST be an empty array, not absent."
+        }
+      ]
+    },
+    {
+      "id": "cc-path-a-user-confirms-reclassification",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 3.8.1 \u2014 Outcome: user confirms"
+      ],
+      "description": "User confirms reclassification despite disjointness warning. Reclassification proceeds. Invalid restrictions are quarantined (compilationStatus set to Uncompiled pending review).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "fur is a process"
+      },
+      "user_choice": {
+        "action": "confirm_reclassification"
+      },
+      "expect": {
+        "postState": {
+          "fur": {
+            "skos:broader": "ANY_IRI_MATCHING(process)"
+          },
+          "dog_has_fur_restriction": {
+            "compilationStatus": "Uncompiled",
+            "note": "Restriction is type-invalid after reclassification. Marked Uncompiled \u2014 not compiled to Execution Lane until resolved."
+          }
+        }
+      }
+    },
+    {
+      "id": "cc-path-a-user-cancels",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 3.8.1 \u2014 Outcome: user cancels"
+      ],
+      "description": "User cancels reclassification after seeing disjointness warning. No mutation. Graph unchanged.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "fur is a process"
+      },
+      "user_choice": {
+        "action": "cancel"
+      },
+      "expect": {
+        "postState": {
+          "fur": {
+            "skos:broader": "ANY_IRI_MATCHING(material-entity)",
+            "note": "Unchanged \u2014 reclassification cancelled"
+          }
+        },
+        "mutationCount": 0
+      }
+    },
+    {
+      "id": "cc-path-a-disjointness-deadlock",
+      "version": 1,
+      "verifies": [
+        "Phase 13 deferred scenario \u2014 disjointness-triggered deadlock",
+        "FANDAWS v2.1 Rule CC-1 + Phase 13 Decision D"
+      ],
+      "description": "Agent repeatedly attempts to reclassify fur as a process. CC Path A rejects each time (disjointness). After 5 rejections, deadlock cascade fires. This is the scenario deferred from Phase 13 because the disjointness check was not yet implemented.",
+      "setup": {
+        "callerMode": "agent",
+        "humanChannelAvailable": false,
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "repeatedAssertion",
+        "value": "fur is a process",
+        "repetitions": 5,
+        "agentResponseToEachPrompt": {
+          "choice": "confirm_reclassification"
+        },
+        "note": "Agent confirms each reclassification despite disjointness warning, but the system rejects because it would create type-invalid restrictions."
+      },
+      "expect": {
+        "deadlockDetected": true,
+        "epistemicFailure": {
+          "fired": true,
+          "concept": "fur",
+          "mutationType": "reclassification",
+          "attemptCount": 5,
+          "rejectionReasons": "ANY_NONEMPTY_ARRAY"
+        },
+        "note": "This is the disjointness-triggered deadlock that Phase 13 could not test because CC Path A was not implemented."
+      }
+    },
+    {
+      "id": "cc-path-b-disjoint-assertion-blocked",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CC-2 \u2014 Path B fires on new assertion",
+        "Q3 answer \u2014 gate before workflow"
+      ],
+      "description": "User asserts a property connecting a MaterialEntity subject to a Process object. CC Path B fires as a pre-commit gate BEFORE the restriction is created.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has running"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "envelope": {
+              "promptType": "conversationalConsistencyCheck",
+              "constraintType": "disjointness"
+            },
+            "extension": {
+              "subject": "dog",
+              "object": "running",
+              "subjectBFO": "MaterialEntity",
+              "objectBFO": "Process",
+              "disjoint": true,
+              "note": "has connects MaterialEntity (dog) to Process (running). These categories are disjoint."
+            }
+          }
+        },
+        "mutation": "none_until_user_choice"
+      }
+    },
+    {
+      "id": "cc-path-b-non-disjoint-no-gate",
+      "version": 1,
+      "verifies": [
+        "CC-2 negative \u2014 non-disjoint assertion passes through"
+      ],
+      "description": "User asserts a property connecting two MaterialEntity concepts. No disjointness. CC Path B does NOT fire. Restriction created directly.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "prompt": {
+          "fired": false
+        },
+        "success": true,
+        "restrictionCreated": true,
+        "note": "Dog (MaterialEntity) has fur (MaterialEntity). Same BFO branch. No disjointness. No gate."
+      }
+    },
+    {
+      "id": "cc-path-b-user-confirms-despite-warning",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CC-3 \u2014 machine-first/human-validate on Path B"
+      ],
+      "description": "User confirms disjoint assertion after Path B warning. Assertion is written but marked for review.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has running"
+      },
+      "user_choice": {
+        "action": "assert_anyway"
+      },
+      "expect": {
+        "success": true,
+        "restrictionCreated": true,
+        "postState": {
+          "dog_has_running": {
+            "exists": true,
+            "compilationStatus": "Uncompiled",
+            "note": "Restriction written to Canonical Lane but not compiled to Execution Lane (type-invalid)."
+          }
+        }
+      }
+    },
+    {
+      "id": "cc-path-b-user-cancels",
+      "version": 1,
+      "verifies": [
+        "CC-3 \u2014 cancel on Path B"
+      ],
+      "description": "User cancels after Path B disjointness warning. No restriction created. No mutation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has running"
+      },
+      "user_choice": {
+        "action": "cancel"
+      },
+      "expect": {
+        "mutationCount": 0,
+        "restrictionCreated": false
+      }
+    },
+    {
+      "id": "recc-structural-check-passes",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 6.2 \u2014 Pre-materialization check",
+        "Q4 answer \u2014 structural conformance as JS checks"
+      ],
+      "description": "Compiler pre-materialization check: subject's BFO category matches the relation type's expected domain, object matches expected range. Restriction compiles to Execution Lane.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "executionLane": {
+          "containsRestriction": {
+            "onConcept": "ANY_IRI_MATCHING(dog)",
+            "owlSomeValuesFrom": "ANY_IRI_MATCHING(fur)",
+            "note": "Both dog and fur are MaterialEntity. Pre-materialization check passes. Restriction compiled."
+          }
+        }
+      }
+    },
+    {
+      "id": "recc-structural-check-fails-not-compiled",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 6.2 \u2014 CompilerRejected on structural failure"
+      ],
+      "description": "A restriction connecting disjoint types (confirmed by user via CC Path B 'assert anyway') is in the Canonical Lane but FAILS the compiler's pre-materialization check. It is NOT compiled to the Execution Lane.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:running",
+                    "compilationStatus": "Uncompiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "onConcept": "ANY_IRI_MATCHING(dog)",
+            "owlSomeValuesFrom": "ANY_IRI_MATCHING(running)"
+          },
+          "note": "dog (MaterialEntity) has running (Process) \u2014 disjoint. Compiler rejects. Not in Execution Lane."
+        },
+        "canonicalLane": {
+          "restrictionExists": true,
+          "compilationStatus": "Uncompiled",
+          "note": "Restriction remains in Canonical Lane for audit. Not deleted. Just not compiled."
+        }
+      }
+    },
+    {
+      "id": "recc-structural-check-bfo-category-lookup",
+      "version": 1,
+      "verifies": [
+        "Q4 answer \u2014 RECC as JavaScript index lookups"
+      ],
+      "description": "The compiler's structural conformance check uses BFO category lookup, not OWL reasoning. A concept under MaterialEntity (via ancestor chain) is correctly identified as MaterialEntity-type even if the concept itself doesn't declare a BFO category.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:animal"
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "executionLane": {
+          "containsRestriction": {
+            "onConcept": "ANY_IRI_MATCHING(dog)",
+            "note": "Dog is 4 levels below MaterialEntity. The BFO marker (most-specific ingested ancestor) resolves to MaterialEntity. Pre-materialization check uses this marker, not OWL reasoning."
+          }
+        }
+      }
+    },
+    {
+      "id": "reg-phase12-scope-resolution-unaffected",
+      "version": 1,
+      "verifies": [
+        "Phase 12 AVC regression \u2014 dual-lane does not break scope resolution"
+      ],
+      "description": "Phase 12 scope resolution still works correctly after dual-lane separation. The scope resolver reads from the Canonical Lane, not the Execution Lane.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          },
+          {
+            "scopeType": "global",
+            "graphId": "global-cco",
+            "priority": 1,
+            "graphVersion": "1.4.0",
+            "concepts": [
+              {
+                "id": "cco:dog",
+                "canonicalLabel": "dog",
+                "parent": "cco:mammal"
+              },
+              {
+                "id": "cco:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "resolveTerm",
+        "value": "dog"
+      },
+      "expect": {
+        "resolution": {
+          "status": "resolved",
+          "sourceScope": "global-cco"
+        },
+        "copiedConcept": {
+          "canonicalLabel": "dog",
+          "hasAnnotation": "fandaws:resolvedFrom"
+        }
+      }
+    },
+    {
+      "id": "reg-phase13-machinesignal-unaffected",
+      "version": 1,
+      "verifies": [
+        "Phase 13 AVC regression \u2014 MachineSignal still emits on reclassification"
+      ],
+      "description": "In agent mode, reclassification still produces a MachineSignal with the layered schema after dual-lane separation.",
+      "setup": {
+        "callerMode": "agent",
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "envelope": {
+              "promptType": "reclassificationConsequence",
+              "constraintType": "subsumption"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

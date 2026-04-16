@@ -341,12 +341,23 @@ export function ingestTurtle(turtleText, options = {}) {
   // Build property index
   const propertyIndex = buildPropertyIndex(propertySubjects);
 
+  // Extract explicit owl:disjointWith pairs
+  const disjointPairs = [];
+  for (const [subjectIri, triples] of classSubjects) {
+    for (const t of triples) {
+      if (t.predicate === OWL_DISJOINT_WITH && typeof t.object === 'string') {
+        disjointPairs.push([subjectIri, t.object]);
+      }
+    }
+  }
+
   return {
     concepts,
     propertyIndex,
     parentMap,
     contentHash,
     skipped,
+    disjointPairs,
   };
 }
 

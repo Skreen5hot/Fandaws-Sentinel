@@ -817,36 +817,62 @@ export class InMemoryStateAdapter extends StateAdapter {
     const objectConcept = concepts.find((c) => c['@id'] === objectIri);
     if (!subjectConcept || !objectConcept) return true;
 
-    const subjectBfo = this._getBfoCategory(subjectConcept);
-    const objectBfo = this._getBfoCategory(objectConcept);
+    const subjectBfo = this._getBfoCategory(subjectConcept, concepts);
+    const objectBfo = this._getBfoCategory(objectConcept, concepts);
     if (!subjectBfo || !objectBfo) return true;
 
     return !this.areDisjoint(subjectBfo, objectBfo);
   }
 
   /**
-   * Get the BFO category label for a concept (from its nearest ingested ancestor).
+   * Get the BFO category label for a concept.
+   *
+   * Uses the BFO marker in rdfs:subClassOf (set by _recomputeBfoMarkers)
+   * to find the nearest ingested ancestor. Falls back to walking the
+   * skos:broader chain if no marker is found.
+   *
+   * @param {object} concept
+   * @param {object[]} [allConcepts] - All concepts in the graph (for chain walking)
+   * @returns {string|null} BFO category label (e.g., "material entity")
    */
-  _getBfoCategory(concept) {
-    const subClassOf = concept['rdfs:subClassOf'] || [];
-    // Find ingested ancestor IRI in rdfs:subClassOf
-    for (const entry of subClassOf) {
-      if (typeof entry === 'string' && entry.startsWith('fandaws:class/')) {
-        // This might be a BFO marker — check if it's an ingested concept
-        // For now, return the label from the concept's BFO marker
-        // The BFO category is derived from the ingested concept's label
-        for (const [graphId, graph] of this._graphs) {
-          const ingested = (graph['fandaws:concepts'] || []).find(
-            (c) => c['@id'] === entry && c['fandaws:isImported'],
-          );
-          if (ingested) return ingested['rdfs:label'] || ingested['skos:prefLabel'];
-        }
-      }
-    }
-    // Check if the concept itself is imported
+  _getBfoCategory(concept, allConcepts) {
+    // If the concept itself is imported, it IS a BFO category
     if (concept['fandaws:isImported']) {
       return concept['rdfs:label'] || concept['skos:prefLabel'];
     }
+
+    // Check rdfs:subClassOf for a BFO marker (ingested concept IRI)
+    const subClassOf = concept['rdfs:subClassOf'] || [];
+    const concepts = allConcepts || [];
+    const conceptById = concepts.length > 0
+      ? new Map(concepts.map((c) => [c['@id'], c]))
+      : null;
+
+    for (const entry of subClassOf) {
+      if (typeof entry !== 'string') continue;
+      if (entry === concept['skos:broader']) continue; // skip parent IRI
+      // Check if this is an ingested concept IRI
+      const ingested = conceptById?.get(entry);
+      if (ingested && ingested['fandaws:isImported']) {
+        return ingested['rdfs:label'] || ingested['skos:prefLabel'];
+      }
+    }
+
+    // Walk the skos:broader chain to find the nearest ingested ancestor
+    if (conceptById) {
+      const visited = new Set([concept['@id']]);
+      let cursor = concept['skos:broader'];
+      while (cursor && !visited.has(cursor)) {
+        visited.add(cursor);
+        const parent = conceptById.get(cursor);
+        if (!parent) break;
+        if (parent['fandaws:isImported']) {
+          return parent['rdfs:label'] || parent['skos:prefLabel'];
+        }
+        cursor = parent['skos:broader'];
+      }
+    }
+
     return null;
   }
 
@@ -859,8 +885,15 @@ export class InMemoryStateAdapter extends StateAdapter {
    */
   areDisjoint(categoryA, categoryB) {
     if (!categoryA || !categoryB) return false;
-    const key = [categoryA, categoryB].sort().join('|');
-    return this._bfoDisjointnessMap.has(key);
+    // Normalize: lowercase, handle both "Material Entity" and "MaterialEntity"
+    const normA = categoryA.toLowerCase();
+    const normB = categoryB.toLowerCase();
+    const key = [normA, normB].sort().join('|');
+    if (this._bfoDisjointnessMap.has(key)) return true;
+    // Also try splitting camelCase: "MaterialEntity" → "material entity"
+    const splitCamel = (s) => s.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+    const key2 = [splitCamel(categoryA), splitCamel(categoryB)].sort().join('|');
+    return this._bfoDisjointnessMap.has(key2);
   }
 
   /**

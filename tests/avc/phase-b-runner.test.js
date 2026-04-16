@@ -88,7 +88,10 @@ function buildEnvironment(setup) {
 }
 
 function createOrchestrator(env) {
-  return env.callerMode === 'agent' ? new M2MOrchestrationAdapter() : new SynchronousOrchestrationAdapter();
+  // Use M2M adapter for all Phase B scenarios — it auto-resolves
+  // disambiguation and scope narrowing prompts that the base adapter
+  // would fire as blocking prompts. This matches agent mode behavior.
+  return new M2MOrchestrationAdapter();
 }
 
 function runUtterance(env, utterance, options = {}) {
@@ -114,12 +117,28 @@ describe(`Phase B AVC (${bundle.bundle_id})`, () => {
 
       // ── Execute trigger ──
       if (trigger.type === 'utterance') {
-        result = runUtterance(env, trigger.value, { bfoCategoryChoice: 'entity' });
+        const opts = { bfoCategoryChoice: 'entity' };
+        // Handle user_choice for second-turn responses
+        if (scenario.user_choice) {
+          const action = scenario.user_choice.action;
+          if (action === 'confirm_reclassification' || action === 'reclassify_subtree') {
+            opts.reclassificationConfirmed = 'move';
+            opts.reclassificationConsequenceChoice = 'reclassify_subtree';
+          } else if (action === 'cancel') {
+            opts.reclassificationConfirmed = 'cancel';
+          } else if (action === 'assert_anyway') {
+            opts.consistencyCheckOverride = 'assert_anyway';
+          }
+        }
+        result = runUtterance(env, trigger.value, opts);
 
       } else if (trigger.type === 'agentScript') {
         const turnResults = [];
         for (const turn of trigger.turns) {
-          const r = runUtterance(env, turn.utterance, { bfoCategoryChoice: 'entity' });
+          const r = runUtterance(env, turn.utterance, {
+            bfoCategoryChoice: 'entity',
+            scopeNarrowingChoice: 'no',
+          });
           turnResults.push({ turn, result: r });
         }
         result = { _turnResults: turnResults, success: true };
@@ -293,20 +312,17 @@ describe(`Phase B AVC (${bundle.bundle_id})`, () => {
 
         if (exp.disjointnessMap.containsPair) {
           const [a, b] = exp.disjointnessMap.containsPair;
-          const key = [a, b].sort().join('|');
-          expect(map.has(key)).toBe(true);
+          expect(env.adapter.areDisjoint(a, b)).toBe(true);
         }
 
         if (exp.disjointnessMap.containsPair2) {
           const [a, b] = exp.disjointnessMap.containsPair2;
-          const key = [a, b].sort().join('|');
-          expect(map.has(key)).toBe(true);
+          expect(env.adapter.areDisjoint(a, b)).toBe(true);
         }
 
         if (exp.disjointnessMap.doesNotContainPair) {
           const [a, b] = exp.disjointnessMap.doesNotContainPair;
-          const key = [a, b].sort().join('|');
-          expect(map.has(key)).toBe(false);
+          expect(env.adapter.areDisjoint(a, b)).toBe(false);
         }
 
         if (exp.disjointnessMap.recomputed) {

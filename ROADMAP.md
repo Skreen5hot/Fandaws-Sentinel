@@ -1434,48 +1434,48 @@ Phase C is split into **C1 (Internal Lifecycle)** and **C2 (External RECC)** wit
 **Spec Reference:** FANDAWS v2.1 Sections 2.4.1, 2.4.2; Decision C-5
 
 **Acceptance Criteria:**
-- [ ] Canonical record change → execution artifact marked `fandaws:Stale` with `fandaws:invalidatedAt` and `fandaws:invalidationReason`
-- [ ] Stale execution artifacts excluded from export (Rule CS-3)
-- [ ] Full rebuild with stale marking: all previous artifacts marked Stale before rebuild (Decision C-5 — stale window is zero in synchronous pass)
-- [ ] After compile() completes, no Stale artifacts remain (transient state)
-- [ ] BFO re-ingestion triggers full recompilation — all artifacts regenerated, all epochs increment (Scope 3)
+- [x] Canonical record change → execution artifact marked `fandaws:Stale` with `fandaws:invalidatedAt` and `fandaws:invalidationReason`
+- [x] Stale execution artifacts excluded from export (Rule CS-3)
+- [x] Full rebuild with stale marking: all previous artifacts marked Stale before rebuild (Decision C-5 — stale window is zero in synchronous pass)
+- [x] After compile() completes, no Stale artifacts remain (transient state)
+- [x] BFO re-ingestion triggers full recompilation — all artifacts regenerated, all epochs increment (Scope 3)
 
 #### C1.2 CompilerRejected
 
 **Spec Reference:** FANDAWS v2.1 Section 6.2, 6.5; Rules CF-1, CF-2
 
 **Acceptance Criteria:**
-- [ ] Pre-materialization check failure (checks 1-3) → `fandaws:compilationStatus: CompilerRejected`
-- [ ] Structured feedback record written to Canonical Lane: identifies which check failed, expected vs actual, human-readable explanation
-- [ ] No execution artifact emitted for CompilerRejected records (Rule CF-2)
-- [ ] CompilerRejected restriction remains in Canonical Lane (not deleted, not quarantined)
-- [ ] Resolving the issue (e.g., reclassifying the object) → restriction recompiles successfully
+- [x] Pre-materialization check failure (checks 1-3) → `fandaws:compilationStatus: CompilerRejected`
+- [x] Structured feedback record written to Canonical Lane: identifies which check failed, expected vs actual, human-readable explanation
+- [x] No execution artifact emitted for CompilerRejected records (Rule CF-2)
+- [x] CompilerRejected restriction remains in Canonical Lane (not deleted, not quarantined)
+- [x] Resolving the issue (e.g., reclassifying the object) → restriction recompiles successfully
 
 #### C1.3 Confidence Tier Mapping
 
 **Spec Reference:** FANDAWS v2.1 Section 4.3.3; Decisions C-3, C-4
 
 **Acceptance Criteria:**
-- [ ] `[0.9–1.0]` → Asserted tier: materialized, no confidence annotation, no tentative flag
-- [ ] `[0.7–0.9)` → Flagged tier: materialized with `fandaws:confidence` annotation
-- [ ] `[0.5–0.7)` → Tentative tier: materialized with `fandaws:tentative: true` flag (Decision C-4), excluded from default export
-- [ ] `< 0.5` → Not materialized: retained in Canonical Lane only
-- [ ] Implicit default: missing `fandaws:confidence` = 1.0 (Decision C-3, no migration)
-- [ ] Conversational assertions default to 1.0; scope-resolved concepts default to 1.0
-- [ ] Default export excludes tentative; full export (`includeTentative: true`) includes them with annotation
+- [x] `[0.9–1.0]` → Asserted tier: materialized, no confidence annotation, no tentative flag
+- [x] `[0.7–0.9)` → Flagged tier: materialized with `fandaws:confidence` annotation
+- [x] `[0.5–0.7)` → Tentative tier: materialized with `fandaws:tentative: true` flag (Decision C-4), excluded from default export
+- [x] `< 0.5` → Not materialized: retained in Canonical Lane only
+- [x] Implicit default: missing `fandaws:confidence` = 1.0 (Decision C-3, no migration)
+- [x] Conversational assertions default to 1.0; scope-resolved concepts default to 1.0
+- [x] Default export excludes tentative; full export (`includeTentative: true`) includes them with annotation
 
 #### C1.4 Retraction Protocol
 
 **Spec Reference:** FANDAWS v2.1 Section 4.4; Rules RT-1 through RT-4; Decision C-2
 
 **Acceptance Criteria:**
-- [ ] Confidence downgrade crossing tier boundary → prior artifact `fandaws:Retracted`, tombstone retained permanently (Rule RT-4)
-- [ ] Confidence upgrade crossing tier boundary → symmetric reverse protocol (retract tentative, re-materialize as asserted)
-- [ ] Confidence change within same tier → NO retraction (artifact updated, not retracted)
-- [ ] All transitions atomic (no intermediate state visible)
-- [ ] Retraction cascades via restriction `@id` (implicit sourceCanonical link, Decision C-2) — NOT through `rdfs:subClassOf` hierarchy
-- [ ] Independent canonical records NOT affected by sibling/ancestor retraction
-- [ ] Sub-property cascade deferred to Phase D
+- [x] Confidence downgrade crossing tier boundary → prior artifact `fandaws:Retracted`, tombstone retained permanently (Rule RT-4)
+- [x] Confidence upgrade crossing tier boundary → symmetric reverse protocol (retract tentative, re-materialize as asserted)
+- [x] Confidence change within same tier → NO retraction (artifact updated, not retracted)
+- [x] All transitions atomic (no intermediate state visible)
+- [x] Retraction cascades via restriction `@id` (implicit sourceCanonical link, Decision C-2) — NOT through `rdfs:subClassOf` hierarchy
+- [x] Independent canonical records NOT affected by sibling/ancestor retraction
+- [x] Sub-property cascade deferred to Phase D
 
 #### C1.5 Pre-Materialization Checks 3-5
 
@@ -1484,15 +1484,17 @@ Phase C is split into **C1 (Internal Lifecycle)** and **C2 (External RECC)** wit
 Phase B implemented check 1. C1 adds checks 3-5. Check 2 (provenance authority) is Phase C2.
 
 **Acceptance Criteria:**
-- [ ] Check 3 — BFO subcategory: `bfo:inheres_in` only on relation types declaring `bfo:Quality`. Using it on mereological → `CompilerRejected` (Rule BFO-3)
-- [ ] Check 4 — Confidence threshold: below threshold → not materialized (NOT CompilerRejected — routing decision, not structural violation)
-- [ ] Check 5 — Normalization status: `normalizationStatus !== 'Normalized'` → not compiled (deferred until normalization completes)
+- [x] Check 3 — BFO subcategory: `bfo:inheres_in` only on relation types declaring `bfo:Quality`. Using it on mereological → `CompilerRejected` (Rule BFO-3)
+- [x] Check 4 — Confidence threshold: below threshold → not materialized (NOT CompilerRejected — routing decision, not structural violation)
+- [x] Check 5 — Normalization status: `normalizationStatus !== 'Normalized'` → not compiled (deferred until normalization completes)
 
 #### C1.6 Regression
 
-- [ ] Phase B dual-lane behavior intact after C1 lifecycle additions
-- [ ] Phase B CC Path A disjointness check still fires after C1 additions
-- [ ] Phase 12 (25), Phase 13 (24), Phase B (27) scenarios all still passing
+- [x] Phase B dual-lane behavior intact after C1 lifecycle additions
+- [x] Phase B CC Path A disjointness check still fires after C1 additions
+- [x] Phase 12 (25), Phase 13 (24), Phase B (27) scenarios all still passing
+
+**Phase C1 totals:** 26 AVC scenarios across stale detection (5), CompilerRejected (3), confidence tiers (6), retraction protocol (6), pre-mat checks (3), regression (2). All passing. Architect-confirmed 2026-04-17. Two post-transcript fixes applied: tentative export filter in triple-extractor, canonical status recovery from CompilerRejected.
 
 ---
 

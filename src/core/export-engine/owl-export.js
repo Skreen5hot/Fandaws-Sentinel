@@ -70,7 +70,7 @@ function isOwlPredicate(predicate) {
  * @returns {string} OWL/Turtle serialization
  */
 export function exportOWL(graph, config = {}) {
-  const allTriples = extractTriples(graph);
+  const allTriples = extractTriples(graph, config);
 
   // Filter to OWL vocabulary
   const filtered = allTriples.filter((t) => {

@@ -402,21 +402,52 @@ describe(`Phase C1 AVC (${bundle.bundle_id})`, () => {
         if (exp.prompt.fired) expect(ccPrompts.length).toBeGreaterThan(0);
       }
 
-      // ── Export assertions ──
+      // ── Export assertions (check actual Turtle output) ──
       if (exp.exportCheck) {
         const turtle = result?._export;
         expect(turtle).toBeDefined();
         if (exp.exportCheck.doesNotContainStaleArtifacts) {
           expect(turtle).not.toContain('fandaws:Stale');
         }
+        if (exp.exportCheck.containsOnlyCompiled) {
+          expect(turtle).not.toContain('Stale');
+        }
         if (exp.exportCheck.containsRestriction) {
+          const cr = exp.exportCheck.containsRestriction;
           expect(turtle).toContain('owl:Restriction');
+          if (cr.object) {
+            expect(turtle).toContain(cr.object);
+          }
+        }
+        if (exp.exportCheck.containsRestriction2) {
+          const cr2 = exp.exportCheck.containsRestriction2;
+          if (cr2.subject && cr2.object) {
+            expect(turtle).toContain(cr2.object);
+          }
         }
         if (exp.exportCheck.doesNotContainRestriction) {
           const dnr = exp.exportCheck.doesNotContainRestriction;
           if (dnr.object) {
-            // Check the Turtle doesn't contain a restriction pointing to the object
-            // This is approximate — check if the object label appears in restriction context
+            // Check that no restriction in the Turtle has someValuesFrom pointing
+            // to the object concept. The concept itself may appear (as an owl:Class)
+            // but the restriction triple must be absent.
+            const graph = env.adapter.loadGraph(env.activeScope);
+            const objConcept = graph['fandaws:concepts'].find(c => c['skos:prefLabel'] === dnr.object);
+            if (objConcept) {
+              // Find the restriction IRI for this object
+              for (const c of graph['fandaws:concepts']) {
+                for (const entry of (c['rdfs:subClassOf'] || [])) {
+                  if (typeof entry === 'object' && entry['owl:someValuesFrom'] === objConcept['@id']) {
+                    // This restriction's IRI should NOT appear in the Turtle
+                    const rIri = entry['@id'];
+                    if (rIri) {
+                      const expandedRIri = rIri.replace('fandaws:', 'https://fandaws.org/schema/');
+                      expect(turtle).not.toContain(expandedRIri);
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

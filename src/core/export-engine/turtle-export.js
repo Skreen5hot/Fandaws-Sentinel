@@ -34,6 +34,6 @@ const ALL_PREFIXES = {
  * @returns {string} Turtle serialization
  */
 export function exportTurtle(graph, config = {}) {
-  const allTriples = extractTriples(graph);
+  const allTriples = extractTriples(graph, config);
   return serializeTurtle(allTriples, ALL_PREFIXES);
 }

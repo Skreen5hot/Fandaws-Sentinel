@@ -81,7 +81,7 @@ const XSD_DATETIME = expandIri('xsd:dateTime');
 
 // ── Concept Extraction ──
 
-function extractConceptTriples(concept, expanded) {
+function extractConceptTriples(concept, expanded, options = {}) {
   const triples = [];
   const s = expanded;
 
@@ -194,6 +194,20 @@ function extractConceptTriples(concept, expanded) {
   for (const r of sortedRestrictions) {
     const rIri = r['@id'] ? expandIri(r['@id']) : null;
     if (!rIri) continue;
+
+    // Tentative filter: exclude tentative restrictions from default export
+    // (Decision C-4). A restriction is tentative when its confidence is in
+    // [0.5, 0.7). The execution lane marks these with fandaws:tentative=true;
+    // the canonical lane carries the raw confidence value. Check both.
+    const confidence = r['fandaws:confidence'];
+    const isTentative = r['fandaws:tentative'] || (confidence !== undefined && confidence >= 0.5 && confidence < 0.7);
+    if (isTentative && !options.includeTentative) continue;
+
+    // Below materialization threshold: skip entirely (not even in full export)
+    if (confidence !== undefined && confidence < 0.5) continue;
+
+    // Stale filter: exclude stale restrictions (Rule CS-3)
+    if (r['fandaws:compilationStatus'] === 'Stale') continue;
 
     // conceptIRI rdfs:subClassOf restrictionIRI
     triples.push(tripleUri(s, expandIri('rdfs:subClassOf'), rIri));
@@ -358,7 +372,7 @@ function emitVerbPropertyDeclarations(concepts) {
  * @param {object} graph - KnowledgeGraph JSON-LD
  * @returns {Array<{subject: string, predicate: string, object: string, objectType: 'uri'|'literal', datatype?: string}>}
  */
-export function extractTriples(graph) {
+export function extractTriples(graph, options = {}) {
   if (!graph || !graph['fandaws:concepts']) return [];
 
   const concepts = graph['fandaws:concepts'] || [];
@@ -412,7 +426,7 @@ export function extractTriples(graph) {
 
   for (const concept of sorted) {
     const expanded = expandIri(concept['@id']);
-    const conceptTriples = extractConceptTriples(concept, expanded);
+    const conceptTriples = extractConceptTriples(concept, expanded, options);
     allTriples.push(...conceptTriples);
   }
 

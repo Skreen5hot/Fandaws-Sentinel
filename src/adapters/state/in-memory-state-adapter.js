@@ -814,6 +814,12 @@ export class InMemoryStateAdapter extends StateAdapter {
           continue;
         }
 
+        // Update canonical status: if previously CompilerRejected, it now compiles
+        if (entry['fandaws:compilationStatus'] === 'CompilerRejected') {
+          entry['fandaws:compilationStatus'] = 'Compiled';
+          delete entry['fandaws:compilerFeedback'];
+        }
+
         // Build the compiled restriction
         const compiledRestriction = {
           '@id': entry['@id'],

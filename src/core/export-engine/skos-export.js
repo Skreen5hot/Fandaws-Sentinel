@@ -58,7 +58,7 @@ function isSkosTypeTriple(triple) {
  * @returns {string} SKOS/Turtle serialization
  */
 export function exportSKOS(graph, config = {}) {
-  const allTriples = extractTriples(graph);
+  const allTriples = extractTriples(graph, config);
 
   // Filter to SKOS vocabulary
   const filtered = allTriples.filter((t) => {

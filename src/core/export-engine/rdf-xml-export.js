@@ -33,6 +33,6 @@ const ALL_PREFIXES = {
  * @returns {string} RDF/XML serialization
  */
 export function exportRDF(graph, config = {}) {
-  const allTriples = extractTriples(graph);
+  const allTriples = extractTriples(graph, config);
   return serializeRdfXml(allTriples, ALL_PREFIXES);
 }

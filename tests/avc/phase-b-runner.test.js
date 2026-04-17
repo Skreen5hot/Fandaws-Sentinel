@@ -70,33 +70,23 @@ function buildEnvironment(setup) {
     adapter.saveGraph(scope.graphId, graph);
 
     // If BFO should be ingested, build the disjointness map from the
-    // bundled Turtle. Only add BFO concepts if the setup doesn't already
-    // define its own concepts (avoids duplicates that trigger homonym
-    // disambiguation). The disjointness map is the key infrastructure —
-    // the concepts are already in the setup.
+    // bundled Turtle. After ingestion, remove ANY ingested concept whose
+    // prefLabel matches a setup concept's label — the setup concepts have
+    // the correct IRIs for the test. This prevents homonym disambiguation.
     if (scope.bfoIngested && BFO_TURTLE) {
       adapter.ensureBfoIngestion(scope.graphId, BFO_TURTLE);
-      // Remove duplicates: if a setup concept has the same prefLabel as
-      // an ingested concept, keep the setup concept (it has the right IRI)
       const graph = adapter.loadGraph(scope.graphId);
+      const setupIds = new Set((scope.concepts || []).map((c) => c.id));
       const setupLabels = new Set((scope.concepts || []).map((c) => c.canonicalLabel));
       if (setupLabels.size > 0) {
-        const deduped = graph['fandaws:concepts'].filter((c) => {
-          if (c['fandaws:isImported'] && setupLabels.has(c['skos:prefLabel'])) {
-            // Check if there's a setup concept with the same label
-            const setupConcept = graph['fandaws:concepts'].find(
-              (s) => s['skos:prefLabel'] === c['skos:prefLabel'] && s['@id'] !== c['@id'] && !s['fandaws:isImported'],
-            );
-            // If setup defines this concept as imported with a specific IRI, keep that one
-            const setupImported = (scope.concepts || []).find(
-              (s) => s.canonicalLabel === c['skos:prefLabel'] && s.isImported,
-            );
-            if (setupImported && setupImported.id !== c['@id']) return false; // remove BFO duplicate
-            if (setupConcept) return false; // setup has a user concept with this label
-          }
+        graph['fandaws:concepts'] = graph['fandaws:concepts'].filter((c) => {
+          // Keep all setup concepts (by IRI)
+          if (setupIds.has(c['@id'])) return true;
+          // Remove ingested duplicates of setup labels
+          if (setupLabels.has(c['skos:prefLabel'])) return false;
+          // Keep all other ingested concepts (they don't conflict)
           return true;
         });
-        graph['fandaws:concepts'] = deduped;
         adapter.saveGraph(scope.graphId, graph);
       }
     }

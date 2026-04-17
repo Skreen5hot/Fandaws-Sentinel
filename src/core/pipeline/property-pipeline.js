@@ -138,6 +138,7 @@ export function runPropertyPipeline(utterance, context, options = {}) {
     scopeDecisions,
     leapCheckEnabled,
     resolvedConceptIri: options.resolvedConceptIri,
+    consistencyCheckOverride: options.consistencyCheckOverride,
   }, stateAdapter);
 
   if (engineResult.error) {

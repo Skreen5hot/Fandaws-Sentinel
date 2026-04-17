@@ -309,6 +309,41 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
     return { ...noOp, prompts: [prompt] };
   }
 
+  // ── CC Path B: Conversational Consistency Check (FANDAWS v2.1 Section 3.8.2) ──
+  // Pre-commit gate: check BFO disjointness between subject and object.
+  // If disjoint, fire conversationalConsistencyCheck prompt BEFORE creating
+  // any restriction. The user/agent decides whether to proceed.
+  if (adapter && !options.consistencyCheckOverride) {
+    const subjectBfo = adapter._getBfoCategory
+      ? adapter._getBfoCategory(subject, graph['fandaws:concepts'] || [])
+      : null;
+    const objectConcept = (graph['fandaws:concepts'] || []).find(
+      (c) => c['@id'] === propertyConceptIri,
+    );
+    const objectBfo = (adapter._getBfoCategory && objectConcept)
+      ? adapter._getBfoCategory(objectConcept, graph['fandaws:concepts'] || [])
+      : null;
+
+    if (subjectBfo && objectBfo && adapter.areDisjoint && adapter.areDisjoint(subjectBfo, objectBfo)) {
+      const prompt = createConversationPrompt({
+        promptType: 'conversationalConsistencyCheck',
+        text: `Warning — type mismatch: "${rawSubject}" (${subjectBfo}) and "${rawProperty}" (${objectBfo}) are in disjoint BFO categories. This assertion would create a structurally invalid triple.`,
+        options: ['assert_anyway', 'cancel'],
+        context: {
+          action: 'property',
+          subject: rawSubject,
+          object: rawProperty,
+          subjectIri,
+          objectIri: propertyConceptIri,
+          subjectBFO: subjectBfo,
+          objectBFO: objectBfo,
+          disjoint: true,
+        },
+      });
+      return { ...noOp, prompts: [prompt] };
+    }
+  }
+
   // ── 9. Verb-to-property resolution (Section 6.5) ──
   // The verb in "X has Y" is the implicit "has". Look it up in the ingested
   // object-property index by label. If a BFO/CCO property uses "has" as its

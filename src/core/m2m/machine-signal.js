@@ -85,6 +85,11 @@ const PROMPT_TYPE_REGISTRY = new Map([
     buildExtension: buildGenericExtension,
     buildSchema: buildGenericSchema,
   }],
+  ['conversationalConsistencyCheck', {
+    constraintType: 'disjointness',
+    buildExtension: buildCCExtension,
+    buildSchema: buildGenericSchema,
+  }],
 ]);
 
 /**
@@ -387,6 +392,17 @@ function buildGenericSchema(options) {
       acknowledged: { type: 'boolean' },
     },
     required: ['acknowledged'],
+  };
+}
+
+function buildCCExtension(prompt, ctx) {
+  const context = prompt['fandaws:context'] || {};
+  return {
+    subject: context.subject || ctx.subject || null,
+    object: context.object || ctx.object || null,
+    subjectBFO: context.subjectBFO || ctx.subjectBFO || null,
+    objectBFO: context.objectBFO || ctx.objectBFO || null,
+    disjoint: context.disjoint || ctx.disjoint || false,
   };
 }
 

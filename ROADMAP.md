@@ -1400,23 +1400,145 @@ These phases implement the FANDAWS v2.1 Relational Architectural Specification. 
 
 ### Phase C: RECC Enforcement `[FANDAWS v2.1 Roadmap Phase 2 Extension]`
 
-**Goal:** Make RECC constraints travel with the ontology. Tier 2 restrictions declared as OWL class restrictions in exports. Third-party reasoners can check conformance without Fandaws infrastructure.
+**Goal:** Make RECC constraints travel with the ontology. Tier 2 restrictions declared as OWL class restrictions in exports, enforceable by any conformant OWL reasoner without Fandaws infrastructure. Add the full compilation lifecycle (stale detection, retraction, confidence tiers) to the dual-lane architecture established in Phase B.
 **Status:** Not Started
 **Priority:** High
 **Effort:** Medium
 **Depends on:** Phase B (dual-lane, RECC structural conformance)
 
-**Scope:**
-- `fandaws:Stale` and `fandaws:Retracted` compilation status states
-- Stale detection machinery (compilation epoch comparison)
-- Retraction protocol (Section 4.4): atomic confidence-tier boundary transitions
-- Confidence tier mapping (Section 4.3.3): `[0.9-1.0]` asserted, `[0.7-0.9)` flagged, `[0.5-0.7)` tentative, `<0.5` canonical only
-- Provenance authority enforcement (`fan:isSourceOf`, `owl:hasValue` RECC patterns)
-- RECC restrictions emitted as OWL class restrictions in exports
-- RECC violation quarantining with structured records
-- `fandaws:RoleRegistry` validation (NR-4)
+#### C.1 Full Compilation Status Lifecycle
 
-**NOT in Phase C:** Bulk ingestion pipeline, `fan:RelationalQuality` reification, namespace split.
+**Spec Reference:** FANDAWS v2.1 Sections 2.4.1, 4.1.4, 6.5
+
+Phase B implemented the two-state lifecycle (Uncompiled → Compiled). Phase C adds three additional states to complete the vocabulary.
+
+**Deliverables:**
+- Stale detection in `compile()` method
+- `CompilerRejected` status with structured feedback records
+- `Retracted` status with tombstone retention
+
+**Acceptance Criteria:**
+- [ ] `fandaws:Stale` — set when canonical record changes but execution artifact hasn't been recompiled yet. Carries `fandaws:invalidatedAt` timestamp and `fandaws:invalidationReason`
+- [ ] `fandaws:CompilerRejected` — set when pre-materialization check fails (checks 1–3). Compiler writes structured feedback to Canonical Lane. No execution artifact emitted.
+- [ ] `fandaws:Retracted` — set when execution artifacts are deleted due to confidence downgrade or retraction cascade. Tombstone retained in Canonical Lane permanently (Rule RT-4).
+- [ ] Stale execution artifacts are excluded from export output (Rule CS-3)
+- [ ] Recompilation triggers from Section 2.4.2 are detected and fire `compile()` selectively (affected scope, not full graph)
+
+#### C.2 Confidence Tier Mapping
+
+**Spec Reference:** FANDAWS v2.1 Section 4.3.3
+
+The compiler maps canonical confidence scores to Execution Lane materialization tiers.
+
+**Deliverables:**
+- Confidence field (`fandaws:confidence`) on canonical restriction records
+- Tier-based materialization in `compile()`
+- `fandaws:TentativeGraph` for low-confidence artifacts
+- Configurable threshold per relation type via `fandaws:compilationConfidenceThreshold`
+
+**Acceptance Criteria:**
+- [ ] `[0.9–1.0]` → materialized as asserted triple in execution artifact
+- [ ] `[0.7–0.9)` → materialized with `fandaws:confidence` annotation; flagged for reasoner
+- [ ] `[0.5–0.7)` → materialized into `fandaws:TentativeGraph`; excluded from default reasoning
+- [ ] `< 0.5` → not materialized; retained in Canonical Lane only
+- [ ] Default confidence for conversational assertions is 1.0 (user asserted = fully trusted)
+- [ ] Threshold configurable per relation type via `fandaws:compilationConfidenceThreshold`
+
+#### C.3 Retraction Protocol
+
+**Spec Reference:** FANDAWS v2.1 Section 4.4, Rules RT-1 through RT-4
+
+Any confidence update crossing a tier boundary activates the retraction protocol atomically.
+
+**Deliverables:**
+- Retraction protocol in `compile()` triggered by confidence changes
+- Cascade logic for derived artifacts
+- Tombstone retention
+
+**Acceptance Criteria:**
+- [ ] Confidence downgrade crossing a tier boundary → prior execution artifact marked `fandaws:Retracted` with timestamp and reason
+- [ ] Retraction cascades to derived artifacts: inverses, projections, sub-property children (Rule RT-3)
+- [ ] Tombstone record retained permanently in Canonical Lane (Rule RT-4)
+- [ ] Re-materialization into correct new tier if applicable
+- [ ] Confidence upgrade crossing a tier boundary → symmetric reverse protocol
+- [ ] All transitions are atomic (no partial state visible between retraction and re-materialization)
+
+#### C.4 Provenance Authority Enforcement
+
+**Spec Reference:** FANDAWS v2.1 Sections 2.2, 5.6, 5.7, Rules RECC-3, RECC-4
+
+Provenance authority is the second pre-materialization check (check 2 in Section 6.2). A restriction without the required `fan:isSourceOf` triple is non-conformant.
+
+**Deliverables:**
+- `fan:isSourceOf` validation in compiler pre-materialization check
+- Three authority scope patterns (A: single authority, B: authorized class, C: open provenance)
+- Standalone provenance triple validation (Rule RECC-4)
+
+**Acceptance Criteria:**
+- [ ] Pattern A — Single Authority: `owl:hasValue` RECC on `fan:isSourceOf` inverse. Instance without the named system → `CompilerRejected`
+- [ ] Pattern B — Authorized Class: `owl:someValuesFrom fan:AuthorizedSystem`. Instance without any authorized system member → `CompilerRejected`
+- [ ] Pattern C — Open Provenance: no RECC provenance restriction. Normalizer quarantine is sole enforcement. Compiler passes without provenance check.
+- [ ] `fan:isSourceOf` triple MUST be standalone (outside instance subject block, Rule RECC-4)
+- [ ] Missing standalone provenance triple detected at normalization time → quarantined
+
+#### C.5 RECC Restrictions in Exports
+
+**Spec Reference:** FANDAWS v2.1 Sections 5.6.1–5.6.3, Rules RECC-1, RECC-5
+
+The key deliverable: RECC restrictions declared on relation type classes in the exported Turtle are enforceable by third-party OWL reasoners without Fandaws running.
+
+**Deliverables:**
+- Relation type class schemas with RECC restrictions emitted in Turtle export
+- Structural conformance restrictions on `bfo:specifically_depends_on` and `fan:towards`
+- Provenance authority restrictions via `fan:isSourceOf` inverse
+
+**Acceptance Criteria:**
+- [ ] Inherence-type relation class: export includes `owl:Restriction` on `bfo:specifically_depends_on` with `owl:someValuesFrom fan:quality` AND restriction on `fan:towards` with `owl:someValuesFrom fan:materialEntity`
+- [ ] Mereological relation class: export includes structural conformance restrictions but no BFO subcategory beyond base
+- [ ] Deontic relation class: export includes `rdfs:subClassOf bfo:Disposition` on the relation type class
+- [ ] Provenance authority restriction: export includes `owl:hasValue` RECC with inverse of `fan:isSourceOf` for Pattern A relation types
+- [ ] RECC restrictions are schema-level declarations — never generated by the compiler (Rule RECC-5). They are authored on relation type class schemas.
+- [ ] A third-party OWL reasoner loading the exported Turtle can detect a non-conformant instance (missing provenance, wrong domain/range type) without running Fandaws
+
+#### C.6 RECC Violation Quarantine
+
+**Spec Reference:** FANDAWS v2.1 Sections 8, 10.2–10.4, Rules RECC-6, VD-4
+
+RECC violations detected during normalization are quarantined with structured failure traces.
+
+**Deliverables:**
+- `fandaws:QuarantineRecord` type with `fandaws:failureTrace`
+- `fandaws:FailureTrace` with violation rule, subject/object nodes, disjoint pair, suggested repair
+- Quarantine lifecycle: `PendingReview` → `Rejected` | `Released`
+- Quarantine release triggers recompilation (Rule QS-2)
+
+**Acceptance Criteria:**
+- [ ] RECC structural conformance violation → `fandaws:QuarantineRecord` with `fandaws:TypeDisjointnessViolation` failure trace
+- [ ] RECC provenance violation → `fandaws:QuarantineRecord` with provenance violation failure trace
+- [ ] Quarantined records carry: `fandaws:violationRule`, `fandaws:subjectNode`, `fandaws:objectNode`, `fandaws:subjectType`, `fandaws:objectType`, `fandaws:suggestedRepair`
+- [ ] Quarantined records NOT loaded into active reasoning model (Rule QS-1)
+- [ ] Quarantine release → recompilation of affected relation types (Rule QS-2)
+- [ ] `fandaws:SourceAxiomGraph` contains exactly three record types: staging, quarantine, raw axioms (Rule VD-1)
+
+#### C.7 Five-Point Pre-Materialization Check
+
+**Spec Reference:** FANDAWS v2.1 Section 6.2
+
+Phase B implemented check 1 (RECC structural conformance). Phase C completes the full five-point check.
+
+**Acceptance Criteria:**
+- [ ] Check 1 — RECC structural conformance: `bfo:specifically_depends_on` and `fan:towards` targets match declared types (Phase B — already implemented)
+- [ ] Check 2 — RECC provenance authority: required `fan:isSourceOf` triple is present (Phase C new)
+- [ ] Check 3 — BFO subcategory consistency: `bfo:inheres_in` only on relation types declaring `bfo:Quality` (Phase C new)
+- [ ] Check 4 — Confidence meets `fandaws:compilationConfidenceThreshold` (Phase C new)
+- [ ] Check 5 — Normalization status is `fandaws:Normalized` (Phase C new)
+- [ ] Failures on checks 1–3 → `fandaws:CompilerRejected`
+- [ ] Failure on check 4 → not materialized (retained in Canonical Lane per confidence tier)
+- [ ] Failure on check 5 → not materialized (must pass normalization first)
+
+**Phase C totals:** Seven subsections covering the full compilation lifecycle, confidence tiers, retraction protocol, provenance authority, RECC in exports, quarantine store, and the complete five-point pre-materialization check.
+
+**NOT in Phase C:** Bulk ingestion pipeline (Phase D), `fan:RelationalQuality` reification (Phase D), namespace split (Phase D), Horn clause sandbox (Phase D), disambiguation records (Phase D).
 
 ---
 

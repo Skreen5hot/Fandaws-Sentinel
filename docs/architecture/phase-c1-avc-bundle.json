@@ -1,0 +1,1579 @@
+{
+  "bundle_id": "phase-c1-compilation-lifecycle",
+  "bundle_version": 1,
+  "authored": "2026-04-17",
+  "status": "awaits_implementation",
+  "verifies_phase": "Phase C1 \u2014 Compilation Lifecycle (Internal Machinery)",
+  "locked_decisions": {
+    "C-1": "Phase split: C1 (internal lifecycle) + C2 (external RECC). C1 ships first.",
+    "C-2": "Retraction cascade via sourceCanonical links, not rdfs:subClassOf hierarchy.",
+    "C-3": "Confidence defaults: conversational=1.0, scope-resolved=1.0, released-quarantine=0.7, imported=N/A.",
+    "C-4": "TentativeGraph = boolean fandaws:tentative flag on artifact, not separate structure.",
+    "C-5": "Three stale trigger scopes: single artifact, relation type, full graph.",
+    "C-6_clarified": "Tier 1 bare properties carry NO RECC. RECC activates only on resolved relation types (Tier 2A or Phase D)."
+  },
+  "scenarios": [
+    {
+      "id": "stale-canonical-change-marks-stale",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 2.4.1 \u2014 Invalidation Markers",
+        "Decision C-5 Scope 1"
+      ],
+      "description": "When a canonical record is updated after compilation, its execution artifact is marked Stale with invalidatedAt and invalidationReason. The artifact is not deleted \u2014 just flagged.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "compilationStatus": "Compiled"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is an animal"
+      },
+      "expect": {
+        "executionLane": {
+          "artifactFor": "dog",
+          "priorArtifact": {
+            "compilationStatus": "Stale",
+            "hasField": "fandaws:invalidatedAt",
+            "hasField2": "fandaws:invalidationReason"
+          },
+          "currentArtifact": {
+            "compilationStatus": "Compiled",
+            "note": "After stale detection + recompilation, a new Compiled artifact replaces the stale one."
+          }
+        }
+      }
+    },
+    {
+      "id": "stale-excluded-from-export",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CS-3 \u2014 Stale excluded from reasoner input"
+      ],
+      "description": "Stale execution artifacts are excluded from Turtle export. Only Compiled artifacts appear in the export.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal"
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "preCondition": "Manually inject a Stale artifact for dog-has-fur into _executionLane"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "doesNotContainStaleArtifacts": true,
+          "containsOnlyCompiled": true,
+          "note": "Stale artifacts are never serialized. A consumer loading the export sees only current, Compiled artifacts."
+        }
+      }
+    },
+    {
+      "id": "stale-selective-recompile-single",
+      "version": 1,
+      "verifies": [
+        "Decision C-5 Scope 1 \u2014 Single artifact recompilation"
+      ],
+      "description": "Updating one canonical restriction recompiles only that restriction's artifact. Other artifacts in the execution lane are untouched \u2014 their epochs don't change.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:cat",
+                "canonicalLabel": "cat",
+                "parent": "user:mammal",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:whiskers"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              },
+              {
+                "id": "user:whiskers",
+                "canonicalLabel": "whiskers",
+                "parent": null
+              },
+              {
+                "id": "user:hair",
+                "canonicalLabel": "hair",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateRestriction",
+        "subject": "dog",
+        "oldObject": "fur",
+        "newObject": "hair"
+      },
+      "expect": {
+        "executionLane": {
+          "dogRestriction": {
+            "recompiled": true,
+            "newObject": "hair"
+          },
+          "catRestriction": {
+            "recompiled": false,
+            "object": "whiskers",
+            "epochUnchanged": true
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no collateral recompilation",
+          "description": "Cat's restriction MUST NOT be recompiled when only dog's restriction changed. Scope 1 = single artifact only."
+        }
+      ]
+    },
+    {
+      "id": "stale-full-recompile-bfo-change",
+      "version": 1,
+      "verifies": [
+        "Decision C-5 Scope 3 \u2014 Full graph recompilation",
+        "FANDAWS v2.1 Rule VD-6"
+      ],
+      "description": "BFO re-ingestion triggers full recompilation. All execution artifacts are regenerated. All epochs increment.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "compilationStatus": "Compiled",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "reingestion",
+        "target": "bfo"
+      },
+      "expect": {
+        "executionLane": {
+          "allArtifactsRecompiled": true,
+          "allEpochsIncremented": true,
+          "note": "Full recompilation: every execution artifact regenerated from scratch."
+        }
+      }
+    },
+    {
+      "id": "stale-window-is-transient",
+      "version": 1,
+      "verifies": [
+        "Decision C-5 \u2014 Stale window minimized"
+      ],
+      "description": "After a canonical change, the Stale state is transient \u2014 stale detection and recompilation happen in the same synchronous pass. After the pass completes, no Stale artifacts remain.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "compilationStatus": "Compiled"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is an animal"
+      },
+      "expect": {
+        "executionLane": {
+          "staleArtifactCount": 0,
+          "note": "After mutation + compile(), no Stale artifacts exist. The stale window was within the synchronous pass."
+        }
+      }
+    },
+    {
+      "id": "rejected-prematerialization-fails",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 6.2 \u2014 CompilerRejected",
+        "FANDAWS v2.1 Rule CF-2"
+      ],
+      "description": "A restriction that fails the pre-materialization check is set to CompilerRejected. No execution artifact emitted. Structured feedback written to Canonical Lane.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:running",
+                    "compilationStatus": "Uncompiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "compilationStatus": "CompilerRejected",
+            "hasFeedback": true,
+            "feedbackContains": "ANY_NONEMPTY_STRING"
+          }
+        },
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "running"
+          }
+        }
+      }
+    },
+    {
+      "id": "rejected-feedback-record-shape",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule CF-1 \u2014 Structured feedback record"
+      ],
+      "description": "CompilerRejected feedback contains the specific check that failed, the expected vs actual values, and a human-readable explanation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:running",
+                    "compilationStatus": "Uncompiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "compilationStatus": "CompilerRejected",
+            "feedback": {
+              "failedCheck": "ANY_MATCHING(structural_conformance|bfo_subcategory|confidence|normalization)",
+              "reason": "ANY_NONEMPTY_STRING",
+              "note": "Feedback must identify WHICH pre-materialization check failed and WHY."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "rejected-does-not-delete-canonical",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 \u2014 CompilerRejected is NOT deletion"
+      ],
+      "description": "A CompilerRejected restriction remains in the Canonical Lane. It is not deleted, not quarantined, not moved. It simply doesn't compile. The user can later fix the issue (e.g., reclassify the object) and the restriction will recompile.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:running",
+                    "compilationStatus": "CompilerRejected"
+                  }
+                ]
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "running is a material entity"
+      },
+      "user_choice": {
+        "action": "reclassify_subtree"
+      },
+      "expect": {
+        "postState": {
+          "running": {
+            "skos:broader": "ANY_IRI_MATCHING(material-entity)"
+          },
+          "dogHasRunning": {
+            "compilationStatus": "Compiled",
+            "note": "After running moves to MaterialEntity, the restriction is no longer disjoint. Recompilation succeeds."
+          }
+        },
+        "executionLane": {
+          "containsRestriction": {
+            "subject": "dog",
+            "object": "running"
+          }
+        }
+      }
+    },
+    {
+      "id": "conf-conversational-default-1-0",
+      "version": 1,
+      "verifies": [
+        "Decision C-3 \u2014 Conversational assertions default to 1.0"
+      ],
+      "description": "A user-asserted restriction enters the canonical model at confidence 1.0. It materializes into the Asserted tier (no annotations, full trust).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "confidence": 1.0
+          }
+        },
+        "executionLane": {
+          "artifact": {
+            "tier": "asserted",
+            "hasTentativeFlag": false,
+            "hasConfidenceAnnotation": false,
+            "note": "1.0 confidence = Asserted tier. No annotations needed."
+          }
+        }
+      }
+    },
+    {
+      "id": "conf-tier-asserted",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.3.3 \u2014 [0.9\u20131.0] tier"
+      ],
+      "description": "Confidence in [0.9\u20131.0] materializes as asserted triple. No confidence annotation on the execution artifact.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "artifact": {
+            "tier": "asserted",
+            "hasTentativeFlag": false,
+            "hasConfidenceAnnotation": false
+          }
+        }
+      }
+    },
+    {
+      "id": "conf-tier-flagged",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.3.3 \u2014 [0.7\u20130.9) tier"
+      ],
+      "description": "Confidence in [0.7\u20130.9) materializes with fandaws:confidence annotation. Flagged for reasoner awareness.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.75
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "artifact": {
+            "tier": "flagged",
+            "hasTentativeFlag": false,
+            "hasConfidenceAnnotation": true,
+            "confidenceValue": 0.75
+          }
+        }
+      }
+    },
+    {
+      "id": "conf-tier-tentative",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.3.3 \u2014 [0.5\u20130.7) tier",
+        "Decision C-4 \u2014 tentative flag"
+      ],
+      "description": "Confidence in [0.5\u20130.7) materializes with fandaws:tentative=true. Excluded from default export.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.55
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "artifact": {
+            "tier": "tentative",
+            "hasTentativeFlag": true,
+            "hasConfidenceAnnotation": true,
+            "confidenceValue": 0.55
+          }
+        }
+      }
+    },
+    {
+      "id": "conf-tier-not-materialized",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.3.3 \u2014 < 0.5 tier"
+      ],
+      "description": "Confidence below 0.5 is NOT materialized. Retained in Canonical Lane only. No execution artifact.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.3
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "exists": true,
+            "confidence": 0.3
+          }
+        },
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "Below 0.5 \u2014 not materialized. Exists only in Canonical Lane."
+        }
+      }
+    },
+    {
+      "id": "conf-tentative-excluded-from-default-export",
+      "version": 1,
+      "verifies": [
+        "Decision C-4 \u2014 tentative excluded from default export"
+      ],
+      "description": "Default Turtle export excludes tentative artifacts. Full export (opt-in) includes them with annotation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 1.0
+                  },
+                  {
+                    "verb": "has",
+                    "object": "user:wings",
+                    "confidence": 0.55
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              },
+              {
+                "id": "user:wings",
+                "canonicalLabel": "wings",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle",
+        "options": {
+          "includeTentative": false
+        }
+      },
+      "expect": {
+        "exportCheck": {
+          "containsRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "wings"
+          },
+          "note": "fur (1.0) is in default export. wings (0.55, tentative) is excluded."
+        }
+      }
+    },
+    {
+      "id": "conf-tentative-included-in-full-export",
+      "version": 1,
+      "verifies": [
+        "Decision C-4 \u2014 full export includes tentative"
+      ],
+      "description": "Full export (includeTentative=true) includes tentative artifacts with fandaws:tentative annotation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 1.0
+                  },
+                  {
+                    "verb": "has",
+                    "object": "user:wings",
+                    "confidence": 0.55
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              },
+              {
+                "id": "user:wings",
+                "canonicalLabel": "wings",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle",
+        "options": {
+          "includeTentative": true
+        }
+      },
+      "expect": {
+        "exportCheck": {
+          "containsRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "containsRestriction2": {
+            "subject": "dog",
+            "object": "wings",
+            "hasTentativeAnnotation": true
+          },
+          "note": "Both in export. Wings carries fandaws:tentative true."
+        }
+      }
+    },
+    {
+      "id": "retract-downgrade-crosses-boundary",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule RT-2 \u2014 Confidence downgrade activates retraction"
+      ],
+      "description": "Confidence downgrade from 0.95 (Asserted) to 0.75 (Flagged) crosses a tier boundary. Prior artifact is retracted. New artifact materialized in Flagged tier.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.75
+      },
+      "expect": {
+        "executionLane": {
+          "priorArtifact": {
+            "compilationStatus": "Retracted"
+          },
+          "currentArtifact": {
+            "tier": "flagged",
+            "hasConfidenceAnnotation": true,
+            "confidenceValue": 0.75
+          }
+        }
+      }
+    },
+    {
+      "id": "retract-tombstone-retained",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule RT-4 \u2014 Tombstone retained permanently"
+      ],
+      "description": "After retraction, a tombstone record is retained in the Canonical Lane. The tombstone carries the retraction timestamp and reason. It is never deleted.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.3
+      },
+      "expect": {
+        "canonicalLane": {
+          "tombstone": {
+            "exists": true,
+            "retractedAt": "ANY_ISO_DATETIME",
+            "retractedReason": "ANY_NONEMPTY_STRING",
+            "originalConfidence": 0.95,
+            "newConfidence": 0.3,
+            "note": "Tombstone is permanent. Not deleted even if confidence later upgrades."
+          }
+        },
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "0.3 < 0.5 \u2014 not materialized at all. Execution artifact deleted."
+        }
+      }
+    },
+    {
+      "id": "retract-cascade-via-source-canonical",
+      "version": 1,
+      "verifies": [
+        "Decision C-2 \u2014 Cascade via sourceCanonical",
+        "FANDAWS v2.1 Rule RT-3"
+      ],
+      "description": "Retraction cascades to execution artifacts that carry fandaws:sourceCanonical pointing to the retracted record. Artifacts from independent canonical records are NOT affected.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:mammal",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  },
+                  {
+                    "verb": "has",
+                    "object": "user:tail",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:hair",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              },
+              {
+                "id": "user:tail",
+                "canonicalLabel": "tail",
+                "parent": null
+              },
+              {
+                "id": "user:hair",
+                "canonicalLabel": "hair",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.3
+      },
+      "expect": {
+        "executionLane": {
+          "dogHasFur": {
+            "compilationStatus": "Retracted"
+          },
+          "dogHasTail": {
+            "compilationStatus": "Compiled",
+            "note": "Independent canonical record \u2014 NOT cascaded"
+          },
+          "mammalHasHair": {
+            "compilationStatus": "Compiled",
+            "note": "Different canonical record \u2014 NOT cascaded"
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no hierarchy cascade",
+          "description": "Mammal's 'has hair' is NOT retracted. It is an independent canonical record. Retraction cascades via sourceCanonical, not rdfs:subClassOf."
+        },
+        {
+          "condition": "no sibling cascade",
+          "description": "Dog's 'has tail' is NOT retracted. It is an independent canonical record with its own sourceCanonical link."
+        }
+      ]
+    },
+    {
+      "id": "retract-upgrade-crosses-boundary",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.4 \u2014 Upgrade reverse protocol"
+      ],
+      "description": "Confidence upgrade from 0.55 (Tentative) to 0.95 (Asserted) crosses two tier boundaries. Prior tentative artifact is retracted. New asserted artifact materialized.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.55,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.95
+      },
+      "expect": {
+        "executionLane": {
+          "priorArtifact": {
+            "compilationStatus": "Retracted",
+            "wasTentative": true
+          },
+          "currentArtifact": {
+            "tier": "asserted",
+            "hasTentativeFlag": false,
+            "hasConfidenceAnnotation": false
+          }
+        }
+      }
+    },
+    {
+      "id": "retract-within-tier-no-retraction",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule RT-2 \u2014 Only tier boundary crossing triggers retraction"
+      ],
+      "description": "Confidence change within the same tier (0.95 to 0.92, both Asserted) does NOT trigger retraction. The artifact is updated but not retracted.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.92
+      },
+      "expect": {
+        "executionLane": {
+          "artifact": {
+            "compilationStatus": "Compiled",
+            "tier": "asserted"
+          },
+          "retracted": false
+        },
+        "canonicalLane": {
+          "restriction": {
+            "confidence": 0.92
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no retraction within tier",
+          "description": "0.95 \u2192 0.92 stays in [0.9\u20131.0] tier. No retraction triggered. No tombstone created."
+        }
+      ]
+    },
+    {
+      "id": "retract-atomic-transition",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.4 \u2014 All transitions are atomic"
+      ],
+      "description": "Retraction and re-materialization happen atomically. No intermediate state is visible where the old artifact is retracted but the new one doesn't exist yet.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.75
+      },
+      "expect": {
+        "executionLane": {
+          "currentArtifact": {
+            "compilationStatus": "Compiled",
+            "tier": "flagged"
+          },
+          "note": "After the atomic transition, only the new Compiled artifact exists. The old artifact is Retracted (tombstone in canonical). No moment where the execution lane has zero artifacts for this restriction."
+        }
+      }
+    },
+    {
+      "id": "premat-check3-inheres-in-requires-quality",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 6.2 check 3 \u2014 BFO subcategory consistency",
+        "FANDAWS v2.1 Rule BFO-3"
+      ],
+      "description": "Check 3: bfo:inheres_in is valid ONLY on relation types declaring bfo:Quality subcategory. Using it on a mereological restriction is CompilerRejected.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:wheel",
+                "canonicalLabel": "wheel",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:car",
+                "canonicalLabel": "car",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "injectCanonicalRecord": {
+          "type": "restriction",
+          "subject": "user:wheel",
+          "verb": "has_part",
+          "object": "user:car",
+          "bearerLink": "bfo:inheres_in",
+          "note": "Deliberately using inheres_in on a mereological relation \u2014 should fail check 3"
+        }
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "compilationStatus": "CompilerRejected",
+            "feedbackContains": "bfo:inheres_in"
+          }
+        },
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "wheel",
+            "object": "car"
+          }
+        }
+      }
+    },
+    {
+      "id": "premat-check4-below-threshold",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 6.2 check 4 \u2014 Confidence threshold"
+      ],
+      "description": "Check 4: confidence below compilationConfidenceThreshold prevents materialization. The restriction is not CompilerRejected \u2014 it's just not materialized at this confidence level.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.3
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "compilationStatus": "Compiled",
+            "note": "NOT CompilerRejected. The check didn't fail \u2014 the restriction just doesn't meet the threshold for materialization."
+          }
+        },
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "0.3 < 0.5 \u2014 below materialization threshold. Not in execution lane."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "not rejected",
+          "description": "Check 4 failure is NOT CompilerRejected. It's a routing decision (which tier), not a structural violation."
+        }
+      ]
+    },
+    {
+      "id": "premat-check5-not-normalized-deferred",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 6.2 check 5 \u2014 Normalization status"
+      ],
+      "description": "Check 5: a canonical record with normalizationStatus != Normalized is not compiled. It is deferred until normalization completes.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "normalizationStatus": "Pending"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "Normalization status is Pending \u2014 not Normalized. Compilation deferred."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "not rejected",
+          "description": "Check 5 failure is NOT CompilerRejected. It's a deferral \u2014 the record will compile when normalization completes."
+        }
+      ]
+    },
+    {
+      "id": "reg-phase-b-dual-lane-intact",
+      "version": 1,
+      "verifies": [
+        "Phase B regression \u2014 dual-lane still works after C1 lifecycle additions"
+      ],
+      "description": "Basic dual-lane behavior from Phase B is unaffected: compile() produces execution artifacts, export reads from execution lane, canonical lane unchanged by compile.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:mammal",
+                "canonicalLabel": "mammal",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog is a mammal"
+      },
+      "expect": {
+        "executionLane": {
+          "populated": true,
+          "containsArtifactFor": "dog"
+        },
+        "canonicalLane": {
+          "conceptExists": "dog",
+          "noCompilerArtifacts": true
+        }
+      }
+    },
+    {
+      "id": "reg-phase-b-cc-path-a-still-fires",
+      "version": 1,
+      "verifies": [
+        "Phase B regression \u2014 CC Path A disjointness check still fires after C1 additions"
+      ],
+      "description": "The conversational consistency check from Phase B continues to fire correctly with the additional compilation lifecycle states from C1.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "fur is a process"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "extension": {
+              "invalidRestrictions": [
+                {
+                  "subject": "dog",
+                  "object": "fur",
+                  "disjoint": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

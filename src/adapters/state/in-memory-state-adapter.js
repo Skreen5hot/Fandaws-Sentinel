@@ -749,29 +749,79 @@ export class InMemoryStateAdapter extends StateAdapter {
         }
       }
 
-      // Restrictions: apply RECC structural conformance check
+      // Restrictions: five-point pre-materialization check + confidence tier routing
       for (const entry of subClassOf) {
         if (typeof entry !== 'object' || !entry['@type']) continue;
 
-        // RECC check: is this restriction type-valid?
-        const isValid = this._checkRestrictionValidity(entry, concepts);
-
-        if (isValid) {
-          // Strip canonical metadata from the restriction
-          const compiledRestriction = {
-            '@id': entry['@id'],
-            '@type': entry['@type'],
-            'owl:onProperty': entry['owl:onProperty'],
-            'owl:someValuesFrom': entry['owl:someValuesFrom'],
-            'owl:hasValue': entry['owl:hasValue'],
-            'fandaws:restrictionKind': entry['fandaws:restrictionKind'],
-            'fandaws:propertyLabel': entry['fandaws:propertyLabel'],
-            'fandaws:verbLabel': entry['fandaws:verbLabel'],
-            'fandaws:compilationEpoch': epoch,
-          };
-          artifact['rdfs:subClassOf'].push(compiledRestriction);
+        // Check 5: Normalization status must be Normalized (or absent = implicitly normalized)
+        const normStatus = entry['fandaws:normalizationStatus'];
+        if (normStatus && normStatus !== 'Normalized') {
+          // Not normalized → skip compilation (deferred, NOT CompilerRejected)
+          continue;
         }
-        // Invalid restrictions stay in Canonical Lane only
+
+        // Check 1: RECC structural conformance (BFO disjointness)
+        const isValid = this._checkRestrictionValidity(entry, concepts);
+        if (!isValid) {
+          // Checks 1-3 failure → CompilerRejected with feedback
+          entry['fandaws:compilationStatus'] = 'CompilerRejected';
+          entry['fandaws:compilerFeedback'] = {
+            failedCheck: 'structural_conformance',
+            reason: `Restriction connects BFO-disjoint types. Subject and object are in disjoint BFO categories.`,
+            timestamp: new Date().toISOString(),
+          };
+          continue;
+        }
+
+        // Check 3: BFO subcategory — inheres_in requires Quality (if applicable)
+        if (entry['fandaws:bearerLink'] === 'bfo:inheres_in') {
+          // inheres_in is only valid on relation types declaring bfo:Quality
+          // For Phase C1, reject if the restriction uses inheres_in on a non-quality type
+          entry['fandaws:compilationStatus'] = 'CompilerRejected';
+          entry['fandaws:compilerFeedback'] = {
+            failedCheck: 'bfo_subcategory',
+            reason: `bfo:inheres_in is valid only on relation type classes declaring bfo:Quality as a BFO subcategory.`,
+            timestamp: new Date().toISOString(),
+          };
+          continue;
+        }
+
+        // Check 4: Confidence tier routing
+        const confidence = entry['fandaws:confidence'] ?? 1.0;
+
+        if (confidence < 0.5) {
+          // Not materialized — retained in Canonical Lane only
+          entry['fandaws:compilationStatus'] = 'Compiled'; // Not rejected, just not materialized
+          continue;
+        }
+
+        // Build the compiled restriction
+        const compiledRestriction = {
+          '@id': entry['@id'],
+          '@type': entry['@type'],
+          'owl:onProperty': entry['owl:onProperty'],
+          'owl:someValuesFrom': entry['owl:someValuesFrom'],
+          'owl:hasValue': entry['owl:hasValue'],
+          'fandaws:restrictionKind': entry['fandaws:restrictionKind'],
+          'fandaws:propertyLabel': entry['fandaws:propertyLabel'],
+          'fandaws:verbLabel': entry['fandaws:verbLabel'],
+          'fandaws:compilationEpoch': epoch,
+          'fandaws:compilationStatus': 'Compiled',
+        };
+
+        // Tier routing
+        if (confidence >= 0.9) {
+          // Asserted tier: no annotations, full trust
+        } else if (confidence >= 0.7) {
+          // Flagged tier: confidence annotation
+          compiledRestriction['fandaws:confidence'] = confidence;
+        } else {
+          // Tentative tier [0.5-0.7): tentative flag + confidence annotation
+          compiledRestriction['fandaws:tentative'] = true;
+          compiledRestriction['fandaws:confidence'] = confidence;
+        }
+
+        artifact['rdfs:subClassOf'].push(compiledRestriction);
       }
 
       // owl:equivalentClass (for imported concepts)
@@ -894,6 +944,83 @@ export class InMemoryStateAdapter extends StateAdapter {
     const splitCamel = (s) => s.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
     const key2 = [splitCamel(categoryA), splitCamel(categoryB)].sort().join('|');
     return this._bfoDisjointnessMap.has(key2);
+  }
+
+  /**
+   * Update the confidence of a canonical restriction and trigger the
+   * retraction protocol if a tier boundary is crossed.
+   *
+   * @param {string} graphId
+   * @param {string} subjectLabel - Subject concept prefLabel
+   * @param {string} restrictionDesc - e.g., "has fur"
+   * @param {number} newConfidence
+   * @returns {{ retracted: boolean, tombstone?: object, newTier?: string }}
+   */
+  updateConfidence(graphId, subjectLabel, restrictionDesc, newConfidence) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { retracted: false };
+
+    const concepts = graph['fandaws:concepts'] || [];
+    const subject = concepts.find((c) => c['skos:prefLabel'] === subjectLabel);
+    if (!subject) return { retracted: false };
+
+    // Find the restriction matching the description
+    const subClassOf = subject['rdfs:subClassOf'] || [];
+    const restriction = subClassOf.find((e) => {
+      if (typeof e !== 'object' || !e['@type']) return false;
+      const verb = e['fandaws:verbLabel'] || 'has';
+      const objIri = e['owl:someValuesFrom'] || '';
+      const objConcept = concepts.find((c) => c['@id'] === objIri);
+      const objLabel = objConcept?.['skos:prefLabel'] || objIri.split('/').pop();
+      return `${verb} ${objLabel}` === restrictionDesc;
+    });
+
+    if (!restriction) return { retracted: false };
+
+    const oldConfidence = restriction['fandaws:confidence'] ?? 1.0;
+    const oldTier = this._confidenceTier(oldConfidence);
+    const newTier = this._confidenceTier(newConfidence);
+
+    // Update the confidence
+    restriction['fandaws:confidence'] = newConfidence;
+
+    const crossesBoundary = oldTier !== newTier;
+    let tombstone = null;
+
+    if (crossesBoundary) {
+      // Create tombstone record (permanent, Rule RT-4)
+      tombstone = {
+        '@type': 'fandaws:RetractionTombstone',
+        'fandaws:retractedAt': new Date().toISOString(),
+        'fandaws:retractedReason': `Confidence changed from ${oldConfidence} to ${newConfidence} (tier: ${oldTier} → ${newTier})`,
+        'fandaws:originalConfidence': oldConfidence,
+        'fandaws:newConfidence': newConfidence,
+        'fandaws:restrictionId': restriction['@id'],
+      };
+
+      // Store tombstone on the restriction
+      restriction['fandaws:tombstone'] = tombstone;
+    }
+
+    // Recompile to apply the new tier routing
+    this.compile(graphId);
+
+    return {
+      retracted: crossesBoundary,
+      tombstone,
+      newTier,
+      oldTier,
+    };
+  }
+
+  /**
+   * Determine the confidence tier for a given confidence value.
+   */
+  _confidenceTier(confidence) {
+    if (confidence >= 0.9) return 'asserted';
+    if (confidence >= 0.7) return 'flagged';
+    if (confidence >= 0.5) return 'tentative';
+    return 'not_materialized';
   }
 
   /**

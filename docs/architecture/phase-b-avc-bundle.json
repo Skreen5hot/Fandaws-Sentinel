@@ -1,6 +1,6 @@
 {
   "bundle_id": "phase-b-ontology-ingestion-dual-lane",
-  "bundle_version": 1,
+  "bundle_version": 2,
   "authored": "2026-04-16",
   "status": "awaits_implementation",
   "verifies_phase": "Phase B \u2014 Ontology Ingestion (FANDAWS v2.1 Roadmap Phase 2)",
@@ -520,11 +520,11 @@
     },
     {
       "id": "disj-sibling-under-same-parent-not-disjoint",
-      "version": 1,
+      "version": 2,
       "verifies": [
         "CC-4 precision \u2014 siblings not automatically disjoint"
       ],
-      "description": "MaterialEntity and ImmaterialEntity are siblings under IndependentContinuant. They ARE explicitly declared disjoint in BFO. But Quality and RealizableEntity (siblings under SpecificallyDependentContinuant) are NOT declared disjoint. Siblinghood alone does not imply disjointness \u2014 only explicit owl:disjointWith declarations (and their transitive closure) do.",
+      "description": "Siblinghood alone does NOT imply disjointness. Two user-created concepts (organism and tool) that are both children of MaterialEntity are siblings but have NO owl:disjointWith declaration anywhere. The Disjointness Map MUST NOT contain this pair. v2 fix: replaced Quality/RealizableEntity (which BFO 2020 explicitly declares disjoint) with user-created siblings.",
       "setup": {
         "scopes": [
           {
@@ -532,7 +532,27 @@
             "graphId": "user-graph-a",
             "graphVersion": "1.0.0",
             "bfoIngested": true,
-            "concepts": []
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true,
+                "equivalentClass": [
+                  "bfo:BFO_0000040"
+                ]
+              },
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:tool",
+                "canonicalLabel": "tool",
+                "parent": "user:material-entity"
+              }
+            ]
           }
         ],
         "activeScope": "user-graph-a"
@@ -547,12 +567,18 @@
             "ImmaterialEntity"
           ],
           "doesNotContainPair": [
-            "Quality",
-            "RealizableEntity"
+            "organism",
+            "tool"
           ],
-          "note": "MaterialEntity/ImmaterialEntity: explicitly disjoint. Quality/RealizableEntity: siblings but NOT declared disjoint in BFO 2020."
+          "note": "MaterialEntity/ImmaterialEntity: explicitly disjoint in BFO 2020. organism/tool: user-created siblings under MaterialEntity with no disjointness declaration. Siblinghood alone is not disjointness."
         }
-      }
+      },
+      "negative_assertions": [
+        {
+          "condition": "user concepts never auto-disjoint",
+          "description": "User-created concepts MUST NEVER appear in the Disjointness Map. The map contains only BFO node pairs (explicit + inferred). User concepts inherit their ancestor's BFO category for disjointness checking, but they themselves are not disjointness map entries."
+        }
+      ]
     },
     {
       "id": "disj-map-rebuilt-on-reingestion",
@@ -1471,5 +1497,11 @@
         }
       }
     }
-  ]
+  ],
+  "modified": "2026-04-16",
+  "revision_notes_v2": {
+    "scenario_fixes": [
+      "disj-sibling-under-same-parent-not-disjoint: BFO 2020 explicitly declares Quality owl:disjointWith RealizableEntity. Scenario assumed they were non-disjoint siblings \u2014 wrong. Replaced with user-created sibling concepts under MaterialEntity, which have no owl:disjointWith declaration. The principle tested (siblinghood does not imply disjointness) is unchanged; the example pair is corrected. Version bumped to 2."
+    ]
+  }
 }

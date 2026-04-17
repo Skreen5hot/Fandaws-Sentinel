@@ -714,6 +714,25 @@ export class InMemoryStateAdapter extends StateAdapter {
     const graph = this._graphs.get(graphId);
     if (!graph) return;
 
+    // Mark prior artifacts as Stale before rebuild (Decision C-5)
+    const priorLane = this._executionLanes.get(graphId);
+    if (priorLane) {
+      const now = new Date().toISOString();
+      for (const artifact of priorLane.artifacts.values()) {
+        artifact['fandaws:compilationStatus'] = 'Stale';
+        artifact['fandaws:invalidatedAt'] = now;
+        artifact['fandaws:invalidationReason'] = 'Canonical record changed — recompilation triggered';
+        // Mark restrictions as Stale too
+        for (const entry of (artifact['rdfs:subClassOf'] || [])) {
+          if (typeof entry === 'object' && entry['@type']) {
+            entry['fandaws:compilationStatus'] = 'Stale';
+          }
+        }
+      }
+      // Save the stale lane snapshot for AVC testing
+      this._previousExecutionLane = new Map(priorLane.artifacts);
+    }
+
     // Increment epoch
     const prevEpoch = this._compilationEpochs.get(graphId) || 0;
     const epoch = prevEpoch + 1;

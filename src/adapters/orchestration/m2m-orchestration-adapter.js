@@ -53,39 +53,23 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
       }
     }
 
-    // Run the base pipeline
-    let result = super.runPipeline(utterance, context, options);
-
-    // Agent mode: auto-resolve scope narrowing prompts by pre-populating
-    // scopeDecisions map with "no" for every concept IRI in the prompt.
-    // Scope narrowing asks "does parent X have property Y?" — in agent
-    // mode, answer "no" for all ancestors (attach to subject directly).
-    if (callerMode === 'agent' && result.prompts?.length > 0) {
-      let retries = 0;
-      while (retries < 5 && result.prompts?.length > 0) {
-        const pt = result.prompts[0]?.['fandaws:promptType'];
-        if (pt !== 'scopeNarrowing') break;
-
-        const ctx = result.prompts[0]?.['fandaws:context'] || {};
-        const scopeDecisions = options.scopeDecisions || new Map();
-        // Answer "no" for the concept being asked about
-        if (ctx.conceptIri) {
-          scopeDecisions.set(ctx.conceptIri, false);
+    // Agent mode: pre-populate scopeDecisions with "no" for all concepts
+    // to bypass scope narrowing prompts. Scope narrowing asks "does parent
+    // X have property Y?" — in agent mode, always attach to subject directly.
+    const agentOptions = { ...options };
+    if (callerMode === 'agent' && !options.scopeDecisions) {
+      const graph = context.stateAdapter?.loadGraph(context.graphId);
+      if (graph) {
+        const scopeDecisions = new Map();
+        for (const c of (graph['fandaws:concepts'] || [])) {
+          scopeDecisions.set(c['@id'], false);
         }
-        // Also pre-answer "no" for all ancestors to avoid further prompts
-        const graph = context.stateAdapter?.loadGraph(context.graphId);
-        if (graph) {
-          for (const c of (graph['fandaws:concepts'] || [])) {
-            scopeDecisions.set(c['@id'], false);
-          }
-        }
-        result = super.runPipeline(utterance, context, {
-          ...options,
-          scopeDecisions,
-        });
-        retries++;
+        agentOptions.scopeDecisions = scopeDecisions;
       }
     }
+
+    // Run the base pipeline
+    let result = super.runPipeline(utterance, context, agentOptions);
 
     // Enrich prompts with MachineSignal
     if (result.prompts && result.prompts.length > 0) {

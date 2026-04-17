@@ -327,6 +327,7 @@ function buildReclassificationExtension(prompt, ctx) {
     subject: context.subjectLabel || ctx.subject || null,
     currentParent: ctx.currentParent || null,
     proposedParent: ctx.proposedParent || null,
+    invalidRestrictions: ctx.invalidRestrictions || [],
     lostProperties: ctx.lostProperties || [],
   };
 }

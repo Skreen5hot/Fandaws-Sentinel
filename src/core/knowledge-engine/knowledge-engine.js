@@ -486,7 +486,40 @@ export function processClassification(action, graph, indices, options = {}, adap
       // Strengthening is safe — no consequence prompt.
       if (caseInfo.case !== 'strengthening') {
         const lostProperties = computeLostProperties(subjectIri, caseInfo, graph, indices.iriToChildren);
-        if (lostProperties.length > 0) {
+
+        // CC Path A: Check for type-invalid restrictions after reclassification.
+        // Scan all restrictions where the reclassified concept appears as the
+        // object (owl:someValuesFrom). If the subject's BFO category is disjoint
+        // with the object's NEW BFO category, the restriction is type-invalid.
+        const invalidRestrictions = [];
+        if (adapter && adapter.areDisjoint) {
+          const newParentBfo = adapter._getBfoCategory
+            ? adapter._getBfoCategory(existingObject, graph['fandaws:concepts'] || [])
+            : null;
+          if (newParentBfo) {
+            for (const concept of (graph['fandaws:concepts'] || [])) {
+              const subClassOf = concept['rdfs:subClassOf'] || [];
+              for (const entry of subClassOf) {
+                if (typeof entry !== 'object' || !entry['@type']) continue;
+                if (entry['owl:someValuesFrom'] === subjectIri) {
+                  const restrictionSubjectBfo = adapter._getBfoCategory(concept, graph['fandaws:concepts'] || []);
+                  if (restrictionSubjectBfo && adapter.areDisjoint(restrictionSubjectBfo, newParentBfo)) {
+                    invalidRestrictions.push({
+                      subject: concept['rdfs:label'] || concept['skos:prefLabel'],
+                      relation: entry['fandaws:verbLabel'] || 'has',
+                      object: rawSubject,
+                      subjectBFO: restrictionSubjectBfo,
+                      objectNewBFO: newParentBfo,
+                      disjoint: true,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (lostProperties.length > 0 || invalidRestrictions.length > 0) {
           const prompt = buildReclassificationConsequencePrompt({
             subjectLabel: rawSubject,
             oldParentLabel: findLabelForIri(currentParentIri, graph),
@@ -502,6 +535,7 @@ export function processClassification(action, graph, indices, options = {}, adap
               newParentLabel: findLabelForIri(objectIri, graph),
               caseType: caseInfo.case,
               lostPropertyCount: lostProperties.length,
+              invalidRestrictions,
             },
           });
           return { ...noOp, prompts: [prompt] };

@@ -142,6 +142,7 @@ export class M2MOrchestrationAdapter extends SynchronousOrchestrationAdapter {
       enrichment.subject = ctx.subjectLabel;
       enrichment.currentParent = ctx.oldParentLabel || null;
       enrichment.proposedParent = ctx.newParentLabel || null;
+      enrichment.invalidRestrictions = ctx.invalidRestrictions || [];
       enrichment.lostProperties = [];
       if (ctx.lostPropertyCount > 0) {
         const text = prompt['fandaws:text'] || '';

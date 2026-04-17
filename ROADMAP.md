@@ -1274,6 +1274,173 @@ Known v1 limitation: Regex-based property classification. Range-based detection 
 
 **NOT in scope:** SHML adapter, OCE adapter, IEE write-back, HIRI publication, ARCHON/Assay/APC/Code-to-CAD/Eulogy Pen consumers. These are future phases beyond core implementation.
 
+**Phase 14 status: ON HOLD.** Weaver SDK (separate team) will provide the principled ecosystem adapter layer. P14 implementation deferred until Weaver delivers.
+
+---
+
+## FANDAWS v2.1 Roadmap — Ontological Compiler Phases
+
+These phases implement the FANDAWS v2.1 Relational Architectural Specification. They transform Fandaws-Sentinel from a conversational knowledge-building tool into an ontological compiler with dual-lane separation, BFO disjointness enforcement, and self-validating exports. None depend on Weaver or Phase 14.
+
+**Authoritative spec:** `docs/architecture/FANDAWS_v2.1_Spec (1).md`
+
+### Phase B: Ontology Ingestion — Dual-Lane Separation `[FANDAWS v2.1 Roadmap Phase 2]`
+
+**Goal:** Split the single-lane graph into Canonical Lane (authoritative source of truth) + Execution Lane (compiled derived artifacts). Add the BFO Disjointness Map, conversational consistency checks (CC Path A/B), and RECC structural conformance.
+**Status:** Complete
+**Priority:** Critical
+**Effort:** High
+**Depends on:** Phase 10b (ERS), BFO Ontology Ingestion Phase A
+**AVC Bundle:** `docs/architecture/phase-b-avc-bundle.json` (v2, ACTIVE — 27/27 scenarios passing, architect-confirmed 2026-04-17)
+
+#### B.1 Dual-Lane Separation
+
+**Spec Reference:** FANDAWS v2.1 Sections 2.3, 2.4, 4.2, 4.5
+
+**Deliverables:**
+- `compile()` method on `InMemoryStateAdapter`
+- `_executionLane` Map on `InMemoryStateAdapter`
+- `_compilationEpochs` Map on `InMemoryStateAdapter`
+
+**Acceptance Criteria:**
+
+*Compile pass:*
+- [x] `compile()` runs synchronously after every `applyMutation()` call
+- [x] Execution Lane is a separate `_executionLane` Map (not part of the canonical graph)
+- [x] Each execution artifact carries `fandaws:compilationEpoch` (monotonically increasing integer)
+- [x] `fandaws:compilationStatus`: two-state only (Uncompiled → Compiled). No Stale/Retracted in Phase B.
+
+*Lane separation:*
+- [x] Execution Lane artifacts do NOT contain canonical metadata (`fandaws:isImported`, `fandaws:source`, `fandaws:ingestSource`, `fandaws:locallyModified`, `fandaws:normalizationStatus`)
+- [x] Canonical Lane is NOT modified by `compile()` — no `fandaws:compilationEpoch` on canonical concepts
+- [x] Both lanes exist simultaneously after every mutation
+
+*Export:*
+- [x] Export engine reads from Execution Lane (replaces exclusion-list filtering of canonical graph)
+- [x] Exported Turtle contains `rdfs:subClassOf` and `owl:Restriction` but no canonical metadata
+
+#### B.2 BFO Disjointness Map
+
+**Spec Reference:** FANDAWS v2.1 Section 3.8.3, Rule CC-4
+
+**Deliverables:**
+- `_bfoDisjointnessMap` Set on `InMemoryStateAdapter`
+- `_buildDisjointnessMap()` method
+- `areDisjoint()` lookup method
+
+**Acceptance Criteria:**
+- [x] Parsed from ingested BFO Turtle `owl:disjointWith` triples (not hardcoded)
+- [x] Transitive closure through `rdfs:subClassOf` chains (Rule CC-4)
+- [x] Explicit pair: Continuant/Occurrent is in the map
+- [x] Inferred pair: MaterialEntity/Process is in the map (via Continuant/Occurrent inheritance)
+- [x] Ancestor-descendant pairs are NOT in the map (MaterialEntity/IndependentContinuant)
+- [x] User-created siblings without `owl:disjointWith` are NOT in the map
+- [x] Map rebuilt on BFO re-ingestion
+
+#### B.3 Conversational Consistency Check — Path A
+
+**Spec Reference:** FANDAWS v2.1 Section 3.8.1, Rules CC-1, CC-3
+
+**Deliverables:**
+- CC Path A integrated into `processClassification` consequence detection
+- `invalidRestrictions` array in reclassification consequence prompt context
+- `invalidRestrictions` in MachineSignal reclassificationConsequence extension
+
+**Acceptance Criteria:**
+- [x] Third consequence category: "Restrictions that would become type-invalid"
+- [x] Fires when reclassification would cause existing restrictions to connect BFO-disjoint types
+- [x] Does NOT fire (empty `invalidRestrictions`) when no restriction connects disjoint types
+- [x] Consequence prompt fires when EITHER lost properties OR invalid restrictions exist
+- [x] User confirms → reclassification proceeds, invalid restrictions marked Uncompiled
+- [x] User cancels → no mutation, graph unchanged
+- [x] Disjointness-triggered deadlock fires at 5 rejections (Phase 13 deferred scenario)
+
+#### B.4 Conversational Consistency Check — Path B
+
+**Spec Reference:** FANDAWS v2.1 Section 3.8.2, Rules CC-2, CC-3
+
+**Deliverables:**
+- CC Path B gate in `processProperty` (before restriction creation)
+- `conversationalConsistencyCheck` prompt type registered in MachineSignal registry
+- CC-specific MachineSignal extension builder
+
+**Acceptance Criteria:**
+- [x] Pre-commit gate fires BEFORE any restriction or relationship node is created
+- [x] Checks BFO disjointness between subject and object concepts
+- [x] Disjoint assertion → `conversationalConsistencyCheck` prompt with disjointness constraint type
+- [x] Non-disjoint assertion → gate does NOT fire, restriction created directly
+- [x] User confirms "assert anyway" → restriction written with `compilationStatus: Uncompiled`
+- [x] User cancels → no mutation, no restriction created
+
+#### B.5 RECC Structural Conformance
+
+**Spec Reference:** FANDAWS v2.1 Section 6.2
+
+**Deliverables:**
+- `_checkRestrictionValidity()` in compiler pre-materialization check
+- `_getBfoCategory()` ancestor chain walker
+
+**Acceptance Criteria:**
+- [x] Compiler pre-materialization check uses BFO category lookup (JavaScript index, not OWL reasoning)
+- [x] Restrictions connecting BFO-disjoint types NOT compiled to Execution Lane
+- [x] Restrictions connecting non-disjoint types compiled normally
+- [x] BFO category resolved through ancestor chain (works N levels deep via `skos:broader` walk)
+- [x] Type-invalid restrictions remain in Canonical Lane (not deleted, just not compiled)
+
+#### B.6 Regression
+
+- [x] Phase 12 scope resolution unaffected by dual-lane separation (reads Canonical Lane)
+- [x] Phase 13 MachineSignal still emits on reclassification after dual-lane separation
+
+**Phase B totals:** 27 AVC scenarios across dual-lane (8), disjointness map (5), CC Path A (5), CC Path B (4), RECC (3), regression (2). All passing. Architect-confirmed 2026-04-17. One discrepancy report (Quality/RealizableEntity — resolved in v2 bundle).
+
+**NOT in Phase B:** Stale detection (`fandaws:Stale`/`fandaws:Retracted`), retraction protocol, confidence tier mapping, provenance authority enforcement (`fan:isSourceOf`), RECC as OWL restrictions in exports, quarantine store with failure traces, bulk ingestion pipeline, `fan:RelationalQuality` reification, namespace split (`fan:` vs `fandaws:`).
+
+---
+
+### Phase C: RECC Enforcement `[FANDAWS v2.1 Roadmap Phase 2 Extension]`
+
+**Goal:** Make RECC constraints travel with the ontology. Tier 2 restrictions declared as OWL class restrictions in exports. Third-party reasoners can check conformance without Fandaws infrastructure.
+**Status:** Not Started
+**Priority:** High
+**Effort:** Medium
+**Depends on:** Phase B (dual-lane, RECC structural conformance)
+
+**Scope:**
+- `fandaws:Stale` and `fandaws:Retracted` compilation status states
+- Stale detection machinery (compilation epoch comparison)
+- Retraction protocol (Section 4.4): atomic confidence-tier boundary transitions
+- Confidence tier mapping (Section 4.3.3): `[0.9-1.0]` asserted, `[0.7-0.9)` flagged, `[0.5-0.7)` tentative, `<0.5` canonical only
+- Provenance authority enforcement (`fan:isSourceOf`, `owl:hasValue` RECC patterns)
+- RECC restrictions emitted as OWL class restrictions in exports
+- RECC violation quarantining with structured records
+- `fandaws:RoleRegistry` validation (NR-4)
+
+**NOT in Phase C:** Bulk ingestion pipeline, `fan:RelationalQuality` reification, namespace split.
+
+---
+
+### Phase D: Bulk Ingestion Pipeline `[FANDAWS v2.1 Roadmap Phase 3]`
+
+**Goal:** Enable Fandaws to ingest external ontologies (CCO, Gene Ontology, etc.) through a three-phase pipeline: class placement → property disambiguation → consistency sandbox.
+**Status:** Not Started
+**Priority:** High
+**Effort:** Very High
+**Depends on:** Phase C (RECC, stale detection, retraction)
+
+**Scope:**
+- Phase 1: Class placement with BFO alignment and confidence scoring
+- Phase 2: Property disambiguation (verb-to-relation matching, merge/reject/promote)
+- Phase 3: Consistency sandbox (Horn clause validation via Tau Prolog or JS sandbox)
+- `fan:RelationalQuality` reification pattern (canonical records as first-class nodes)
+- Quarantine store with structured failure traces (`fandaws:FailureTrace`)
+- Disambiguation records and merge record structure
+- Namespace split (`fan:` for ontological vocabulary, `fandaws:` for metadata)
+- Named graph support (or equivalent)
+- `fandaws:CandidateRelation` and `fandaws:CandidateClass` staging records
+
+**NOT in Phase D:** HIRI publication, Weaver SDK integration, FNSR deontic services, multi-service Execution Lane consumption.
+
 ---
 
 ## Decisions Deferred

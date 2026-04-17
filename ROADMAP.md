@@ -1426,7 +1426,8 @@ Phase C is split into **C1 (Internal Lifecycle)** and **C2 (External RECC)** wit
 ### Phase C1: Compilation Lifecycle (Internal Machinery)
 
 **Goal:** Full compilation status lifecycle, confidence tiers, retraction protocol, and pre-materialization checks 3-5. Internal to the compiler — no export format changes.
-**AVC Bundle:** `docs/architecture/phase-c1-avc-bundle.json` (v1, 26 scenarios)
+**Status:** Complete
+**AVC Bundle:** `docs/architecture/phase-c1-avc-bundle.json` (v1, ACTIVE — 26/26 scenarios passing, architect-confirmed 2026-04-17)
 
 #### C1.1 Stale Detection
 
@@ -1497,46 +1498,92 @@ Phase B implemented check 1. C1 adds checks 3-5. Check 2 (provenance authority) 
 
 ### Phase C2: RECC Externalization (External-Facing Changes)
 
-**Goal:** Provenance authority enforcement, RECC restrictions in exports, quarantine store. Makes RECC constraints enforceable by third-party OWL reasoners.
+**Goal:** Provenance authority enforcement, RECC restrictions in exports, quarantine store. Makes RECC constraints enforceable by third-party OWL reasoners without Fandaws infrastructure.
 **Status:** Not Started (depends on C1)
-**AVC Bundle:** `docs/architecture/phase-c2-avc-bundle.json` (not yet authored)
+**Priority:** High
+**Effort:** Medium
+**Depends on:** Phase C1 (compilation lifecycle states required)
+**AVC Bundle:** `docs/architecture/phase-c2-avc-bundle.json` (v1, 20 scenarios)
 
 #### C2.1 Provenance Authority Enforcement
 
-**Spec Reference:** FANDAWS v2.1 Sections 2.2, 5.6, 5.7; Rules RECC-3, RECC-4
+**Spec Reference:** FANDAWS v2.1 Sections 2.2, 5.6, 5.7; Rules RECC-3, RECC-4; Section 6.2 check 2
+
+Pre-materialization check 2: `fan:isSourceOf` validation. Three authority scope patterns determine how provenance is enforced.
+
+**Deliverables:**
+- Check 2 in compiler pre-materialization pipeline
+- `fan:isSourceOf` standalone triple validation
+- Pattern A/B/C routing based on relation type class schema
 
 **Acceptance Criteria:**
-- [ ] Pre-materialization check 2: `fan:isSourceOf` standalone triple required
-- [ ] Pattern A (Single Authority): `owl:hasValue` RECC → missing named system = `CompilerRejected`
-- [ ] Pattern B (Authorized Class): `owl:someValuesFrom fan:AuthorizedSystem` → missing member = `CompilerRejected`
-- [ ] Pattern C (Open Provenance): no RECC provenance restriction, compiler passes
-- [ ] Standalone triple validation (Rule RECC-4)
+- [ ] Pattern A (Single Authority): `owl:hasValue` RECC on `fan:isSourceOf` inverse. Restriction instance missing the required standalone provenance triple → `CompilerRejected` with `failedCheck: 'provenance_authority'`
+- [ ] Pattern A with valid standalone `fan:isSourceOf` triple → restriction compiles successfully
+- [ ] Pattern C (Open Provenance): no RECC provenance restriction on the relation type. Restriction compiles without provenance check. Only normalizer quarantine enforces.
+- [ ] Standalone triple required (Rule RECC-4): provenance triple embedded inside the restriction's subject block is invalid → `CompilerRejected` with `failedCheck: 'provenance_standalone'`
+- [ ] Tier 1 bare properties (`has`) carry NO provenance requirement — no relation type class → Pattern C by default. Compiler does NOT check for `fan:isSourceOf` on Tier 1 restrictions.
 
 #### C2.2 RECC Restrictions in Exports
 
 **Spec Reference:** FANDAWS v2.1 Sections 5.6.1-5.6.3; Rules RECC-1, RECC-5; Decision C-6
 
-**Acceptance Criteria:**
-- [ ] Hardcoded seed set of 3 relation type class schemas (inherence, mereological, deontic) emitted in exports (Decision C-6)
-- [ ] Tier 1 bare properties carry NO RECC — RECC activates only on resolved relation types (Decision C-6 clarified)
-- [ ] Verb IRI unchanged — mapping used by export engine only
-- [ ] Exported schemas enforceable by third-party OWL reasoners without Fandaws
-- [ ] RECC restrictions are authored artifacts, not compiler output (Rule RECC-5)
+The key Phase C2 deliverable: relation type class schemas with structural conformance and provenance authority restrictions emitted in Turtle exports.
 
-#### C2.3 RECC Violation Quarantine
+**Deliverables:**
+- Three bundled seed schemas: `fandaws:relationType/inheres_in`, `fandaws:relationType/has_part`, `fandaws:relationType/obligated_to`
+- Export engine maps verb IRIs to relation type class schemas
+- Verbatim schema emission (not compiler-generated, Rule RECC-5)
+
+**Acceptance Criteria:**
+- [ ] Inherence-type schema: export includes `owl:Restriction` on `bfo:specifically_depends_on` with `owl:someValuesFrom fan:quality` AND `fan:towards` with `owl:someValuesFrom fan:materialEntity`. Class declares `rdfs:subClassOf fan:RelationalQuality, bfo:Quality`.
+- [ ] Mereological schema: structural conformance restrictions only. No BFO subcategory beyond base (`fan:RelationalQuality` only). No `bfo:Quality`, `bfo:Disposition`, or `bfo:Role`.
+- [ ] Deontic schema: declares `rdfs:subClassOf bfo:Disposition` on the relation type class.
+- [ ] Provenance authority: export includes `owl:hasValue` RECC with inverse of `fan:isSourceOf` for Pattern A relation types. Standalone provenance triple emitted.
+- [ ] Tier 1 bare properties: NO relation type class schema emitted. No RECC in export. Restriction exports normally but without schema accompaniment. (Decision C-6 clarified)
+- [ ] Seed schemas are static bundled assets emitted verbatim (Rule RECC-5). Export matches seed exactly — compiler does not generate or modify them.
+- [ ] A third-party OWL reasoner loading the exported Turtle can detect a non-conformant instance without running Fandaws.
+
+#### C2.3 Quarantine Store
 
 **Spec Reference:** FANDAWS v2.1 Sections 8, 10.2-10.4; Rules RECC-6, QS-1, QS-2, VD-1; Decision C-7
 
-**Acceptance Criteria:**
-- [ ] `_quarantineStore` Map on StateAdapter, separate from canonical and execution (Decision C-7)
-- [ ] Quarantine record shape: quarantineId, sourceSystem, quarantineStatus, rawAxiom, failureTrace
-- [ ] Failure trace: violationRule, subjectNode, objectNode, subjectType, objectType, disjointPair, suggestedRepair
-- [ ] Lifecycle: PendingReview → Rejected (retained permanently) | Released (canonical record at confidence 0.7, Decision C-3)
-- [ ] Released quarantine → compile() fires → Flagged tier materialization
-- [ ] Quarantined records NOT in canonical graph, NOT in execution lane, NOT in exports (Decision C-7)
-- [ ] CC Path B "assert anyway" → canonical record with `normalizationStatus: Quarantined` (NOT quarantine store — different mechanism)
+External axioms that fail normalization or RECC checks are quarantined — they never enter the canonical model.
 
-**Phase C totals (C1 + C2):** Two sub-phases, 7 locked architectural decisions, separate AVC bundles. C1 covers internal lifecycle (stale, rejected, confidence, retraction, pre-mat checks). C2 covers external-facing RECC (provenance, exports, quarantine store).
+**Deliverables:**
+- `_quarantineStore` Map on StateAdapter
+- `QuarantineRecord` shape with `FailureTrace`
+- Three-state lifecycle: PendingReview → Rejected | Released
+- External axiom ingestion path through normalization
+
+**Acceptance Criteria:**
+- [ ] `_quarantineStore` Map on StateAdapter, separate from canonical and execution lanes (Decision C-7)
+- [ ] External axiom that violates RECC structural conformance (e.g., MaterialEntity connected to Process via has_part) → `QuarantineRecord` created with `quarantineStatus: PendingReview`
+- [ ] Failure trace shape: `violationRule`, `relation`, `subjectNode`, `objectNode`, `subjectType`, `objectType`, `suggestedRepair` — all present (Rule VD-4)
+- [ ] Quarantined records NOT in canonical graph, NOT in execution lane, NOT in exports (Rule QS-1)
+- [ ] Release: `quarantineStatus` → `Released`, canonical restriction created at confidence 0.7 (Decision C-3), `compile()` fires, execution artifact in Flagged tier with confidence annotation
+- [ ] Reject: `quarantineStatus` → `Rejected`, record retained permanently for audit, nothing enters canonical or execution
+- [ ] `fandaws:SourceAxiomGraph` contains exactly three record types: staging (`CandidateRelation`, `CandidateClass`), quarantine (`QuarantineRecord`), raw source axioms (`RawSourceAxiom`) — Rule VD-1
+
+#### C2.4 Two Quarantine Mechanisms — Distinction
+
+**Spec Reference:** Q5 answer; Decision C-7
+
+Two distinct quarantine mechanisms serve different purposes and must not cross-contaminate.
+
+**Acceptance Criteria:**
+- [ ] CC Path B "assert anyway" → restriction written to canonical graph with `normalizationStatus: Quarantined`. User deliberately asserted it. It IS in the canonical model but flagged as structurally suspect.
+- [ ] External axiom ingestion failure → `QuarantineRecord` in `_quarantineStore`. It NEVER entered the canonical model. Must be Released to create a canonical record.
+- [ ] After CC Path B "assert anyway", `_quarantineStore` has zero records. The two mechanisms do not cross-contaminate.
+- [ ] Canonical `normalizationStatus: Quarantined` fails pre-mat check 5 → not compiled to Execution Lane until resolved.
+- [ ] Released `QuarantineRecord` creates canonical record with `normalizationStatus: Normalized` and `confidence: 0.7` → compiles to Flagged tier.
+
+#### C2.5 Regression
+
+- [ ] Phase C1 confidence tiers intact after C2 additions (tentative at 0.55 still works)
+- [ ] Phase C1 retraction protocol still works after C2 additions (downgrade with tombstone)
+- [ ] Phase 12 (25), Phase 13 (24), Phase B (27), Phase C1 (26) scenarios all still passing
+
+**Phase C totals (C1 + C2):** Two sub-phases, 7 locked architectural decisions, separate AVC bundles. C1: 26 scenarios (internal lifecycle). C2: 20 scenarios (external RECC). Total: 46 scenarios. Combined with P12 (25), P13 (24), Phase B (27) = 122 total AVC scenarios.
 
 **NOT in Phase C:** Bulk ingestion pipeline (Phase D), `fan:RelationalQuality` reification (Phase D), namespace split (Phase D), Horn clause sandbox (Phase D), disambiguation records (Phase D), sub-property retraction cascade (Phase D).
 

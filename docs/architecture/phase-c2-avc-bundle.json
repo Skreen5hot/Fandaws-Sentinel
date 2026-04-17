@@ -1,0 +1,1237 @@
+{
+  "bundle_id": "phase-c2-recc-externalization",
+  "bundle_version": 1,
+  "authored": "2026-04-17",
+  "status": "awaits_implementation",
+  "verifies_phase": "Phase C2 \u2014 RECC Externalization (Provenance, Export, Quarantine)",
+  "depends_on": "Phase C1 (compilation lifecycle states required)",
+  "locked_decisions": {
+    "C-6_clarified": "Tier 1 bare properties carry NO RECC. Hardcoded seed set: inherence, mereological, deontic. Export engine maps verbs to relation type schemas.",
+    "C-7": "Quarantine store: separate _quarantineStore Map. Three-state lifecycle: PendingReview \u2192 Rejected | Released. Released enters canonical at confidence 0.7.",
+    "Q5_answer": "CC Path B 'assert anyway' writes to canonical with normalizationStatus: Quarantined. NOT the quarantine store. Two distinct quarantine mechanisms."
+  },
+  "scenarios": [
+    {
+      "id": "prov-pattern-a-missing-source-rejected",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.7 Pattern A",
+        "FANDAWS v2.1 Rule RECC-3",
+        "Section 6.2 check 2"
+      ],
+      "description": "Pattern A (single authority): relation type declares owl:hasValue RECC on fan:isSourceOf inverse. A restriction instance missing the required standalone provenance triple is CompilerRejected.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:apple",
+                "canonicalLabel": "apple",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:redness",
+                "canonicalLabel": "redness",
+                "parent": "user:quality"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:quality",
+                "canonicalLabel": "quality",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "relationTypeClasses": [
+              "fandaws:relationType/inheres_in"
+            ],
+            "restrictions": [
+              {
+                "subject": "user:redness",
+                "verb": "inheres_in",
+                "object": "user:apple",
+                "relationType": "fandaws:relationType/inheres_in",
+                "provenanceTriple": null,
+                "note": "No fan:isSourceOf triple \u2014 should fail check 2"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "compilationStatus": "CompilerRejected",
+            "feedback": {
+              "failedCheck": "provenance_authority",
+              "reason": "ANY_NONEMPTY_STRING"
+            }
+          }
+        },
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "redness",
+            "object": "apple"
+          }
+        }
+      }
+    },
+    {
+      "id": "prov-pattern-a-valid-source-compiles",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.7 Pattern A \u2014 valid provenance"
+      ],
+      "description": "Pattern A with valid standalone fan:isSourceOf triple. Restriction compiles successfully.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:apple",
+                "canonicalLabel": "apple",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:redness",
+                "canonicalLabel": "redness",
+                "parent": "user:quality"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:quality",
+                "canonicalLabel": "quality",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "relationTypeClasses": [
+              "fandaws:relationType/inheres_in"
+            ],
+            "restrictions": [
+              {
+                "subject": "user:redness",
+                "verb": "inheres_in",
+                "object": "user:apple",
+                "relationType": "fandaws:relationType/inheres_in",
+                "provenanceTriple": {
+                  "source": "FandawsSentinel",
+                  "target": "user:redness#r-inheres_in-apple"
+                }
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "containsRestriction": {
+            "subject": "redness",
+            "object": "apple"
+          }
+        }
+      }
+    },
+    {
+      "id": "prov-pattern-c-open-no-check",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.7 Pattern C \u2014 Open provenance"
+      ],
+      "description": "Pattern C (open provenance): no RECC provenance restriction on the relation type. Restriction compiles without provenance check. Only normalizer quarantine enforces.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "executionLane": {
+          "containsRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "Tier 1 bare 'has' \u2192 no relation type class \u2192 Pattern C. No provenance check. Compiles."
+        }
+      }
+    },
+    {
+      "id": "prov-standalone-triple-required",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule RECC-4 \u2014 standalone provenance triple"
+      ],
+      "description": "The fan:isSourceOf triple MUST be standalone \u2014 asserted outside the instance subject block. A provenance triple embedded inside the restriction's own subject block is invalid.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:apple",
+                "canonicalLabel": "apple",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:redness",
+                "canonicalLabel": "redness",
+                "parent": "user:quality"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:quality",
+                "canonicalLabel": "quality",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "relationTypeClasses": [
+              "fandaws:relationType/inheres_in"
+            ],
+            "restrictions": [
+              {
+                "subject": "user:redness",
+                "verb": "inheres_in",
+                "object": "user:apple",
+                "relationType": "fandaws:relationType/inheres_in",
+                "provenanceTriple": {
+                  "source": "FandawsSentinel",
+                  "target": "user:redness#r-inheres_in-apple",
+                  "embeddedInSubjectBlock": true
+                },
+                "note": "Provenance triple is embedded, not standalone \u2014 should fail RECC-4"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "compilationStatus": "CompilerRejected",
+            "feedback": {
+              "failedCheck": "provenance_standalone",
+              "reason": "ANY_NONEMPTY_STRING"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "prov-tier1-no-provenance-required",
+      "version": 1,
+      "verifies": [
+        "Decision C-6 clarified \u2014 Tier 1 carries no RECC"
+      ],
+      "description": "Tier 1 bare property ('has') has no relation type class and therefore no provenance authority RECC. Restriction compiles without any fan:isSourceOf triple.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "executionLane": {
+          "containsRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "No relation type class \u2192 no provenance RECC \u2192 no fan:isSourceOf needed. Tier 1 compiles freely."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no provenance check on Tier 1",
+          "description": "The compiler MUST NOT check for fan:isSourceOf on Tier 1 restrictions. Provenance RECC applies only to restrictions with a resolved relation type class."
+        }
+      ]
+    },
+    {
+      "id": "export-recc-inherence-schema",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.6.1 \u2014 Inherence-type RECC in export",
+        "Decision C-6 seed set"
+      ],
+      "description": "When the graph contains an inherence-type restriction (Tier 2A verb matched to BFO inheres_in), the export includes the inherence relation type class schema with RECC restrictions on bfo:specifically_depends_on and fan:towards.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:apple",
+                "canonicalLabel": "apple",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:redness",
+                "canonicalLabel": "redness",
+                "parent": "user:quality"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:quality",
+                "canonicalLabel": "quality",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "restrictions": [
+              {
+                "subject": "user:redness",
+                "verb": "inheres_in",
+                "object": "user:apple",
+                "relationType": "fandaws:relationType/inheres_in"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "containsRelationTypeClass": "fandaws:relationType/inheres_in",
+          "classDeclaresSubClassOf": [
+            "fan:RelationalQuality",
+            "bfo:Quality"
+          ],
+          "containsRECC": {
+            "onProperty": "bfo:specifically_depends_on",
+            "someValuesFrom": "fan:quality"
+          },
+          "containsRECC2": {
+            "onProperty": "fan:towards",
+            "someValuesFrom": "fan:materialEntity"
+          },
+          "note": "Inherence schema with BFO Quality subcategory and both structural conformance restrictions."
+        }
+      }
+    },
+    {
+      "id": "export-recc-mereological-schema",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.6.2 \u2014 Mereological RECC in export"
+      ],
+      "description": "Mereological relation type class in export has structural conformance restrictions but no BFO subcategory beyond base (fan:RelationalQuality only).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:car",
+                "canonicalLabel": "car",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:engine",
+                "canonicalLabel": "engine",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "restrictions": [
+              {
+                "subject": "user:car",
+                "verb": "has_part",
+                "object": "user:engine",
+                "relationType": "fandaws:relationType/has_part"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "containsRelationTypeClass": "fandaws:relationType/has_part",
+          "classDeclaresSubClassOf": [
+            "fan:RelationalQuality"
+          ],
+          "doesNotDeclareSubClassOf": [
+            "bfo:Quality",
+            "bfo:Disposition",
+            "bfo:Role"
+          ],
+          "containsRECC": {
+            "onProperty": "bfo:specifically_depends_on",
+            "someValuesFrom": "fan:materialEntity"
+          },
+          "note": "Mereological: no BFO subcategory beyond base. Structural conformance only."
+        }
+      }
+    },
+    {
+      "id": "export-recc-deontic-schema",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.6.3 \u2014 Deontic RECC in export"
+      ],
+      "description": "Deontic relation type class in export declares rdfs:subClassOf bfo:Disposition.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:agent-a",
+                "canonicalLabel": "agent a",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:action-b",
+                "canonicalLabel": "action b",
+                "parent": "user:process"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "restrictions": [
+              {
+                "subject": "user:agent-a",
+                "verb": "obligated_to",
+                "object": "user:action-b",
+                "relationType": "fandaws:relationType/obligated_to"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "containsRelationTypeClass": "fandaws:relationType/obligated_to",
+          "classDeclaresSubClassOf": [
+            "fan:RelationalQuality",
+            "bfo:Disposition"
+          ],
+          "note": "Deontic: BFO Disposition subcategory declared."
+        }
+      }
+    },
+    {
+      "id": "export-recc-not-emitted-for-tier1",
+      "version": 1,
+      "verifies": [
+        "Decision C-6 clarified \u2014 no RECC schema emitted for Tier 1 bare properties"
+      ],
+      "description": "When the graph contains only Tier 1 bare 'has' restrictions (no resolved relation type), the export does NOT contain any relation type class schema. No RECC restrictions emitted.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has fur"
+      },
+      "expect": {
+        "exportTrigger": {
+          "type": "export",
+          "format": "turtle"
+        },
+        "exportCheck": {
+          "doesNotContainRelationTypeClass": true,
+          "doesNotContainRECC": true,
+          "containsRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          },
+          "note": "Restriction is exported (it's Compiled). But no relation type class schema accompanies it \u2014 bare Tier 1 has no RECC."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no RECC for Tier 1",
+          "description": "Export MUST NOT contain fandaws:relationType/* class declarations when only Tier 1 restrictions exist."
+        }
+      ]
+    },
+    {
+      "id": "export-recc-schema-not-compiler-generated",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule RECC-5 \u2014 RECC never generated by compiler"
+      ],
+      "description": "The relation type class schemas in the export are verbatim from the bundled seed set. The compiler reads them; it does not generate or modify them. Verify by checking that the emitted schema matches the seed exactly.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:car",
+                "canonicalLabel": "car",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:engine",
+                "canonicalLabel": "engine",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "restrictions": [
+              {
+                "subject": "user:car",
+                "verb": "has_part",
+                "object": "user:engine",
+                "relationType": "fandaws:relationType/has_part"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "relationTypeSchemaMatchesSeed": true,
+          "note": "The has_part schema in the export is byte-identical to the bundled seed. The compiler emitted it verbatim. RECC-5 satisfied."
+        }
+      }
+    },
+    {
+      "id": "export-recc-provenance-authority",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.6 \u2014 Provenance authority in export"
+      ],
+      "description": "For Pattern A relation types, the export includes the owl:hasValue RECC with inverse of fan:isSourceOf naming the authoritative system.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:apple",
+                "canonicalLabel": "apple",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:redness",
+                "canonicalLabel": "redness",
+                "parent": "user:quality"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:quality",
+                "canonicalLabel": "quality",
+                "parent": null,
+                "isImported": true
+              }
+            ],
+            "relationTypeClasses": [
+              "fandaws:relationType/inheres_in"
+            ],
+            "restrictions": [
+              {
+                "subject": "user:redness",
+                "verb": "inheres_in",
+                "object": "user:apple",
+                "relationType": "fandaws:relationType/inheres_in",
+                "provenanceTriple": {
+                  "source": "FandawsSentinel",
+                  "target": "user:redness#r-inheres_in-apple"
+                }
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "export",
+        "format": "turtle"
+      },
+      "expect": {
+        "exportCheck": {
+          "containsProvenanceRECC": true,
+          "provenancePattern": "owl:hasValue with owl:inverseOf fan:isSourceOf",
+          "standaloneTriple": "FandawsSentinel fan:isSourceOf user:redness#r-inheres_in-apple",
+          "note": "Provenance authority restriction on the relation type class + standalone triple in the export."
+        }
+      }
+    },
+    {
+      "id": "quar-structural-violation-quarantined",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule RECC-6 \u2014 RECC violations quarantined",
+        "Decision C-7"
+      ],
+      "description": "An external axiom that violates RECC structural conformance (MaterialEntity connected to Process via has_part) is quarantined with a structured failure trace.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestExternalAxiom",
+        "axiom": "ex:Car subClassOf (has_part some ex:Running)",
+        "sourceSystem": "ExternalOntologyX",
+        "domainClass": "MaterialEntity",
+        "rangeClass": "Process"
+      },
+      "expect": {
+        "quarantineStore": {
+          "recordCreated": true,
+          "record": {
+            "type": "QuarantineRecord",
+            "quarantineStatus": "PendingReview",
+            "violationRule": "TypeDisjointnessViolation",
+            "subjectType": "MaterialEntity",
+            "objectType": "Process"
+          }
+        },
+        "canonicalLane": {
+          "restrictionCreated": false
+        },
+        "executionLane": {
+          "restrictionCreated": false
+        }
+      }
+    },
+    {
+      "id": "quar-failure-trace-shape",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 10.4 \u2014 FailureTrace shape",
+        "FANDAWS v2.1 Rule VD-4"
+      ],
+      "description": "Quarantine record carries a structured fandaws:FailureTrace with all required fields: violationRule, relation, subjectNode, objectNode, subjectType, objectType, disjointPair, suggestedRepair.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestExternalAxiom",
+        "axiom": "ex:Car subClassOf (has_part some ex:Running)",
+        "sourceSystem": "ExternalOntologyX",
+        "domainClass": "MaterialEntity",
+        "rangeClass": "Process"
+      },
+      "expect": {
+        "quarantineStore": {
+          "record": {
+            "failureTrace": {
+              "hasField": [
+                "violationRule",
+                "relation",
+                "subjectNode",
+                "objectNode",
+                "subjectType",
+                "objectType",
+                "suggestedRepair"
+              ],
+              "violationRule": "TypeDisjointnessViolation",
+              "suggestedRepair": "ANY_NONEMPTY_STRING"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "quar-not-in-canonical-or-execution",
+      "version": 1,
+      "verifies": [
+        "Decision C-7 \u2014 quarantine records outside canonical and execution"
+      ],
+      "description": "Quarantined records exist ONLY in _quarantineStore. They do NOT appear in the canonical graph (no skos:broader, no rdfs:subClassOf) and do NOT appear in the execution lane (no compiled artifact).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestExternalAxiom",
+        "axiom": "ex:Car subClassOf (has_part some ex:Running)",
+        "sourceSystem": "ExternalOntologyX",
+        "domainClass": "MaterialEntity",
+        "rangeClass": "Process"
+      },
+      "expect": {
+        "quarantineStore": {
+          "recordCount": 1
+        },
+        "canonicalLane": {
+          "conceptExists_Car": false,
+          "conceptExists_Running": false
+        },
+        "executionLane": {
+          "artifactExists_Car": false
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "quarantine is isolation",
+          "description": "Quarantined axioms MUST NOT leak into the canonical graph or execution lane. They are structurally isolated."
+        },
+        {
+          "condition": "Rule QS-1",
+          "description": "Quarantined axioms are NEVER loaded into the active reasoning model."
+        }
+      ]
+    },
+    {
+      "id": "quar-release-enters-canonical-at-0-7",
+      "version": 1,
+      "verifies": [
+        "Decision C-3 \u2014 released quarantine enters at 0.7",
+        "FANDAWS v2.1 Rule QS-2"
+      ],
+      "description": "Releasing a quarantine record creates a canonical restriction at confidence 0.7 (Flagged tier). Recompilation fires. The execution artifact carries a confidence annotation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:car",
+                "canonicalLabel": "car",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:engine",
+                "canonicalLabel": "engine",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "quarantineStore": [
+          {
+            "quarantineId": "quar:001",
+            "type": "QuarantineRecord",
+            "quarantineStatus": "PendingReview",
+            "axiom": "car has_part engine",
+            "sourceSystem": "ExternalOntologyX"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "releaseQuarantine",
+        "quarantineId": "quar:001"
+      },
+      "expect": {
+        "quarantineStore": {
+          "record": {
+            "quarantineStatus": "Released"
+          }
+        },
+        "canonicalLane": {
+          "restrictionCreated": true,
+          "restriction": {
+            "confidence": 0.7,
+            "normalizationStatus": "Normalized"
+          }
+        },
+        "executionLane": {
+          "containsRestriction": {
+            "subject": "car",
+            "object": "engine"
+          },
+          "artifact": {
+            "tier": "flagged",
+            "hasConfidenceAnnotation": true,
+            "confidenceValue": 0.7
+          }
+        }
+      }
+    },
+    {
+      "id": "quar-rejected-permanently-retained",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 10.3 \u2014 Rejected status"
+      ],
+      "description": "Rejecting a quarantine record sets status to Rejected. The record is retained permanently for audit. It is never deleted.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "quarantineStore": [
+          {
+            "quarantineId": "quar:002",
+            "type": "QuarantineRecord",
+            "quarantineStatus": "PendingReview",
+            "axiom": "ex:Dog subClassOf (has_part some ex:Running)",
+            "sourceSystem": "ExternalOntologyX"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "rejectQuarantine",
+        "quarantineId": "quar:002"
+      },
+      "expect": {
+        "quarantineStore": {
+          "record": {
+            "quarantineStatus": "Rejected",
+            "stillPresent": true,
+            "note": "Rejected records are retained permanently. Not deleted."
+          }
+        },
+        "canonicalLane": {
+          "restrictionCreated": false
+        },
+        "executionLane": {
+          "restrictionCreated": false
+        }
+      }
+    },
+    {
+      "id": "quar-source-axiom-graph-three-types-only",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule VD-1 \u2014 exactly three record types in SourceAxiomGraph"
+      ],
+      "description": "The quarantine store contains only three record types: staging records (CandidateRelation, CandidateClass), quarantine records (QuarantineRecord), and raw source axioms (RawSourceAxiom). No other record types may exist.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "quarantineStore": [
+          {
+            "type": "QuarantineRecord",
+            "quarantineId": "quar:001"
+          },
+          {
+            "type": "RawSourceAxiom",
+            "quarantineId": "raw:001"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "queryQuarantineStore"
+      },
+      "expect": {
+        "quarantineStore": {
+          "allowedTypes": [
+            "QuarantineRecord",
+            "CandidateRelation",
+            "CandidateClass",
+            "RawSourceAxiom"
+          ],
+          "noOtherTypes": true
+        }
+      }
+    },
+    {
+      "id": "quar-cc-path-b-assert-anyway-is-canonical-not-quarantine-store",
+      "version": 1,
+      "verifies": [
+        "Q5 answer \u2014 CC Path B 'assert anyway' writes to canonical, not quarantine store"
+      ],
+      "description": "When a user asserts despite CC Path B disjointness warning ('assert anyway'), the restriction goes to the canonical graph with normalizationStatus: Quarantined. It does NOT go to the _quarantineStore. These are two different quarantine mechanisms.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "a dog has running"
+      },
+      "user_choice": {
+        "action": "assert_anyway"
+      },
+      "expect": {
+        "canonicalLane": {
+          "restriction": {
+            "exists": true,
+            "normalizationStatus": "Quarantined",
+            "note": "In canonical graph but flagged. User put it here deliberately."
+          }
+        },
+        "quarantineStore": {
+          "recordCount": 0,
+          "note": "The _quarantineStore has zero records. CC Path B 'assert anyway' does NOT write to the quarantine store."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "two quarantine mechanisms are distinct",
+          "description": "Canonical normalizationStatus:Quarantined (user-asserted despite warning) and _quarantineStore QuarantineRecord (external axiom failed normalization) are DIFFERENT mechanisms. This scenario proves they don't cross-contaminate."
+        }
+      ]
+    },
+    {
+      "id": "reg-c1-confidence-tiers-intact",
+      "version": 1,
+      "verifies": [
+        "Phase C1 regression \u2014 confidence tiers still work after C2 additions"
+      ],
+      "description": "Confidence tier routing from C1 is unaffected by C2's provenance and quarantine additions. A restriction at 0.55 is still tentative.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null
+              },
+              {
+                "id": "user:wings",
+                "canonicalLabel": "wings",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "injectCanonicalRestriction": {
+          "subject": "user:dog",
+          "verb": "has",
+          "object": "user:wings",
+          "confidence": 0.55
+        }
+      },
+      "trigger": {
+        "type": "compile"
+      },
+      "expect": {
+        "executionLane": {
+          "artifact": {
+            "tier": "tentative",
+            "hasTentativeFlag": true
+          }
+        }
+      }
+    },
+    {
+      "id": "reg-c1-retraction-still-works",
+      "version": 1,
+      "verifies": [
+        "Phase C1 regression \u2014 retraction protocol still works after C2 additions"
+      ],
+      "description": "Confidence downgrade crossing a tier boundary still triggers retraction with tombstone after C2 additions.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "concepts": [
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": null,
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:fur",
+                    "confidence": 0.95,
+                    "compilationStatus": "Compiled"
+                  }
+                ]
+              },
+              {
+                "id": "user:fur",
+                "canonicalLabel": "fur",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "updateConfidence",
+        "subject": "dog",
+        "restriction": "has fur",
+        "newConfidence": 0.3
+      },
+      "expect": {
+        "executionLane": {
+          "doesNotContainRestriction": {
+            "subject": "dog",
+            "object": "fur"
+          }
+        },
+        "canonicalLane": {
+          "tombstone": {
+            "exists": true
+          }
+        }
+      }
+    }
+  ]
+}

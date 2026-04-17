@@ -15,7 +15,7 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
   - **Track B (Graph Mechanics):** P3, P4, P4b, P5, P6, P8, P9 — all complete
   - **Track C (Lifecycle):** P11, P12 — all complete. AVC model introduced at P12.
   - **Post-Convergence:** P13 — complete. MachineSignal, deadlock cascade, rate limiting.
-  - **FANDAWS v2.1:** Phase B — complete. Dual-lane, compilation pipeline, BFO Disjointness Map, CC Path A/B, RECC structural conformance.
+  - **FANDAWS v2.1:** Phase B + C1 — complete. Dual-lane, compilation pipeline, BFO Disjointness Map, CC Path A/B, RECC structural conformance, confidence tiers, retraction protocol, stale detection.
   - **Convergence Gate (P8):** Passed — regex NLParser at 100%, ADR-003 accepted
 - **Cross-Cutting Specs:**
   - BFO Ontology Ingestion Phase A (v1.4) — complete
@@ -23,8 +23,8 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
   - Consequence-Aware Reclassification — complete (3 options: keep/subtree/only)
   - Homonym Detection (v1.3) — Phase A complete
   - Workbench v0.1 — complete (GitHub Pages)
-- **Remaining:** Phase C (RECC Enforcement), Phase D (Bulk Ingestion Pipeline). P14 (Ecosystem Adapters) on hold pending Weaver SDK.
-- **Active AVC:** 76 scenarios across 3 bundles (P12: 25, P13: 24, Phase B: 27) — all run on every build, regressions are P0
+- **Remaining:** Phase C2 (RECC Externalization), Phase D (Bulk Ingestion Pipeline). P14 (Ecosystem Adapters) on hold pending Weaver SDK.
+- **Active AVC:** 102 scenarios across 4 bundles (P12: 25, P13: 24, Phase B: 27, C1: 26) — all run on every build, regressions are P0
 - **Remaining Specs:** Ontology Ingestion Phase B (general ontology import, needs Workbench v0.2 UI)
 
 ## Key Files

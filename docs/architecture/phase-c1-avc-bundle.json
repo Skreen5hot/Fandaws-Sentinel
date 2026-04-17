@@ -2,7 +2,9 @@
   "bundle_id": "phase-c1-compilation-lifecycle",
   "bundle_version": 1,
   "authored": "2026-04-17",
-  "status": "awaits_implementation",
+  "status": "active",
+  "confirmed": "2026-04-17",
+  "confirmation_notes": "26/26 passing. 0 discrepancy reports. 3 transcript spot-checks clean (cascade isolation, tentative export, recovery). Two fixes applied post-transcript: tentative export filter in triple-extractor, canonical status recovery from CompilerRejected.",
   "verifies_phase": "Phase C1 \u2014 Compilation Lifecycle (Internal Machinery)",
   "locked_decisions": {
     "C-1": "Phase split: C1 (internal lifecycle) + C2 (external RECC). C1 ships first.",

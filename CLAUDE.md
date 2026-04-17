@@ -6,24 +6,25 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
 
 ## Current Status
 
-- **Phase:** 0–13 Complete (17 of 17 roadmap phases — 100%)
+- **Phase:** 0–13 + Phase B Complete (FANDAWS v2.1 Roadmap Phase 2)
 - **Test Suite:** 96 suites, 2,034 tests passing (11 skipped for unimplemented features)
-- **Build:** 311.9 KB bundled (esbuild)
+- **Build:** 325.5 KB bundled (esbuild)
 - **Blockers:** None
 - **Completed Tracks:**
   - **Track A (Linguistics & IO):** P2, P7, P10, P10b — all complete
   - **Track B (Graph Mechanics):** P3, P4, P4b, P5, P6, P8, P9 — all complete
   - **Track C (Lifecycle):** P11, P12 — all complete. AVC model introduced at P12.
   - **Post-Convergence:** P13 — complete. MachineSignal, deadlock cascade, rate limiting.
+  - **FANDAWS v2.1:** Phase B — complete. Dual-lane, compilation pipeline, BFO Disjointness Map, CC Path A/B, RECC structural conformance.
   - **Convergence Gate (P8):** Passed — regex NLParser at 100%, ADR-003 accepted
-- **Cross-Cutting Specs (post-roadmap):**
+- **Cross-Cutting Specs:**
   - BFO Ontology Ingestion Phase A (v1.4) — complete
   - OWL Restriction Structural Correction (v1.1) — complete
   - Consequence-Aware Reclassification — complete (3 options: keep/subtree/only)
   - Homonym Detection (v1.3) — Phase A complete
   - Workbench v0.1 — complete (GitHub Pages)
-- **Remaining Roadmap:** P14 (Ecosystem Adapters) — depends on P13 (complete)
-- **Active AVC:** 49 scenarios across 2 bundles (P12: 25, P13: 24) — both run on every build, regressions are P0
+- **Remaining:** Phase C (RECC Enforcement), Phase D (Bulk Ingestion Pipeline). P14 (Ecosystem Adapters) on hold pending Weaver SDK.
+- **Active AVC:** 76 scenarios across 3 bundles (P12: 25, P13: 24, Phase B: 27) — all run on every build, regressions are P0
 - **Remaining Specs:** Ontology Ingestion Phase B (general ontology import, needs Workbench v0.2 UI)
 
 ## Key Files

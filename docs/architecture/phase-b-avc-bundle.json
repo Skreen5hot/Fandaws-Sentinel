@@ -2,7 +2,9 @@
   "bundle_id": "phase-b-ontology-ingestion-dual-lane",
   "bundle_version": 2,
   "authored": "2026-04-16",
-  "status": "awaits_implementation",
+  "status": "active",
+  "confirmed": "2026-04-17",
+  "confirmation_notes": "27/27 passing. 1 discrepancy report (Quality/RealizableEntity — resolved in v2). 3 transcript spot-checks clean. CC Path A third category verified with full invalidRestrictions payload.",
   "verifies_phase": "Phase B \u2014 Ontology Ingestion (FANDAWS v2.1 Roadmap Phase 2)",
   "locked_decisions": {
     "dual_lane": "Option (b): existing graph is Canonical Lane. compile() method produces Execution Lane as derived _executionLane Map on StateAdapter. Runs synchronously after every mutation. Export reads from Execution Lane.",

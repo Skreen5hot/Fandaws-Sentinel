@@ -1,0 +1,2196 @@
+{
+  "bundle_id": "workbench-v0.2-ingest-mode",
+  "bundle_version": 1,
+  "authored": "2026-04-18",
+  "status": "awaits_implementation",
+  "verifies_phase": "Workbench v0.2 \u2014 Ingest Mode UI with PROV-O readiness acceptance gate",
+  "depends_on": "Phase D1 + D2 complete and certified (178/178 scenarios). Workbench v0.1 Converse + Export modes functional.",
+  "locked_decisions": {
+    "W-D-1": "Ingest mode is a workspace, not a wizard. Panels navigable non-linearly. State persists across mode switches. (Invariant W-1)",
+    "W-D-2": "UI never simplifies analyst's evidence. Fingerprint breakdowns show all six dimensions with weights; FailureTraces show Prolog traces verbatim; margins displayed to three decimals. (Invariant W-2)",
+    "W-D-3": "Invariants from FANDAWS / D1 / D2 specs are visibly enforced at UI layer per \u00a78.5 catalog. (Invariant W-3)",
+    "W-D-4": "localStorage persistence for IngestionSession records, staging records, merge records, disambiguation records, quarantine records, and analyst justifications. Sessions survive page reloads.",
+    "W-D-5": "Six-panel Ingest mode structure: Sessions, Upload, Phase 1 Review, Phase 2 Review, Phase 3 Review, Session Summary.",
+    "W-D-6": "Single active session for review at a time. Session ID displayed in top bar of every Ingest panel.",
+    "W-D-7": "Ingest mode calls existing D1/D2 pipeline functions directly. No new API layer. UI is a thin rendering layer over existing pipeline state.",
+    "W-D-8": "Acceptance gate is AC-W-PROV-O: Aaron can complete a full PROV-O Pass 1 through the UI with artifacts sufficient to populate report template through \u00a77 without manual JSON extraction.",
+    "W-D-9": "Tau Prolog execution runs in browser thread for v0.2. Web Worker migration deferred to v0.3 if performance requires.",
+    "W-D-10": "Accessibility baseline: keyboard navigation, color-plus-icon status, copy-to-clipboard on monospace. Full WCAG AA audit deferred to v0.3.",
+    "W-D-11": "No automated browser testing harness in v0.2. Manual browser testing + Node.js headless where applicable. Playwright/Cypress deferred to v0.3.",
+    "W-D-12": "No delete action for sessions. VD-5 preserved. Implementations MAY provide 'clear all sessions' for test hygiene with destructive confirmation.",
+    "W-D-13": "Implementation sequencing: mode switcher \u2192 Sessions/Upload \u2192 Phase 1 Review \u2192 Phase 3 Review \u2192 Phase 2 Review \u2192 Session Summary. Phase 2 built last due to highest complexity.",
+    "W-D-14": "PROV-O test execution is the final acceptance test. v0.2 is not 'shipped' until Pass 1 executes end-to-end through the UI.",
+    "clarification_nowizard": "The workspace-not-wizard distinction matters because ingestion is iterative. Analyst may switch to Converse mid-disambiguation to consult BFO semantics, then return. A wizard would fight this workflow.",
+    "clarification_edgecanonical": "All execution remains edge-canonical. File uploads via FileReader. Persistence via localStorage. No backend.",
+    "clarification_invariant_visibility": "Visible invariant enforcement at UI is not just UX polish. It is what makes a calibration study's invariant audit (Report \u00a76.1) doable without opening a debugger.",
+    "W-D-15": "File size cap at 1MB on upload content (W-3.9). localStorage quota probe before session creation (W-3.10). Together these prevent QuotaExceededError mid-save. Threshold is conservative relative to browser 5MB quota \u2014 reserves headroom for derived session records.",
+    "W-D-16": "Pagination/virtualization on Phase 1 Review and Phase 2 Review tables (W-4.10, W-5.15). Default page size 100. Global sort and filter across pages. Invisible UI for small ontologies (\u2264100 rows). Baseline built into v0.2 even though PROV-O does not require it, to prevent retrofit pain when subsequent calibration-series tests use larger ontologies.",
+    "W-D-17": "Phase 3 evaluation loop yields to browser render thread between chunks (W-5.14, \u00a712.1). Implementation: setTimeout(fn, 0) or requestAnimationFrame between 10-25 axiom evaluations. Progress indicator animates with per-axiom counter (W-5.16). Web Worker migration remains deferred to v0.3.",
+    "W-D-18": "Bundle export header carries schemaVersion (semver), workbenchVersion, fandawsVersion, generatedAt (W-7.7, W-7.10). v0.2 ships with schemaVersion '1.0'. Semver discipline: MAJOR for removals/renames, MINOR for additions. Enables calibration-series cross-test comparison tooling in v0.3+ to parse bundles from all prior tests.",
+    "clarification_series_scope": "v0.2's acceptance gate (AC-W-PROV-O) is the PROV-O test. The pagination, yielding, and schemaVersion infrastructure is built from day one to support the planned calibration-study series (CCO modules, IOF, GO subsets, Schema.org, larger tests) without requiring retrofit. v0.2 does NOT commit to large-ontology support \u2014 that is v0.3+.",
+    "W-D-19": "owl:imports declarations recorded in IngestionSession metadata (declaredImports field) but NOT followed during ingestion (W-3.11, W-IM-1). Only directly-declared classes and properties in the uploaded file are treated as candidates. References to entities in imported ontologies appear as external IRIs handled by existing pipeline machinery. Full import-closure handling deferred to v0.3.",
+    "W-D-20": "Tau Prolog bundled into v0.2 output via esbuild at build time (W-TP-1). No runtime CDN fetch, no script-tag global attached to window.pl, no JavaScript harness substitute for the Prolog engine. The v0.2 bundle includes Tau Prolog as an ES module; the Node.js test harness continues to use CJS require-path via existing pattern. Both paths run the same pinned Tau Prolog version. Substituting a JS simulacrum for v0.2 would invalidate every D2 AVC scenario's engine-authenticity guarantee (AC-D2-17) and any calibration study findings.",
+    "W-D-21": "RDF parsing for uploaded ontology files uses n3.js (Turtle, N-Triples, N3) and rdfxml-streaming-parser (RDF/XML), both bundled via esbuild. Format detection from extension with content-sniff fallback. New module at src/core/ingestion/ontology-parser.js takes the format-agnostic triple stream and produces D1/D2 pipeline input shape. BFO-specific adapter in src/adapters/integration/ remains unchanged.",
+    "W-D-22": "Each scenario in the bundle carries a verification_method field: 'programmatic' (Jest/Node-runnable), 'manual' (requires human visual verification), or 'hybrid' (programmatic data assertion + manual visual check). Programmatic scenarios run in CI from day one. Manual scenarios form the PROV-O Pass 1 dry-run checklist. This split respects the W-D-11 deferral of Playwright/Cypress while still providing day-one coverage for data-layer scenarios."
+  },
+  "scenarios": [
+    {
+      "id": "mode-switcher-three-tabs",
+      "version": 1,
+      "verifies": [
+        "Workbench v0.2 Spec \u00a71.2 \u2014 three-mode structure",
+        "Decision W-D-5"
+      ],
+      "description": "Workbench displays three top-level mode tabs: Converse, Ingest, Export. Clicking each navigates to that mode's workspace. Converse and Export from v0.1 remain unchanged; Ingest is new.",
+      "setup": {
+        "workbenchVersion": "0.2",
+        "localStorage": {
+          "empty": true
+        }
+      },
+      "trigger": {
+        "type": "pageLoad"
+      },
+      "expect": {
+        "modeSwitcher": {
+          "tabs": [
+            "Converse",
+            "Ingest",
+            "Export"
+          ],
+          "defaultActive": "Converse",
+          "allTabsClickable": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "mode-switch-preserves-state",
+      "version": 1,
+      "verifies": [
+        "Rule W-SP-1 \u2014 mode-switch state preservation"
+      ],
+      "description": "Analyst is mid-resolution in Phase 2 Review panel. Switches to Converse, then back to Ingest. State restored: same session active, same panel open, partially-filled justification text preserved.",
+      "setup": {
+        "activeMode": "Ingest",
+        "activeSession": "session-provo-001",
+        "activePanel": "Phase2Review",
+        "inProgressForm": {
+          "candidate": "prov:wasDerivedFrom",
+          "action": "PromoteAsSubProperty",
+          "justificationTextPartial": "This is a specialization of"
+        }
+      },
+      "trigger": {
+        "type": "sequentialActions",
+        "actions": [
+          {
+            "type": "switchMode",
+            "to": "Converse"
+          },
+          {
+            "type": "switchMode",
+            "to": "Ingest"
+          }
+        ]
+      },
+      "expect": {
+        "restoredState": {
+          "activePanel": "Phase2Review",
+          "activeSession": "session-provo-001",
+          "inProgressForm": {
+            "candidate": "prov:wasDerivedFrom",
+            "action": "PromoteAsSubProperty",
+            "justificationTextPartial": "This is a specialization of",
+            "note": "Partial text preserved, cursor position may or may not be preserved"
+          }
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "page-reload-restores-session",
+      "version": 1,
+      "verifies": [
+        "Rule W-SP-2 \u2014 page-reload state restoration"
+      ],
+      "description": "Analyst has an active session with resolution work in progress. Page reloads. On reload, the last-active session is visible in Sessions panel, and navigating to the previously-active panel restores the session state.",
+      "setup": {
+        "localStorage": {
+          "sessions": [
+            {
+              "id": "session-provo-001",
+              "activePhase": "Phase2",
+              "blockingItems": 3
+            }
+          ],
+          "lastActiveSession": "session-provo-001",
+          "lastActivePanel": "Phase2Review"
+        }
+      },
+      "trigger": {
+        "type": "pageReload"
+      },
+      "expect": {
+        "sessionsPanel": {
+          "containsSession": "session-provo-001"
+        },
+        "navigationPath": {
+          "direct": "Ingest \u2192 Phase2Review \u2192 session-provo-001",
+          "sessionRestored": true,
+          "inProgressForms": {
+            "note": "NOT required to persist across reloads per Rule W-SP-3"
+          }
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "sessions-panel-empty-state",
+      "version": 1,
+      "verifies": [
+        "W-2.6 \u2014 empty state",
+        "Panel 1 structure"
+      ],
+      "description": "Fresh workbench with zero sessions. Sessions panel shows instructional empty state with 'New Ingestion Session' as the primary action.",
+      "setup": {
+        "localStorage": {
+          "sessions": []
+        },
+        "activeMode": "Ingest"
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Sessions"
+      },
+      "expect": {
+        "sessionsPanel": {
+          "empty": true,
+          "instructionalText": "ANY_NONEMPTY_STRING",
+          "primaryAction": "New Ingestion Session"
+        },
+        "sessionCardCount": 0
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "sessions-panel-lists-all",
+      "version": 1,
+      "verifies": [
+        "W-2.1 \u2014 list from localStorage",
+        "W-2.2 \u2014 current phase derived from state"
+      ],
+      "description": "Three sessions exist with different phase states. Sessions panel lists all three with correct phase badges.",
+      "setup": {
+        "localStorage": {
+          "sessions": [
+            {
+              "id": "s1",
+              "sourceOntology": "https://www.w3.org/ns/prov-o",
+              "phase1Complete": true,
+              "phase2Started": false,
+              "blockingItems": 2
+            },
+            {
+              "id": "s2",
+              "sourceOntology": "https://example.org/cco",
+              "phase1Complete": true,
+              "phase2Complete": true,
+              "phase3Started": false,
+              "blockingItems": 0
+            },
+            {
+              "id": "s3",
+              "sourceOntology": "https://example.org/go",
+              "sessionCompletedAt": "2026-04-15T12:00:00Z"
+            }
+          ]
+        },
+        "activeMode": "Ingest"
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Sessions"
+      },
+      "expect": {
+        "sessionsPanel": {
+          "cardCount": 3,
+          "phases": {
+            "s1": "Phase 1 Complete \u2014 Phase 2 Pending",
+            "s2": "Phase 2 Complete \u2014 Phase 3 Pending",
+            "s3": "Session Complete"
+          },
+          "blockingIndicators": {
+            "s1": "2 items blocking phase 2",
+            "s2": null,
+            "s3": null
+          }
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "sessions-panel-blocking-pill",
+      "version": 1,
+      "verifies": [
+        "W-2.3 \u2014 blocking indicator"
+      ],
+      "description": "Session with PendingHumanResolution items shows red blocking pill.",
+      "setup": {
+        "localStorage": {
+          "sessions": [
+            {
+              "id": "s1",
+              "phase1Complete": true,
+              "pendingResolutions": 4
+            }
+          ]
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Sessions"
+      },
+      "expect": {
+        "sessionCard": {
+          "id": "s1",
+          "blockingPill": {
+            "visible": true,
+            "count": 4,
+            "color": "red",
+            "text": "4 items blocking phase 2"
+          }
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "sessions-new-session-action",
+      "version": 1,
+      "verifies": [
+        "W-2.4 \u2014 New Session creates + navigates"
+      ],
+      "description": "Clicking 'New Ingestion Session' creates a new IngestionSession record with a fresh UUID and navigates to Upload panel.",
+      "setup": {
+        "localStorage": {
+          "sessions": []
+        },
+        "activeMode": "Ingest",
+        "activePanel": "Sessions"
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "New Ingestion Session"
+      },
+      "expect": {
+        "newSession": {
+          "created": true,
+          "hasUuid": true,
+          "phase": "Uploading"
+        },
+        "activePanel": "Upload",
+        "sessionsListSize": "ANY_GTE(1)"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "sessions-click-routes-to-blocker",
+      "version": 1,
+      "verifies": [
+        "W-2.5 \u2014 clicking session navigates to blocker"
+      ],
+      "description": "Session has Phase 2 blocking items. Clicking the session card navigates directly to Phase 2 Review panel with that session active.",
+      "setup": {
+        "localStorage": {
+          "sessions": [
+            {
+              "id": "s1",
+              "phase1Complete": true,
+              "phase2Started": false,
+              "pendingResolutions": 2,
+              "blockingPhase": "Phase2"
+            }
+          ]
+        },
+        "activePanel": "Sessions"
+      },
+      "trigger": {
+        "type": "clickSessionCard",
+        "sessionId": "s1"
+      },
+      "expect": {
+        "activeSession": "s1",
+        "activePanel": "Phase2Review"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "upload-file-turtle",
+      "version": 1,
+      "verifies": [
+        "W-3.1 \u2014 file upload formats"
+      ],
+      "description": "Upload panel accepts a .ttl file via FileReader. Source preview shows estimated class and property counts.",
+      "setup": {
+        "activePanel": "Upload",
+        "newSessionActive": true
+      },
+      "trigger": {
+        "type": "uploadFile",
+        "filename": "prov-o.ttl",
+        "format": "text/turtle",
+        "contentSize": 45000
+      },
+      "expect": {
+        "uploadPanel": {
+          "filenameDisplayed": "prov-o.ttl",
+          "formatDetected": "turtle",
+          "previewShowsClassCount": true,
+          "previewShowsPropertyCount": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "upload-paste-turtle",
+      "version": 1,
+      "verifies": [
+        "W-3.2 \u2014 paste input"
+      ],
+      "description": "Upload panel accepts pasted Turtle content. Format auto-detected from content.",
+      "setup": {
+        "activePanel": "Upload",
+        "newSessionActive": true
+      },
+      "trigger": {
+        "type": "pasteText",
+        "content": "@prefix prov: <http://www.w3.org/ns/prov#> .\nprov:Entity a owl:Class .",
+        "contentLength": 100
+      },
+      "expect": {
+        "uploadPanel": {
+          "formatDetected": "turtle",
+          "previewVisible": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "upload-rejects-unsupported-format",
+      "version": 1,
+      "verifies": [
+        "Rule W-EH-1 \u2014 parse errors displayed"
+      ],
+      "description": "Upload panel rejects a file in an unsupported format with a clear error message. Session is not created.",
+      "setup": {
+        "activePanel": "Upload",
+        "newSessionActive": true
+      },
+      "trigger": {
+        "type": "uploadFile",
+        "filename": "not-an-ontology.xml",
+        "format": "application/xml",
+        "content": "<root>not turtle</root>"
+      },
+      "expect": {
+        "uploadPanel": {
+          "error": {
+            "displayed": true,
+            "code": "UnsupportedFormat",
+            "specific": true,
+            "note": "Error displays specific format and expected formats"
+          },
+          "sessionCreated": false,
+          "remainsOnUploadPanel": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "upload-default-config-collapsed",
+      "version": 1,
+      "verifies": [
+        "W-3.4 \u2014 default configuration visible in advanced panel"
+      ],
+      "description": "Upload panel's Session Configuration block is collapsed by default. Analyst using defaults is not forced to navigate parameter set.",
+      "setup": {
+        "activePanel": "Upload"
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Upload"
+      },
+      "expect": {
+        "uploadPanel": {
+          "advancedConfigPanel": {
+            "collapsedByDefault": true,
+            "expandable": true
+          }
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "upload-weight-vector-validation-live",
+      "version": 1,
+      "verifies": [
+        "W-3.5 \u2014 weight vector live validation",
+        "Invariant W-3 (PD-10 row of \u00a78.5 catalog)"
+      ],
+      "description": "Analyst modifies weight vector to lexical=0.25 (exceeds 0.10 cap). Start button grays out. Error identifies the offending parameter.",
+      "setup": {
+        "activePanel": "Upload",
+        "fileUploaded": true
+      },
+      "trigger": {
+        "type": "editConfiguration",
+        "field": "lexicalWeight",
+        "value": 0.25
+      },
+      "expect": {
+        "startButton": {
+          "enabled": false
+        },
+        "validationError": {
+          "visible": true,
+          "offendingParameter": "lexicalWeight",
+          "violatedBound": "MUST NOT exceed 0.10",
+          "specific": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "upload-structural-sum-validation",
+      "version": 1,
+      "verifies": [
+        "W-3.5 \u2014 PD-10 structural sum enforcement"
+      ],
+      "description": "Analyst modifies weights such that Domain + Range + BFO Subcategory = 0.65 (below 0.70 floor). Start button grays out with structural-sum error.",
+      "setup": {
+        "activePanel": "Upload",
+        "fileUploaded": true
+      },
+      "trigger": {
+        "type": "editConfiguration",
+        "updates": {
+          "domainWeight": 0.2,
+          "rangeWeight": 0.3,
+          "bfoSubcategoryWeight": 0.15
+        }
+      },
+      "expect": {
+        "startButton": {
+          "enabled": false
+        },
+        "validationError": {
+          "visible": true,
+          "offendingBound": "StructuralSumBelow0.70",
+          "observedSum": 0.65
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "upload-start-triggers-phase1",
+      "version": 1,
+      "verifies": [
+        "W-3.6 \u2014 Start triggers Phase 1 and navigates",
+        "W-3.8 \u2014 Tau Prolog version recorded"
+      ],
+      "description": "Start button with valid configuration triggers Phase 1 sandbox, creates staging records and session, records Tau Prolog version, navigates to Phase 1 Review.",
+      "setup": {
+        "activePanel": "Upload",
+        "fileUploaded": true,
+        "validConfiguration": true
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Start Session & Run Phase 1"
+      },
+      "expect": {
+        "session": {
+          "created": true,
+          "tauPrologVersionRecorded": true,
+          "weightVectorSnapshot": "ANY_VALID_WEIGHT_VECTOR"
+        },
+        "stagingRecordsCreated": "ANY_GTE(1)",
+        "phase1Triggered": true,
+        "activePanel": "Phase1Review"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "upload-readonly-on-completed-session",
+      "version": 1,
+      "verifies": [
+        "W-3.7 \u2014 upload read-only for completed sessions"
+      ],
+      "description": "When viewing a completed session's Upload panel, inputs and Start button are read-only. Configuration snapshot displayed as information.",
+      "setup": {
+        "localStorage": {
+          "sessions": [
+            {
+              "id": "s1",
+              "sessionCompletedAt": "2026-04-15T12:00:00Z"
+            }
+          ]
+        },
+        "activeSession": "s1"
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Upload"
+      },
+      "expect": {
+        "uploadPanel": {
+          "readOnly": true,
+          "configurationVisible": true,
+          "startButton": {
+            "hidden": true
+          }
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase1-review-renders-all-candidates",
+      "version": 1,
+      "verifies": [
+        "W-4.1 \u2014 renders all CandidateClass records"
+      ],
+      "description": "Phase 1 Review table displays every CandidateClass record with placement, confidence, status, justification.",
+      "setup": {
+        "activeSession": "s1",
+        "stagingRecords": [
+          {
+            "sourceIRI": "prov:Entity",
+            "placement": "bfo:IndependentContinuant",
+            "confidence": 0.75,
+            "status": "PlacementConfirmed",
+            "justification": "Property signals match IndependentContinuant"
+          },
+          {
+            "sourceIRI": "prov:Activity",
+            "placement": "bfo:Process",
+            "confidence": 0.92,
+            "status": "PlacementConfirmed",
+            "justification": "Explicit has_participant signal plus label match"
+          },
+          {
+            "sourceIRI": "prov:Bundle",
+            "placement": null,
+            "confidence": 0.45,
+            "status": "PlacementAmbiguous",
+            "normalizationStatus": "PendingHumanResolution"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Phase1Review"
+      },
+      "expect": {
+        "table": {
+          "rowCount": 3,
+          "rowsInclude": [
+            "prov:Entity",
+            "prov:Activity",
+            "prov:Bundle"
+          ],
+          "defaultSort": "PendingFirst"
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "phase1-pending-row-expands-resolver",
+      "version": 1,
+      "verifies": [
+        "W-4.3 \u2014 PendingHumanResolution resolution UI"
+      ],
+      "description": "Expanding a PlacementAmbiguous + PendingHumanResolution row reveals a resolution UI with placement selector and justification textarea.",
+      "setup": {
+        "activePanel": "Phase1Review",
+        "pendingRow": "prov:Bundle"
+      },
+      "trigger": {
+        "type": "expandRow",
+        "rowId": "prov:Bundle"
+      },
+      "expect": {
+        "expandedRow": {
+          "resolutionUi": {
+            "placementDropdown": {
+              "populated": true,
+              "includesOther": true
+            },
+            "justificationTextarea": {
+              "required": true,
+              "empty": true
+            },
+            "confirmButton": {
+              "enabled": false,
+              "reason": "justification empty"
+            }
+          }
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase1-resolve-requires-justification",
+      "version": 1,
+      "verifies": [
+        "W-4.4 \u2014 resolution requires both placement and justification"
+      ],
+      "description": "Analyst selects a placement but leaves justification empty. Confirm button remains disabled. When justification is added, button enables.",
+      "setup": {
+        "activePanel": "Phase1Review",
+        "expandedRow": "prov:Bundle"
+      },
+      "trigger": {
+        "type": "sequentialActions",
+        "actions": [
+          {
+            "type": "selectPlacement",
+            "value": "bfo:GenericallyDependentContinuant"
+          },
+          {
+            "type": "checkButton",
+            "button": "Confirm resolution"
+          },
+          {
+            "type": "enterJustification",
+            "text": "Bundle is a reified provenance record, generically dependent on its content."
+          },
+          {
+            "type": "checkButton",
+            "button": "Confirm resolution"
+          }
+        ]
+      },
+      "expect": {
+        "buttonStateProgression": [
+          {
+            "afterAction": "selectPlacement",
+            "enabled": false
+          },
+          {
+            "afterAction": "enterJustification",
+            "enabled": true
+          }
+        ]
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase1-justification-stored-permanently",
+      "version": 1,
+      "verifies": [
+        "W-4.5 \u2014 justification stored permanently",
+        "Report template Appendix A.9 support"
+      ],
+      "description": "Analyst completes resolution with justification text. Justification is stored on the CandidateClass record and remains visible (read-only) after resolution.",
+      "setup": {
+        "activePanel": "Phase1Review"
+      },
+      "trigger": {
+        "type": "submitResolution",
+        "rowId": "prov:Bundle",
+        "placement": "bfo:GenericallyDependentContinuant",
+        "justification": "Bundle is a reified provenance record."
+      },
+      "expect": {
+        "candidateRecord": {
+          "status": "PlacementConfirmed",
+          "analystJustification": {
+            "text": "Bundle is a reified provenance record.",
+            "persistedInLocalStorage": true,
+            "displayedReadOnlyAfterSubmit": true
+          }
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase1-run-phase2-blocked",
+      "version": 1,
+      "verifies": [
+        "W-4.6 \u2014 Phase 2 button grayed out while blocking items remain",
+        "Decision D-18 / Rule D2-1"
+      ],
+      "description": "Phase 1 has two PendingHumanResolution items. 'Run Phase 2' button is grayed out. Tooltip names the blocking items.",
+      "setup": {
+        "activePanel": "Phase1Review",
+        "pendingResolutions": [
+          "prov:Bundle",
+          "prov:Plan"
+        ]
+      },
+      "trigger": {
+        "type": "hover",
+        "target": "Run Phase 2 button"
+      },
+      "expect": {
+        "runPhase2Button": {
+          "enabled": false,
+          "tooltipVisible": true,
+          "tooltip": "2 items in PendingHumanResolution blocking Phase 2",
+          "blockingList": [
+            "prov:Bundle",
+            "prov:Plan"
+          ]
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "phase1-run-phase2-after-resolution",
+      "version": 1,
+      "verifies": [
+        "W-4.6 \u2014 Phase 2 button enables on zero blocking"
+      ],
+      "description": "After all Phase 1 items resolved, Run Phase 2 button enables. Clicking triggers Phase 2 and navigates.",
+      "setup": {
+        "activePanel": "Phase1Review",
+        "pendingResolutions": []
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Run Phase 2"
+      },
+      "expect": {
+        "phase2Triggered": true,
+        "activePanel": "Phase2Review"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase2-review-two-pane-layout",
+      "version": 1,
+      "verifies": [
+        "\u00a75.2 Panel structure"
+      ],
+      "description": "Phase 2 Review shows two-pane layout: left pane lists CandidateRelation records grouped by disposition, right pane shows detail of selected candidate.",
+      "setup": {
+        "activeSession": "s1",
+        "candidateRelations": [
+          {
+            "iri": "prov:wasGeneratedBy",
+            "disposition": "AutoMerged"
+          },
+          {
+            "iri": "prov:wasDerivedFrom",
+            "disposition": "DisambiguationRecord",
+            "normalizationStatus": "PendingHumanResolution"
+          },
+          {
+            "iri": "prov:atTime",
+            "disposition": "NovelPromotionPanel",
+            "normalizationStatus": "PendingHumanResolution"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Phase2Review"
+      },
+      "expect": {
+        "leftPane": {
+          "grouping": "byDisposition",
+          "pendingFirst": true,
+          "items": 3
+        },
+        "rightPane": {
+          "initiallyEmpty": false,
+          "loadsFirstPending": true
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-fingerprint-shows-all-dimensions",
+      "version": 1,
+      "verifies": [
+        "W-5.2 \u2014 six dimensions with weights",
+        "Invariant W-2 \u2014 no simplification"
+      ],
+      "description": "Right pane fingerprint section shows all six dimensions (Domain BFO, Range BFO, BFO subcategory, Characteristics, allowsInheresIn, Lexical) with values and weights. No dimension abbreviated or summarized.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "prov:wasDerivedFrom"
+      },
+      "trigger": {
+        "type": "loadCandidateDetail",
+        "candidate": "prov:wasDerivedFrom"
+      },
+      "expect": {
+        "fingerprintTable": {
+          "rows": 6,
+          "includesAllDimensions": [
+            "Domain BFO category",
+            "Range BFO category",
+            "BFO subcategory",
+            "Characteristics",
+            "allowsInheresIn",
+            "Lexical similarity"
+          ],
+          "eachRowShowsValueAndWeight": true,
+          "noAbbreviation": true
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-topN-scores-with-margins",
+      "version": 1,
+      "verifies": [
+        "W-5.3 \u2014 per-dimension contribution breakdown",
+        "W-5.4 \u2014 margin to three decimals"
+      ],
+      "description": "Right pane shows top-N proposed matches with per-dimension contribution breakdown and margins displayed to three decimal places.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "prov:wasDerivedFrom",
+        "proposedMatches": [
+          {
+            "target": "fandaws:class/relation/has-part",
+            "score": 0.722,
+            "margin": 0.042
+          },
+          {
+            "target": "fandaws:class/relation/derived-from",
+            "score": 0.68,
+            "margin": null
+          }
+        ]
+      },
+      "trigger": {
+        "type": "loadCandidateDetail"
+      },
+      "expect": {
+        "topMatchesSection": {
+          "matchCards": [
+            {
+              "target": "fandaws:class/relation/has-part",
+              "totalScore": "0.722",
+              "marginDisplayed": "0.042",
+              "perDimensionBreakdownShown": true,
+              "sumMatches": true
+            },
+            {
+              "target": "fandaws:class/relation/derived-from",
+              "totalScore": "0.680",
+              "marginToTop": "0.042"
+            }
+          ]
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-disjoint-firing-displayed-prominently",
+      "version": 1,
+      "verifies": [
+        "W-5.5 \u2014 PD-2 disjoint firings displayed"
+      ],
+      "description": "When PD-2 forced a candidate score to 0.0 due to disjointness, the disjoint firing is displayed prominently with the disjoint pair identified.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "prov:wasGeneratedBy",
+        "pd2Firings": [
+          {
+            "candidate": "fandaws:class/relation/has-part",
+            "disjointPair": [
+              "bfo:Process",
+              "bfo:MaterialEntity"
+            ],
+            "forcedTo": 0.0
+          }
+        ]
+      },
+      "trigger": {
+        "type": "loadCandidateDetail"
+      },
+      "expect": {
+        "disjointFiringIndicator": {
+          "visible": true,
+          "prominent": true,
+          "text": "Disjoint: bfo:Process \u00d7 bfo:MaterialEntity forced match to 0.0",
+          "affectedCandidate": "fandaws:class/relation/has-part"
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-four-way-action-buttons",
+      "version": 1,
+      "verifies": [
+        "W-5.6 \u2014 four-way resolution actions"
+      ],
+      "description": "DisambiguationRecord case displays four action buttons: Merge, Reject, PromoteAsSubProperty, PromoteAsNewRelation.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "prov:wasDerivedFrom",
+        "disposition": "DisambiguationRecord"
+      },
+      "trigger": {
+        "type": "loadCandidateDetail"
+      },
+      "expect": {
+        "actionButtons": [
+          "Merge",
+          "Reject",
+          "PromoteAsSubProperty",
+          "PromoteAsNewRelation"
+        ],
+        "allPresent": true
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-merge-rejects-top-property",
+      "version": 1,
+      "verifies": [
+        "W-5.7 \u2014 PD-9 named-property-only",
+        "Invariant W-3 (PD-9 row of \u00a78.5 catalog)"
+      ],
+      "description": "Analyst clicks Merge, target picker opens. `owl:topObjectProperty` is not listable. Manual entry of `owl:topObjectProperty` in the override field is rejected with a structured error.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "prov:wasDerivedFrom",
+        "mergeDialogOpen": true
+      },
+      "trigger": {
+        "type": "enterManualTarget",
+        "value": "owl:topObjectProperty"
+      },
+      "expect": {
+        "manualTargetField": {
+          "rejected": true,
+          "error": {
+            "visible": true,
+            "code": "TopPropertyEquivalenceForbidden",
+            "specificToPD9": true
+          }
+        },
+        "autocompleteSuggestions": {
+          "excludes": [
+            "owl:topObjectProperty"
+          ]
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "phase2-sub-property-greys-broader-targets",
+      "version": 1,
+      "verifies": [
+        "W-5.8 \u2014 PD-6 visible enforcement",
+        "Invariant I-3",
+        "Invariant W-3"
+      ],
+      "description": "Analyst clicks PromoteAsSubProperty, parent picker + child domain/range picker opens. The child domain selector visibly greys out any BFO node broader than the parent's domain. Tooltip explains why.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "ex:hasGeneralPart",
+        "promoteAsSubPropertyDialogOpen": true,
+        "parentChosen": "fandaws:class/relation/has-part",
+        "parentDomain": "bfo:MaterialEntity"
+      },
+      "trigger": {
+        "type": "openChildDomainPicker"
+      },
+      "expect": {
+        "childDomainPicker": {
+          "options": [
+            {
+              "value": "bfo:MaterialEntity",
+              "enabled": true
+            },
+            {
+              "value": "bfo:Organism",
+              "enabled": true,
+              "note": "Subclass of parent domain"
+            },
+            {
+              "value": "bfo:Entity",
+              "enabled": false,
+              "greyedOut": true,
+              "tooltip": "Target broader than parent \u2014 not allowed (Invariant I-3, Rule PD-6)"
+            },
+            {
+              "value": "bfo:Continuant",
+              "enabled": false,
+              "greyedOut": true
+            }
+          ]
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-sub-property-inherits-bfo-subcategory",
+      "version": 1,
+      "verifies": [
+        "W-5.9 \u2014 PD-7 BFO subcategory inheritance"
+      ],
+      "description": "On sub-property promotion, child's BFO subcategory is auto-filled from parent and is read-only.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "promoteAsSubPropertyDialogOpen": true,
+        "parentChosen": "fandaws:class/relation/obligated-to",
+        "parentBfoSubcategory": "bfo:Disposition"
+      },
+      "trigger": {
+        "type": "openChildSubcategoryField"
+      },
+      "expect": {
+        "childSubcategoryField": {
+          "value": "bfo:Disposition",
+          "readOnly": true,
+          "inheritedFromParent": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "phase2-resolution-requires-justification",
+      "version": 1,
+      "verifies": [
+        "W-5.10 \u2014 justification required"
+      ],
+      "description": "Any Phase 2 resolution (Merge, Reject, PromoteAsSubProperty, PromoteAsNewRelation) requires non-empty justification text. Submit disabled otherwise.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "mergeDialogOpen": true,
+        "targetSelected": "fandaws:class/relation/has-part"
+      },
+      "trigger": {
+        "type": "checkSubmitState",
+        "justificationEmpty": true
+      },
+      "expect": {
+        "submitButton": {
+          "enabled": false,
+          "reason": "justification empty"
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase2-novel-promotion-panel-shows-floor",
+      "version": 1,
+      "verifies": [
+        "W-5.11 \u2014 Novel Promotion floor reference"
+      ],
+      "description": "Novel Promotion case displays top-3 candidates scored below 0.60 floor for reference (so analyst can see near-misses) but these are not clickable merge targets.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "selectedCandidate": "prov:atTime",
+        "disposition": "NovelPromotionPanel",
+        "topNear": [
+          {
+            "target": "fandaws:class/relation/at-timestamp",
+            "score": 0.42
+          },
+          {
+            "target": "fandaws:class/relation/temporal-region",
+            "score": 0.38
+          },
+          {
+            "target": "fandaws:class/relation/has-moment",
+            "score": 0.31
+          }
+        ]
+      },
+      "trigger": {
+        "type": "loadCandidateDetail"
+      },
+      "expect": {
+        "novelPromotionPanel": {
+          "topNearVisible": true,
+          "topNearClickable": false,
+          "explanatoryText": "No proposed matches above 0.60 disambiguation floor",
+          "manualMergeOverride": {
+            "available": true,
+            "requiresTypedIRI": true
+          }
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-run-phase3-enabled-after-resolution",
+      "version": 1,
+      "verifies": [
+        "W-5.13 \u2014 Run Phase 3 button enabled on zero blocking"
+      ],
+      "description": "After all Phase 2 items resolved, Run Phase 3 button enables. Clicking triggers Tau Prolog sandbox with progress indicator.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "pendingResolutions": 0
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Run Phase 3"
+      },
+      "expect": {
+        "progressIndicatorDisplayed": true,
+        "phase3Triggered": true,
+        "navigationAfterCompletion": "Phase3Review"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase3-review-groups-by-violation-rule",
+      "version": 1,
+      "verifies": [
+        "W-6.1 \u2014 left pane grouped by violation rule"
+      ],
+      "description": "Phase 3 Review left pane groups quarantined axioms by violation rule. NoViolations axioms in a separate section.",
+      "setup": {
+        "activeSession": "s1",
+        "candidateAxioms": [
+          {
+            "iri": "ax1",
+            "outcome": "NoViolations"
+          },
+          {
+            "iri": "ax2",
+            "outcome": "Quarantined",
+            "rule": "TypeDisjointnessViolation"
+          },
+          {
+            "iri": "ax3",
+            "outcome": "Quarantined",
+            "rule": "TypeDisjointnessViolation"
+          },
+          {
+            "iri": "ax4",
+            "outcome": "Quarantined",
+            "rule": "RangeMismatchViolation"
+          },
+          {
+            "iri": "ax5",
+            "outcome": "Quarantined",
+            "rule": "HornDerivationUnbounded"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Phase3Review"
+      },
+      "expect": {
+        "leftPane": {
+          "sections": [
+            "TypeDisjointnessViolation",
+            "RangeMismatchViolation",
+            "HornDerivationUnbounded",
+            "NoViolations"
+          ],
+          "groupedCorrectly": true,
+          "countsPerGroup": {
+            "TypeDisjointnessViolation": 2,
+            "RangeMismatchViolation": 1,
+            "HornDerivationUnbounded": 1,
+            "NoViolations": 1
+          }
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "phase3-failure-trace-all-fields",
+      "version": 1,
+      "verifies": [
+        "W-6.2 \u2014 FailureTrace renders all PS-6 required fields"
+      ],
+      "description": "Selecting a quarantined axiom displays the FailureTrace with all required fields per Rule PS-6 populated.",
+      "setup": {
+        "activePanel": "Phase3Review",
+        "selectedAxiom": "ax2"
+      },
+      "trigger": {
+        "type": "loadAxiomDetail"
+      },
+      "expect": {
+        "failureTraceSection": {
+          "fieldsDisplayed": [
+            "violationRule",
+            "relation",
+            "subjectNode",
+            "objectNode",
+            "subjectType",
+            "objectType",
+            "disjointPair",
+            "inferenceStepsUsed",
+            "ruleSetVersion",
+            "producedAt",
+            "prologTrace",
+            "suggestedRepair"
+          ],
+          "allFieldsPopulated": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "phase3-prolog-trace-verbatim-monospace",
+      "version": 1,
+      "verifies": [
+        "W-6.3 \u2014 Prolog trace verbatim in monospace",
+        "AC-D2-17 carryforward",
+        "Invariant W-2"
+      ],
+      "description": "Prolog trace is displayed in monospace block, verbatim, with Call/Exit/Redo entries preserved. No reformatting, no summarization.",
+      "setup": {
+        "activePanel": "Phase3Review",
+        "selectedAxiom": "ax2"
+      },
+      "trigger": {
+        "type": "loadAxiomDetail"
+      },
+      "expect": {
+        "prologTraceBlock": {
+          "monospaceFont": true,
+          "verbatim": true,
+          "containsCallEntries": true,
+          "containsExitEntries": true,
+          "lineCount": "ANY_GTE(1)",
+          "noReformatting": true
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase3-prolog-trace-copy-button",
+      "version": 1,
+      "verifies": [
+        "W-6.4 \u2014 copy-to-clipboard for Prolog trace",
+        "Report template \u00a75.2 integration"
+      ],
+      "description": "Copy-to-clipboard button next to the Prolog trace emits the exact engine output, suitable for direct paste into the PROV-O report template \u00a75.2.",
+      "setup": {
+        "activePanel": "Phase3Review",
+        "selectedAxiom": "ax2",
+        "prologTraceText": "Call: violation(type_disjointness, ...)\nExit: violation(type_disjointness, ...)"
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Copy Prolog Trace"
+      },
+      "expect": {
+        "clipboard": {
+          "content": "Call: violation(type_disjointness, ...)\nExit: violation(type_disjointness, ...)",
+          "exactMatch": true,
+          "noAddedFormatting": true
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase3-suggested-repair-prominent",
+      "version": 1,
+      "verifies": [
+        "W-6.5 \u2014 suggestedRepair as primary affordance"
+      ],
+      "description": "Suggested repair text is displayed prominently above the fold as a highlighted box. Full text, no truncation.",
+      "setup": {
+        "activePanel": "Phase3Review",
+        "selectedAxiom": "ax2",
+        "suggestedRepair": "Reclassify :Driver as a bfo:MaterialEntity (e.g., a person) or select a relation type whose range permits processes."
+      },
+      "trigger": {
+        "type": "loadAxiomDetail"
+      },
+      "expect": {
+        "suggestedRepairBox": {
+          "prominent": true,
+          "aboveTheFold": true,
+          "highlighted": true,
+          "fullText": true,
+          "truncated": false
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase3-finalize-session",
+      "version": 1,
+      "verifies": [
+        "W-6.7 \u2014 Finalize Session navigates to Summary"
+      ],
+      "description": "Clicking Finalize Session sets sessionCompletedAt, writes Phase 3 summary block, and navigates to Session Summary.",
+      "setup": {
+        "activePanel": "Phase3Review",
+        "phase3Complete": true
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Finalize Session"
+      },
+      "expect": {
+        "session": {
+          "sessionCompletedAt": "ANY_ISO_DATETIME",
+          "phase3SummaryWritten": true
+        },
+        "activePanel": "SessionSummary"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "summary-three-phase-cards",
+      "version": 1,
+      "verifies": [
+        "W-7.2 \u2014 three phase summary cards"
+      ],
+      "description": "Session Summary displays three cards with counts from IngestionSession phase1Summary, phase2Summary, phase3Summary.",
+      "setup": {
+        "activeSession": "s1",
+        "sessionComplete": true,
+        "phase1Summary": {
+          "candidateClassCount": 42,
+          "placementConfirmedCount": 38,
+          "placementAmbiguousCount": 3,
+          "placementRejectedCount": 1
+        },
+        "phase2Summary": {
+          "candidateRelationCount": 15,
+          "autoMergedCount": 6,
+          "humanMergedCount": 4,
+          "promotedNewCount": 3,
+          "promotedSubPropertyCount": 1,
+          "rejectedCount": 1
+        },
+        "phase3Summary": {
+          "candidateAxiomCount": 28,
+          "noViolationsCount": 22,
+          "quarantinedCount": 5,
+          "hornUnboundedCount": 1
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "SessionSummary"
+      },
+      "expect": {
+        "summaryCards": {
+          "count": 3,
+          "phase1CountsMatch": true,
+          "phase2CountsMatch": true,
+          "phase3CountsMatch": true,
+          "linksToReviewPanels": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "summary-invariant-audit-card",
+      "version": 1,
+      "verifies": [
+        "W-7.3 \u2014 Invariant Audit card",
+        "Invariant W-3"
+      ],
+      "description": "Invariant Audit card displays PS-1 hash equality, PS-2 session ID, PS-9 closure confirmation, PD-2 firing count, PD-10 weight vector, Horn cap, Tau Prolog version. Values displayed concretely, not abstractly.",
+      "setup": {
+        "activeSession": "s1",
+        "invariantAuditData": {
+          "ps1": {
+            "hashBefore": "f58d51f4e9820bd5...",
+            "hashAfter": "f58d51f4e9820bd5...",
+            "equal": true
+          },
+          "ps2": {
+            "phase3SessionId": "prolog-session-a1b2c3"
+          },
+          "ps9": {
+            "recursiveClauses": 0,
+            "groundFactCount": 847
+          },
+          "pd2Firings": 3,
+          "pd10": {
+            "structuralSum": 0.75,
+            "lexicalWeight": 0.1
+          },
+          "hornCap": 10000,
+          "tauPrologVersion": "0.3.x"
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "SessionSummary"
+      },
+      "expect": {
+        "invariantAuditCard": {
+          "ps1HashEqualityDisplayed": true,
+          "ps1GreenCheck": true,
+          "ps2SessionIdVisible": true,
+          "ps9ClosureConfirmed": true,
+          "pd2FiringCount": 3,
+          "pd10VectorDisplayed": true,
+          "hornCapDisplayed": 10000,
+          "tauPrologVersionRecorded": "0.3.x"
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "summary-ps1-hash-mismatch-red-x",
+      "version": 1,
+      "verifies": [
+        "W-7.4 \u2014 hash mismatch indicator"
+      ],
+      "description": "If PS-1 hashes do not match (implementation bug scenario), Invariant Audit card displays red X. This would indicate a bug, not a study finding.",
+      "setup": {
+        "activeSession": "s1",
+        "invariantAuditData": {
+          "ps1": {
+            "hashBefore": "f58d51f4...",
+            "hashAfter": "abcdef12...",
+            "equal": false
+          }
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "SessionSummary"
+      },
+      "expect": {
+        "invariantAuditCard": {
+          "ps1HashEqualityDisplayed": true,
+          "ps1RedX": true,
+          "bugIndicator": true,
+          "note": "Red X indicates implementation bug \u2014 sandbox mutated canonical graph"
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "summary-export-json-bundle",
+      "version": 1,
+      "verifies": [
+        "W-7.7 \u2014 Export JSON Bundle",
+        "Report template Appendix A support"
+      ],
+      "description": "Export JSON Bundle button generates a downloadable JSON containing all session artifacts sufficient for PROV-O report Appendix A.",
+      "setup": {
+        "activeSession": "s1",
+        "sessionComplete": true
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Export Session Artifacts as JSON Bundle"
+      },
+      "expect": {
+        "downloadTriggered": true,
+        "bundleContents": {
+          "includesIngestionSession": true,
+          "includesStagingRecords": true,
+          "includesMergeRecords": true,
+          "includesDisambiguationRecords": true,
+          "includesQuarantineRecords": true,
+          "includesFailureTracesWithProlog": true,
+          "includesAnalystJustifications": true,
+          "includesConfigurationSnapshot": true,
+          "includesInvariantAuditResults": true
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "summary-download-prolog-traces",
+      "version": 1,
+      "verifies": [
+        "W-7.8 \u2014 Download Prolog Traces"
+      ],
+      "description": "Download Prolog Traces button generates a separate file with every Phase 3 Prolog trace verbatim, tagged with axiom IRI and violation rule.",
+      "setup": {
+        "activeSession": "s1",
+        "quarantineRecords": 5
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Download Prolog Traces"
+      },
+      "expect": {
+        "downloadTriggered": true,
+        "file": {
+          "containsAllTraces": 5,
+          "eachTraceTagged": {
+            "axiomIri": true,
+            "violationRule": true
+          },
+          "verbatimEngineOutput": true,
+          "noReformatting": true
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "summary-export-turtle-switches-mode",
+      "version": 1,
+      "verifies": [
+        "W-7.6 \u2014 Export Turtle triggers Export mode"
+      ],
+      "description": "Export Canonical Graph as Turtle button switches mode to Export with session-scoped context.",
+      "setup": {
+        "activeSession": "s1",
+        "sessionComplete": true
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Export Canonical Graph as Turtle"
+      },
+      "expect": {
+        "activeMode": "Export",
+        "exportScope": "session-scoped",
+        "activeSessionInExportContext": "s1"
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "error-parse-displays-line-info",
+      "version": 1,
+      "verifies": [
+        "Rule W-EH-1 \u2014 parse errors with line/position"
+      ],
+      "description": "Malformed Turtle upload produces specific line/position error. Session not created. Analyst remains on Upload panel.",
+      "setup": {
+        "activePanel": "Upload"
+      },
+      "trigger": {
+        "type": "uploadFile",
+        "filename": "broken.ttl",
+        "content": "@prefix ex: <http://example.org/> .\nex:Foo a owl:Class\nex:Bar missing-a-period"
+      },
+      "expect": {
+        "parseError": {
+          "displayed": true,
+          "lineNumber": "ANY_POSITIVE_INTEGER",
+          "specific": true,
+          "sessionCreated": false,
+          "remainsOnUploadPanel": true
+        }
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "error-invariant-firing-halts-phase",
+      "version": 1,
+      "verifies": [
+        "Rule W-EH-3 \u2014 invariant firing halts phase",
+        "TA-8 integration"
+      ],
+      "description": "During Phase 3 execution, PS-1 hash mismatch detected (implementation bug scenario). Phase halts; prominent error banner names the invariant and evidence. Progress disabled until bug is fixed.",
+      "setup": {
+        "activePanel": "Phase3Review",
+        "phase3InProgress": true,
+        "simulatedBug": "canonicalGraphMutatedByPrologSession"
+      },
+      "trigger": {
+        "type": "detectInvariantViolation",
+        "invariant": "PS-1"
+      },
+      "expect": {
+        "errorBanner": {
+          "visible": true,
+          "prominent": true,
+          "invariantNamed": "PS-1",
+          "evidenceShown": true,
+          "hashMismatch": {
+            "before": "...",
+            "after": "..."
+          }
+        },
+        "phaseHalted": true,
+        "progressionBlocked": true,
+        "bugReportGuidance": true
+      },
+      "verification_method": "hybrid"
+    },
+    {
+      "id": "accessibility-keyboard-navigation",
+      "version": 1,
+      "verifies": [
+        "Rule W-A-1 \u2014 keyboard navigation"
+      ],
+      "description": "All interactive elements are reachable via Tab/Shift-Tab. Resolution forms are fully keyboard-navigable.",
+      "setup": {
+        "activePanel": "Phase2Review",
+        "mergeDialogOpen": true
+      },
+      "trigger": {
+        "type": "keyboardNavigation",
+        "sequence": [
+          "Tab",
+          "Tab",
+          "Tab",
+          "Tab"
+        ]
+      },
+      "expect": {
+        "focusProgression": {
+          "reachesTargetPicker": true,
+          "reachesJustificationTextarea": true,
+          "reachesSubmitButton": true,
+          "reachesCancelButton": true,
+          "allElementsReachable": true
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "accessibility-color-plus-icon",
+      "version": 1,
+      "verifies": [
+        "Rule W-A-2 \u2014 color not sole carrier"
+      ],
+      "description": "Status indicators combine color with icon or text label. Color-blind analyst can distinguish PlacementConfirmed, PlacementAmbiguous, PlacementRejected by iconography.",
+      "setup": {
+        "activePanel": "Phase1Review"
+      },
+      "trigger": {
+        "type": "inspectStatusBadges"
+      },
+      "expect": {
+        "statusBadges": {
+          "placementConfirmed": {
+            "color": "green",
+            "icon": "check",
+            "textLabel": "Confirmed"
+          },
+          "placementAmbiguous": {
+            "color": "yellow",
+            "icon": "question",
+            "textLabel": "Ambiguous"
+          },
+          "placementRejected": {
+            "color": "red",
+            "icon": "x",
+            "textLabel": "Rejected"
+          },
+          "pendingResolution": {
+            "color": "orange",
+            "icon": "pause",
+            "textLabel": "Pending"
+          },
+          "colorAloneSufficient": false,
+          "iconAloneSufficient": true
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "upload-rejects-oversized-file",
+      "version": 1,
+      "verifies": [
+        "W-3.9 \u2014 file size cap at 1MB",
+        "Rule W-FS-1"
+      ],
+      "description": "Uploaded file exceeding 1MB (1,048,576 bytes) is rejected with a message explaining the v0.2 scope and pointing to v0.3 for larger ontologies. Session is not created.",
+      "setup": {
+        "activePanel": "Upload",
+        "newSessionActive": true
+      },
+      "trigger": {
+        "type": "uploadFile",
+        "filename": "huge-ontology.ttl",
+        "format": "text/turtle",
+        "contentSize": 2097152,
+        "note": "2MB file \u2014 double the cap"
+      },
+      "expect": {
+        "uploadPanel": {
+          "error": {
+            "displayed": true,
+            "code": "FileSizeExceedsV02Cap",
+            "capBytes": 1048576,
+            "receivedBytes": 2097152,
+            "messageReferencesV03": true,
+            "note": "Error message guides user toward v0.3 for larger ontology support"
+          },
+          "sessionCreated": false,
+          "remainsOnUploadPanel": true
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no partial save",
+          "description": "Rejected upload MUST NOT create a partial IngestionSession record, partial staging records, or partial localStorage writes. The Start state is atomic."
+        }
+      ],
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "upload-quota-probe-insufficient",
+      "version": 1,
+      "verifies": [
+        "W-3.10 \u2014 localStorage quota probe",
+        "Rule W-FS-2"
+      ],
+      "description": "Before session creation, Workbench probes localStorage availability. If available quota is under 2MB (e.g., because existing sessions have filled storage), upload is rejected with guidance to clear older sessions.",
+      "setup": {
+        "activePanel": "Upload",
+        "fileUploaded": true,
+        "localStorage": {
+          "simulatedAvailableQuota": 1048576,
+          "note": "1MB free \u2014 below the 2MB threshold"
+        }
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Start Session & Run Phase 1"
+      },
+      "expect": {
+        "quotaProbe": {
+          "ran": true,
+          "availableBytes": 1048576,
+          "thresholdBytes": 2097152,
+          "sufficient": false
+        },
+        "error": {
+          "displayed": true,
+          "code": "InsufficientLocalStorageQuota",
+          "guidanceIncludesSessionsPanel": true,
+          "note": "Error guides user to Sessions panel to archive/remove older sessions"
+        },
+        "sessionCreated": false
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase1-review-pagination",
+      "version": 1,
+      "verifies": [
+        "W-4.10 \u2014 pagination on Phase 1 Review",
+        "W-4.11 \u2014 global sort across pages",
+        "Rule W-PG-1"
+      ],
+      "description": "Session with 350 CandidateClass records renders with pagination. Default page size 100. Blocking items surface first regardless of page. Filter operates globally across all pages.",
+      "setup": {
+        "activeSession": "s-large",
+        "stagingRecords": {
+          "count": 350,
+          "pendingResolutions": 8,
+          "note": "8 PendingHumanResolution items scattered across what would be 4 pages"
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Phase1Review"
+      },
+      "expect": {
+        "table": {
+          "paginationVisible": true,
+          "defaultPageSize": 100,
+          "totalPages": 4,
+          "currentPage": 1,
+          "firstPageContains": {
+            "allPendingItems": 8,
+            "note": "Pending items surface first globally, so all 8 appear on page 1"
+          }
+        },
+        "globalSort": {
+          "appliedBeforePagination": true,
+          "blockingFirst": true
+        },
+        "filter": {
+          "operatesGlobally": true,
+          "example": "Filter 'Rejected' returns all rejected items regardless of page"
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase1-small-ontology-no-pagination-ui",
+      "version": 1,
+      "verifies": [
+        "W-4.10 \u2014 pagination invisible for small ontologies"
+      ],
+      "description": "Session with 30 CandidateClass records (PROV-O scale) renders without pagination UI. Pagination infrastructure exists internally but is not shown to the user when unnecessary.",
+      "setup": {
+        "activeSession": "s-provo",
+        "stagingRecords": {
+          "count": 30
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Phase1Review"
+      },
+      "expect": {
+        "table": {
+          "paginationUiVisible": false,
+          "allRowsRendered": true,
+          "rowCount": 30,
+          "note": "PROV-O fits on one page; pagination controls hidden"
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "phase2-review-pagination-preserves-pending-first",
+      "version": 1,
+      "verifies": [
+        "W-5.15 \u2014 pagination on Phase 2 Review",
+        "Rule W-PG-1"
+      ],
+      "description": "Session with 250 CandidateRelation records renders Phase 2 Review with pagination. Grouping by disposition preserved. PendingHumanResolution items surface first; AutoMerged items paginate normally. Selection navigates right pane regardless of page.",
+      "setup": {
+        "activeSession": "s-large",
+        "candidateRelations": {
+          "autoMerged": 200,
+          "disambiguationRecords": 15,
+          "novelPromotion": 35
+        }
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Phase2Review"
+      },
+      "expect": {
+        "leftPane": {
+          "paginationVisible": true,
+          "groupingPreserved": true,
+          "page1Contents": {
+            "allPendingItems": 50,
+            "autoMergedItemsOnThisPage": 50,
+            "note": "Pending items (50) fit on page 1; remaining 150 AutoMerged paginate"
+          }
+        },
+        "rightPaneSelection": {
+          "worksAcrossPages": true
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "phase3-progress-indicator-animates",
+      "version": 1,
+      "verifies": [
+        "W-5.14 \u2014 progress indicator animates during Phase 3",
+        "W-5.16 \u2014 per-axiom progress counter",
+        "Rule W-TY-1"
+      ],
+      "description": "During Phase 3 execution, progress indicator visibly animates (spinner rotates, counter increments). Implementation chunks axiom evaluations with setTimeout/requestAnimationFrame yielding. A session with 100 axioms shows counter progression '1 of 100', '11 of 100', ... not a frozen spinner.",
+      "setup": {
+        "activeSession": "s-mid",
+        "candidateAxioms": 100,
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Run Phase 3"
+      },
+      "expect": {
+        "progressIndicator": {
+          "visible": true,
+          "animating": true,
+          "counterText": "ANY_MATCHING(Processing axiom \\d+ of 100)",
+          "counterAdvances": true,
+          "spinnerRotates": true
+        },
+        "executionPattern": {
+          "chunkSize": "ANY_RANGE(10, 25)",
+          "yieldsBetweenChunks": true,
+          "note": "setTimeout(fn, 0) or requestAnimationFrame between chunks"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no UI freeze",
+          "description": "UI remains responsive during Phase 3 execution \u2014 scroll, hover, mode-switch tabs all respond. If any of these freeze for longer than a single chunk's worth of axiom evaluations, the yielding pattern has failed."
+        }
+      ],
+      "verification_method": "manual"
+    },
+    {
+      "id": "export-bundle-contains-schema-version",
+      "version": 1,
+      "verifies": [
+        "W-7.7 \u2014 bundle header with schemaVersion",
+        "W-7.10 \u2014 semantic versioning",
+        "Rule W-SV-1"
+      ],
+      "description": "Export JSON Bundle contains a bundle header with schemaVersion, workbenchVersion, fandawsVersion, and generatedAt. v0.2 ships with schemaVersion '1.0'. This enables cross-test comparison across calibration series.",
+      "setup": {
+        "activeSession": "s-provo",
+        "sessionComplete": true
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Export Session Artifacts as JSON Bundle"
+      },
+      "expect": {
+        "downloadedBundle": {
+          "hasHeader": true,
+          "headerFields": {
+            "schemaVersion": "1.0",
+            "workbenchVersion": "0.2",
+            "fandawsVersion": "ANY_NONEMPTY_STRING",
+            "generatedAt": "ANY_ISO_DATETIME"
+          }
+        }
+      },
+      "verification_method": "programmatic"
+    },
+    {
+      "id": "upload-config-locked-message-visible",
+      "version": 1,
+      "verifies": [
+        "W-3.7 \u2014 Configuration Locked message"
+      ],
+      "description": "Viewing Upload panel for a completed session displays Start button replaced with 'Configuration Locked. Start a New Session to change parameters.' text. Not just a greyed button \u2014 explicit guidance.",
+      "setup": {
+        "localStorage": {
+          "sessions": [
+            {
+              "id": "s-completed",
+              "sessionCompletedAt": "2026-04-15T12:00:00Z"
+            }
+          ]
+        },
+        "activeSession": "s-completed"
+      },
+      "trigger": {
+        "type": "navigateTo",
+        "panel": "Upload"
+      },
+      "expect": {
+        "uploadPanel": {
+          "readOnly": true,
+          "startButtonState": "locked",
+          "lockedMessageVisible": true,
+          "lockedMessageText": "Configuration Locked. Start a New Session to change parameters.",
+          "recoveryActionObvious": true
+        }
+      },
+      "verification_method": "manual"
+    },
+    {
+      "id": "upload-owl-imports-recorded-not-followed",
+      "version": 1,
+      "verifies": [
+        "W-3.11 \u2014 owl:imports recorded but not followed",
+        "W-IM-1"
+      ],
+      "description": "Upload of PROV-O source containing `owl:imports <http://www.w3.org/2006/time>` declarations. IngestionSession metadata records the import IRIs in a declaredImports field. The import targets are NOT fetched, parsed, or merged into the candidate set. Classes and properties referencing time: IRIs appear as external references in domain/range positions, handled by the pipeline's existing external-reference machinery.",
+      "verification_method": "programmatic",
+      "setup": {
+        "activePanel": "Upload",
+        "fileUploaded": true,
+        "uploadedContent": "@prefix prov: <http://www.w3.org/ns/prov#> .\n@prefix time: <http://www.w3.org/2006/time#> .\nprov: owl:imports <http://www.w3.org/2006/time> .\nprov:atTime a owl:ObjectProperty ; rdfs:range time:Instant ."
+      },
+      "trigger": {
+        "type": "clickButton",
+        "button": "Start Session & Run Phase 1"
+      },
+      "expect": {
+        "ingestionSession": {
+          "declaredImports": [
+            "http://www.w3.org/2006/time"
+          ],
+          "importsFollowed": false
+        },
+        "candidateSet": {
+          "includesProvAtTime": true,
+          "note": "prov:atTime is directly declared \u2192 candidate"
+        },
+        "externalReferences": {
+          "includesTimeInstant": true,
+          "note": "time:Instant appears as external IRI in range, not as a candidate class"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no transitive fetch",
+          "description": "The parser MUST NOT attempt to fetch, parse, or merge the content of imported ontologies. A session referring to imports does not make a network call or produce candidates from the imported graphs."
+        },
+        {
+          "condition": "no silent failure",
+          "description": "References to entities from imported ontologies (e.g., time:Instant in a range) MUST NOT cause session failure. They are preserved as external IRI strings for pipeline handling."
+        }
+      ]
+    },
+    {
+      "id": "tau-prolog-bundled-no-cdn",
+      "version": 1,
+      "verifies": [
+        "W-D-20 \u2014 Tau Prolog bundled",
+        "W-TP-1",
+        "Edge-canonical first principle"
+      ],
+      "description": "Workbench v0.2 loaded in a browser with DevTools Network tab recording active. Phase 3 sandbox runs on a session. Inspect Network tab: NO CDN requests for tau-prolog were made. Inspect the loaded bundle: Tau Prolog code is present as bundled ES module. Phase 3 execution produces a genuine Prolog trace (Call/Exit/Redo entries, parseable as Prolog). The trace is byte-identical to what the Node.js AVC test harness produces for the same axiom input.",
+      "verification_method": "hybrid",
+      "setup": {
+        "workbenchBundleLoaded": true,
+        "networkInspectionEnabled": true,
+        "activeSession": "s-test",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "test-axiom",
+            "axiomType": "SubclassRestriction"
+          }
+        ]
+      },
+      "expect": {
+        "networkActivity": {
+          "tauPrologCDNRequests": 0,
+          "scriptTagInjections": 0,
+          "note": "Tau Prolog available without network fetch"
+        },
+        "bundleInspection": {
+          "tauPrologPresent": true,
+          "loadedAsESModule": true,
+          "versionMatchesPackageJson": true
+        },
+        "executionOutput": {
+          "prologTrace": "ANY_GENUINE_PROLOG_TRACE",
+          "containsCallExitEntries": true,
+          "parseableAsProlog": true,
+          "matchesNodeHarnessOutputForSameInput": true
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no window.pl global",
+          "description": "Tau Prolog MUST NOT be attached as a window global via script tag injection. It is imported as an ES module from the bundled output."
+        },
+        {
+          "condition": "no JavaScript harness substitution",
+          "description": "The Phase 3 sandbox in the browser MUST use actual Tau Prolog, not a JS implementation of Prolog-like resolution. Any scenario asserting 'genuine Prolog trace' (e.g., #36) must produce output indistinguishable from what the Node.js test harness produces for the same axiom input. This is AC-D2-17 carried forward to the browser."
+        }
+      ]
+    },
+    {
+      "id": "prov-o-readiness-end-to-end",
+      "version": 1,
+      "verifies": [
+        "AC-W-PROV-O \u2014 acceptance gate"
+      ],
+      "description": "End-to-end scenario: analyst completes PROV-O Pass 1 using only the UI. Upload, Phase 1 resolution, Phase 2 resolution, Phase 3 review, Session Summary, artifact export. Resulting artifacts sufficient to populate PROV-O report template through \u00a77.",
+      "setup": {
+        "workbenchVersion": "0.2",
+        "localStorage": {
+          "empty": true
+        },
+        "provoSource": "https://www.w3.org/ns/prov-o.ttl"
+      },
+      "trigger": {
+        "type": "sequentialUiActions",
+        "actions": [
+          {
+            "step": 1,
+            "action": "navigateTo",
+            "panel": "Sessions"
+          },
+          {
+            "step": 2,
+            "action": "clickButton",
+            "button": "New Ingestion Session"
+          },
+          {
+            "step": 3,
+            "action": "uploadFile",
+            "filename": "prov-o.ttl"
+          },
+          {
+            "step": 4,
+            "action": "clickButton",
+            "button": "Start Session & Run Phase 1"
+          },
+          {
+            "step": 5,
+            "action": "resolveAllPhase1Ambiguous",
+            "count": "ANY",
+            "requireJustifications": true
+          },
+          {
+            "step": 6,
+            "action": "clickButton",
+            "button": "Run Phase 2"
+          },
+          {
+            "step": 7,
+            "action": "resolveAllPhase2Disambiguations",
+            "count": "ANY",
+            "requireJustifications": true
+          },
+          {
+            "step": 8,
+            "action": "clickButton",
+            "button": "Run Phase 3"
+          },
+          {
+            "step": 9,
+            "action": "reviewAllPhase3Quarantines",
+            "copyPrologTraces": true
+          },
+          {
+            "step": 10,
+            "action": "clickButton",
+            "button": "Finalize Session"
+          },
+          {
+            "step": 11,
+            "action": "clickButton",
+            "button": "Export Session Artifacts as JSON Bundle"
+          },
+          {
+            "step": 12,
+            "action": "clickButton",
+            "button": "Export Canonical Graph as Turtle"
+          },
+          {
+            "step": 13,
+            "action": "clickButton",
+            "button": "Download Prolog Traces"
+          }
+        ]
+      },
+      "expect": {
+        "endToEndCompletable": true,
+        "noConsoleCommandsRequired": true,
+        "noJsonManualExtraction": true,
+        "artifactsProduced": {
+          "ingestionSessionRecord": true,
+          "stagingRecords": true,
+          "mergeRecords": true,
+          "disambiguationRecords": true,
+          "quarantineRecordsWithPrologTraces": true,
+          "analystJustificationsPhase1": true,
+          "analystJustificationsPhase2": true,
+          "turtleExport": true,
+          "invariantAuditEvidence": true,
+          "prologTracesBundle": true
+        },
+        "reportTemplateSectionsSatisfied": {
+          "\u00a73.1": "filled from Phase 1 Review",
+          "\u00a74.1": "filled from Phase 2 Review",
+          "\u00a75.2": "filled from Phase 3 Review with verbatim traces",
+          "\u00a76.1": "filled from Invariant Audit card",
+          "\u00a77.1": "filled from Turtle export inspection",
+          "AppendixA": "filled from JSON bundle export"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no developer console",
+          "description": "At no point in the end-to-end flow does the analyst open developer console, run commands, or inspect localStorage directly. Every needed artifact is produced by UI action."
+        },
+        {
+          "condition": "no JSON editing",
+          "description": "Analyst never manually writes or edits JSON to produce artifacts. All artifacts generated by UI with structured export."
+        }
+      ],
+      "verification_method": "hybrid"
+    }
+  ]
+}

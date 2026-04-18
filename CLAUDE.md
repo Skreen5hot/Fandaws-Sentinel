@@ -23,7 +23,7 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
   - Consequence-Aware Reclassification — complete (3 options: keep/subtree/only)
   - Homonym Detection (v1.3) — Phase A complete
   - Workbench v0.1 — complete (GitHub Pages)
-- **Remaining:** P14 (Ecosystem Adapters) on hold pending Weaver SDK. FANDAWS v2.1 roadmap is complete.
+- **Remaining:** Workbench v0.2 (Ingest Mode — 60 AVC scenarios, PROV-O readiness gate). P14 (Ecosystem Adapters) on hold pending Weaver SDK. FANDAWS v2.1 pipeline roadmap is complete; Workbench v0.2 provides the UI surface.
 - **Active AVC:** 178 scenarios across 7 bundles (P12: 25, P13: 24, Phase B: 27, C1: 26, C2: 20, D1: 23, D2: 33) — all run on every build, regressions are P0
 - **Remaining Specs:** Ontology Ingestion Phase B (general ontology import, needs Workbench v0.2 UI)
 

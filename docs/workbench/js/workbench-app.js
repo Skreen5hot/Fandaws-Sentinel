@@ -8,6 +8,7 @@ import { WorkbenchStateManager } from './workbench-state.js';
 import { initGraphTree } from './panels/graph-tree.js';
 import { initConverse, showConverse, hideConverse } from './panels/converse.js';
 import { initExport, showExport, hideExport } from './panels/export-panel.js';
+import { initIngest, showIngest, hideIngest } from './panels/ingest/ingest-mode.js';
 import { initInspector } from './panels/inspector.js';
 import { initStatusBar } from './panels/status-bar.js';
 
@@ -38,6 +39,7 @@ const statusBar = document.getElementById('status-bar');
 initGraphTree(panelTree, state);
 initConverse(panelWorkspace, state);
 initExport(panelWorkspace, state);
+initIngest(panelWorkspace, state);
 initInspector(panelInspector, state);
 initStatusBar(statusBar, state);
 
@@ -56,9 +58,15 @@ function switchMode(mode) {
   if (mode === 'converse') {
     showConverse(panelWorkspace);
     hideExport(panelWorkspace);
+    hideIngest(panelWorkspace);
   } else if (mode === 'export') {
     hideConverse(panelWorkspace);
     showExport(panelWorkspace);
+    hideIngest(panelWorkspace);
+  } else if (mode === 'ingest') {
+    hideConverse(panelWorkspace);
+    hideExport(panelWorkspace);
+    showIngest(panelWorkspace);
   }
 
   state.bus.emit('workspace-switched', { mode });
@@ -80,13 +88,22 @@ if (resetBtn) {
       // Re-initialize export panel
       panelWorkspace.querySelector('.wb-export')?.remove();
       initExport(panelWorkspace, state);
+      // Re-initialize ingest panel
+      panelWorkspace.querySelector('.wb-ingest')?.remove();
+      initIngest(panelWorkspace, state);
       // Ensure correct mode visibility
       if (currentMode === 'converse') {
         showConverse(panelWorkspace);
         hideExport(panelWorkspace);
-      } else {
+        hideIngest(panelWorkspace);
+      } else if (currentMode === 'export') {
         hideConverse(panelWorkspace);
         showExport(panelWorkspace);
+        hideIngest(panelWorkspace);
+      } else if (currentMode === 'ingest') {
+        hideConverse(panelWorkspace);
+        hideExport(panelWorkspace);
+        showIngest(panelWorkspace);
       }
     }
   });

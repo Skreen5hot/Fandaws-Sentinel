@@ -11,9 +11,9 @@
  * @see docs/architecture/phase-d2-avc-bundle.json
  */
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pl = require('tau-prolog');
+// tau-prolog is CJS — import via default export
+import tauProlog from 'tau-prolog';
+const pl = tauProlog;
 
 // ── Recognized axiom types (Rule PS-3) ──
 const RECOGNIZED_AXIOM_TYPES = new Set([

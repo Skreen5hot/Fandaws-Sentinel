@@ -1914,6 +1914,225 @@ The consistency sandbox uses **Tau Prolog** (a Prolog interpreter written in Jav
 
 ---
 
+## Workbench v0.2: Ingest Mode
+
+**Goal:** Add Ingest mode as a third workspace alongside Converse and Export. Provides the UI surface for the D1/D2 bulk ingestion pipeline. Primary driver: PROV-O Calibration Study requires a UI for three-phase ingestion with structured artifact capture.
+**Status:** Not Started (depends on D1 + D2 complete)
+**Priority:** High
+**Effort:** High (60 AVC scenarios, six panels, two new npm dependencies, localStorage persistence)
+**Depends on:** Phase D2 complete (178/178 AVC scenarios). Workbench v0.1 Converse + Export modes functional.
+**Spec:** `docs/architecture/workbench-v0.2-spec.md` (v1.0, 719 lines)
+**AVC Bundle:** `docs/architecture/workbench-v0.2-avc-bundle.json` (v1.2, delivered 2026-04-18, 60 scenarios — 20 programmatic, 20 manual, 20 hybrid)
+**Cover Memo:** `docs/architecture/workbench-v0.2-cover-memo.md`
+**Acceptance Gate:** AC-W-PROV-O — Aaron completes PROV-O Pass 1 end-to-end through the UI with artifacts sufficient to populate the calibration study report template through §7.
+
+### Design Invariants (Load-Bearing)
+
+- **W-1 — Workspace, not wizard.** Panels navigable non-linearly; state persists across mode switches. Analyst may interleave ingestion and conversational work.
+- **W-2 — UI never simplifies evidence.** Fingerprint breakdowns show all six dimensions with weights. Prolog traces verbatim in monospace. Margins to three decimals.
+- **W-3 — Invariants visibly enforced.** PD-6 greys out broader targets. PD-9 rejects `owl:topObjectProperty`. PD-10 validated at session init. PS-1 hash equality in Session Summary.
+
+### WB-0.2.1 New Dependencies and Infrastructure
+
+**Spec Reference:** §12.1; Decisions W-D-20, W-D-21
+
+**Deliverables:**
+- `n3.js` npm dependency (Turtle/N-Triples/N3 parsing, browser-compatible)
+- `rdfxml-streaming-parser` npm dependency (RDF/XML parsing, browser-compatible)
+- `src/core/ingestion/ontology-parser.js` — General-purpose ontology parser: takes format-agnostic triple stream, produces D1/D2 pipeline input shape `{ classes, properties }`
+- Tau Prolog bundled via esbuild (W-D-20, W-TP-1) — no CDN, no `window.pl` global, no JS harness substitute
+- esbuild config updated to bundle n3.js, rdfxml-streaming-parser, and tau-prolog into `docs/dist/fandaws.js`
+
+**Acceptance Criteria:**
+- [ ] `n3.js` and `rdfxml-streaming-parser` installed and bundled via esbuild; RDF library correctness implicitly verified through Upload scenarios (9, 10, 58)
+- [ ] `ontology-parser.js` extracts `owl:Class`, `rdfs:subClassOf`, `owl:ObjectProperty`, `rdfs:domain`, `rdfs:range`, property characteristics, `rdfs:label`, `owl:equivalentClass`, `owl:disjointWith` from both Turtle and RDF/XML input
+- [ ] `ontology-parser.js` handles language tags correctly: prefers `@en` labels, falls back to no-language-tag labels (per §12.1)
+- [ ] Anonymous classes in restriction positions emitted as `ComplexExpression` markers (not silent failures)
+- [ ] Tau Prolog bundled into browser output — no CDN requests, no `window.pl` global, genuine Prolog traces in browser match Node.js output (scenario 59)
+- [ ] PROV-O `.owl` file (RDF/XML, 1788 lines) parseable with correct class/property counts
+- [ ] esbuild bundle size measured before/after dependency additions (baseline diagnostic for v0.3 drift tracking)
+
+### WB-0.2.2 Mode Switcher + Sessions Panel
+
+**Spec Reference:** §1.2, §2; Decisions W-D-5, W-D-6, W-D-12
+**AVC Scenarios:** Band 1 (1–3), Band 2 (4–8)
+
+**Deliverables:**
+- Mode switcher extended to three tabs (Converse / Ingest / Export)
+- `docs/workbench/js/panels/ingest/sessions-panel.js`
+- localStorage persistence for IngestionSession records
+
+**Acceptance Criteria:**
+- [ ] Three mode tabs; clicking Ingest shows Sessions panel; Converse and Export unchanged
+- [ ] State preserved across mode switches (W-SP-1): session, panel, in-progress form text
+- [ ] Page reload restores last-active session from localStorage (W-SP-2)
+- [ ] Sessions panel lists all IngestionSession records from localStorage with phase badges
+- [ ] Blocking pill (red) shows PendingHumanResolution count
+- [ ] "New Ingestion Session" creates session with fresh UUID, navigates to Upload
+- [ ] Click session card routes to appropriate phase panel (blocker panel if blocking items exist)
+- [ ] Empty state with instructional text when zero sessions
+- [ ] Sessions persist across page reloads (VD-5: never deleted)
+
+### WB-0.2.3 Upload Panel
+
+**Spec Reference:** §3; Decisions W-D-15, W-D-19, W-D-21
+**AVC Scenarios:** Band 3 — scenarios 9–16, 50, 51, 57, 58 (12 scenarios)
+
+**Deliverables:**
+- `docs/workbench/js/panels/ingest/upload-panel.js`
+- File upload via FileReader (`.ttl`, `.owl`, `.rdf`, `.n3`, `.nt`)
+- Paste input with format auto-detection
+- Collapsible Session Configuration panel with all six D2 parameters
+- Weight vector live validation (PD-10)
+- File size cap (1MB, W-FS-1) and localStorage quota probe (W-FS-2)
+- `owl:imports` recording (W-IM-1) — recorded but NOT followed
+
+**Acceptance Criteria:**
+- [ ] File upload accepts Turtle, OWL/RDF-XML, N3, N-Triples; rejects unsupported formats with clear error
+- [ ] Paste input with format auto-detection (content sniff for `@prefix` vs `<?xml`)
+- [ ] Source preview shows estimated class/property counts before Start
+- [ ] Advanced config collapsed by default; six parameters editable when expanded
+- [ ] Weight vector live validation: Start button disabled when structural sum < 0.70 or lexical > 0.10; structured error names offending parameter
+- [ ] Start button triggers Phase 1 sandbox, creates session + staging records, records Tau Prolog version, navigates to Phase 1 Review
+- [ ] Configuration immutable after session start; Upload panel read-only for completed sessions
+- [ ] "Configuration Locked" message: completed sessions show "Configuration Locked. Start a New Session to change parameters." — explicit recovery guidance, not just a greyed button (scenario 57)
+- [ ] File size > 1MB rejected with message referencing v0.3 for larger ontologies
+- [ ] localStorage quota probe before session creation; < 2MB free → rejected with guidance to clear sessions
+- [ ] `owl:imports` declarations recorded in `declaredImports` field but NOT followed; only directly-declared classes/properties become candidates
+
+### WB-0.2.4 Phase 1 Review Panel
+
+**Spec Reference:** §4; Decisions W-D-16
+**AVC Scenarios:** Band 4 — scenarios 17–22, 52, 53 (8 scenarios)
+
+**Deliverables:**
+- `docs/workbench/js/panels/ingest/phase1-review-panel.js`
+- CandidateClass table with sort/filter
+- Inline resolution UI for PendingHumanResolution rows
+- Pagination (default page size 100, W-PG-1)
+
+**Acceptance Criteria:**
+- [ ] Table renders all CandidateClass records with placement, confidence, status, justification
+- [ ] PendingHumanResolution rows expand to show resolution UI (placement dropdown + justification textarea)
+- [ ] Resolution requires both placement selection AND non-empty justification; submit disabled otherwise
+- [ ] Analyst justification stored permanently on CandidateClass record; read-only after submit
+- [ ] Run Phase 2 button greyed out while PendingHumanResolution items remain; tooltip names blocking items
+- [ ] Run Phase 2 enables on zero blocking; clicking triggers Phase 2 and navigates
+- [ ] Default sort: Pending first, then Ambiguous, then Confirmed, then Rejected — operates globally across pages
+- [ ] Pagination visible for > 100 rows; hidden for small ontologies (PROV-O ~30 classes)
+
+### WB-0.2.5 Phase 3 Review Panel (built before Phase 2 per W-D-13)
+
+**Spec Reference:** §6; Decisions W-D-17
+**AVC Scenarios:** Band 6 — scenarios 34–39, 55 (7 scenarios)
+
+**Deliverables:**
+- `docs/workbench/js/panels/ingest/phase3-review-panel.js`
+- Two-pane layout: axioms grouped by violation rule (left), detail view (right)
+- FailureTrace rendering with all PS-6 fields
+- Prolog trace verbatim monospace with copy-to-clipboard
+- Suggested repair highlighted box above the fold
+- Finalize Session action
+- Chunked-yielding Phase 3 execution with animated progress indicator (W-TY-1)
+
+**Acceptance Criteria:**
+- [ ] Left pane groups axioms by outcome: quarantined sub-grouped by violation rule, NoViolations separate
+- [ ] Right pane FailureTrace shows all required fields per PS-6 (violationRule, relation, subjectNode, objectNode, subjectType, objectType, disjointPair, inferenceStepsUsed, ruleSetVersion, producedAt)
+- [ ] Prolog trace verbatim in monospace block; Call/Exit/Redo entries preserved (AC-D2-17 carryforward, Invariant W-2)
+- [ ] Copy-to-clipboard button emits exact engine output suitable for PROV-O report §5.2
+- [ ] Suggested repair displayed prominently above the fold as highlighted box; full text, no truncation
+- [ ] NoViolations case shows inferenceStepsUsed and compilation target link
+- [ ] Finalize Session writes sessionCompletedAt + Phase 3 summary block, navigates to Session Summary
+- [ ] Phase 3 progress indicator animates with per-axiom counter ("Processing axiom N of M"); UI thread yields between chunks (setTimeout/rAF, 10–25 axioms per chunk)
+
+### WB-0.2.6 Phase 2 Review Panel (most complex — built last per W-D-13)
+
+**Spec Reference:** §5; Decisions W-D-16
+**AVC Scenarios:** Band 5 — scenarios 23–33, 54 (12 scenarios)
+
+**Deliverables:**
+- `docs/workbench/js/panels/ingest/phase2-review-panel.js`
+- Two-pane layout: candidates grouped by disposition (left), detail view (right)
+- Full six-dimension fingerprint display with weighted contributions
+- Top-N candidate match cards with per-dimension breakdown and margins to three decimals
+- PD-2 disjoint firing indicator
+- Four-way resolution actions (Merge / Reject / PromoteAsSubProperty / PromoteAsNewRelation)
+- PD-6 visible enforcement (broader targets greyed out with tooltip)
+- PD-7 BFO subcategory inheritance (read-only on child)
+- PD-9 merge target validation (rejects `owl:topObjectProperty`)
+- Pagination (default page size 100, W-PG-1)
+
+**Acceptance Criteria:**
+- [ ] Left pane lists CandidateRelation records grouped by disposition; PendingHumanResolution first
+- [ ] Right pane fingerprint section shows all six dimensions with values AND weights — no abbreviation (Invariant W-2)
+- [ ] Top-N match cards show per-dimension contribution breakdown; analyst can reconstruct total by summing
+- [ ] Margin to three decimal places between top/second candidates
+- [ ] PD-2 disjoint firings prominently indicated: "Disjoint: bfo:X x bfo:Y forced match to 0.0"
+- [ ] Four action buttons present and functional for DisambiguationRecord cases
+- [ ] Merge target picker rejects `owl:topObjectProperty` (PD-9); manual override also rejected with structured error
+- [ ] Sub-property promotion target picker greys out broader-than-parent options with tooltip (PD-6, Invariant I-3, Invariant W-3)
+- [ ] Sub-property promotion auto-inherits parent's BFO subcategory; child field read-only (PD-7)
+- [ ] All resolutions require non-empty justification text; submit disabled otherwise
+- [ ] Novel Promotion shows top-3 below-floor candidates for reference (not clickable as merge targets)
+- [ ] AutoMerged case is read-only with MergeRecord link
+- [ ] Run Phase 3 enables on zero PendingHumanResolution
+- [ ] Pagination preserves disposition grouping; pending items surface first across pages
+
+### WB-0.2.7 Session Summary Panel
+
+**Spec Reference:** §7; Decisions W-D-18
+**AVC Scenarios:** Band 7 — scenarios 40–45, 56 (7 scenarios)
+
+**Deliverables:**
+- `docs/workbench/js/panels/ingest/session-summary-panel.js`
+- Three phase summary cards with counts
+- Invariant Audit card (PS-1 hash equality, PS-2 session ID, PS-9 closure, PD-2 firings, PD-10 vector, Horn cap, Tau Prolog version)
+- Export block: Turtle, JSON Bundle (with schemaVersion "1.0"), Prolog Traces download
+
+**Acceptance Criteria:**
+- [ ] Session metadata block displays all recorded fields
+- [ ] Three phase summary cards with counts from phase1Summary/phase2Summary/phase3Summary; links to review panels
+- [ ] Invariant Audit card: PS-1 hash equality with green check (red X on mismatch), PS-2 session ID, PS-9 closure confirmation, PD-2 firing count, PD-10 structural sum + lexical weight, Horn cap, Tau Prolog version
+- [ ] MergeRecord count links to simple table view
+- [ ] Export Turtle switches to Export mode with session scope
+- [ ] Export JSON Bundle: downloadable JSON with bundle header (`schemaVersion: "1.0"`, `workbenchVersion: "0.2"`, `fandawsVersion`, `generatedAt`) containing all session artifacts (staging, merge, disambiguation, quarantine records with Prolog traces, analyst justifications, config snapshot, invariant audit)
+- [ ] Download Prolog Traces: separate file with every trace verbatim, tagged by axiom IRI and violation rule
+- [ ] Session Summary is read-only
+- [ ] schemaVersion follows semver (MAJOR for removals/renames, MINOR for additions)
+
+### WB-0.2.8 Cross-Panel Concerns
+
+**Spec Reference:** §8; Decisions W-D-4, W-D-10, W-D-20
+**AVC Scenarios:** Band 8 — scenarios 46–49, 59 (5 scenarios)
+
+**Acceptance Criteria:**
+- [ ] Parse errors on upload display specific line/position info; session not created (W-EH-1)
+- [ ] Invariant firing during execution halts phase with prominent error banner naming invariant + evidence; progression blocked (W-EH-3)
+- [ ] All interactive elements keyboard-accessible (W-A-1)
+- [ ] Status indicators pair color with icon/text — color alone insufficient (W-A-2)
+- [ ] Tau Prolog bundled via esbuild — no CDN requests, no `window.pl` global, genuine Prolog traces matching Node.js output (W-TP-1)
+
+### WB-0.2.9 Acceptance Gate — PROV-O Readiness
+
+**Spec Reference:** §9
+**AVC Scenario:** #60 (`prov-o-readiness-end-to-end`)
+
+**Acceptance Criteria:**
+- [ ] Aaron completes full PROV-O Pass 1 through UI: upload → Phase 1 → Phase 2 → Phase 3 → Session Summary → export
+- [ ] No console commands, no manual JSON extraction, no localStorage inspection
+- [ ] Artifacts produced: session record, staging records, merge records, disambiguation records, quarantine records with Prolog traces, analyst justifications (Phase 1 + Phase 2), Turtle export, invariant audit evidence, Prolog traces bundle
+- [ ] Report template sections satisfied: §3.1 from Phase 1, §4.1 from Phase 2, §5.2 from Phase 3 with verbatim traces, §6.1 from Invariant Audit, §7.1 from Turtle, Appendix A from JSON bundle
+
+**Workbench v0.2 totals:** 60 AVC scenarios across nine bands: mode switcher + persistence (3), sessions panel (5), upload panel (12), Phase 1 Review (8), Phase 2 Review (12), Phase 3 Review (7), Session Summary (7), cross-panel (5), acceptance gate (1). Verification split: 20 programmatic (Jest/Node CI), 20 manual (PROV-O dry run checklist), 20 hybrid (both). Band-to-scenario mapping uses non-contiguous ranges because v1.1 and v1.2 additions appended at tail.
+
+**Implementation sequencing (W-D-13):** Mode switcher → Sessions/Upload → Phase 1 Review → Phase 3 Review → Phase 2 Review → Session Summary → cross-panel → PROV-O dry run.
+
+**Spot-check transcript targets:** End-to-end PROV-O session walkthrough, PD-6 visible enforcement (greyed broader targets with tooltip), Invariant Audit card (all invariants green), bundle export JSON with schemaVersion header (reference exemplar for calibration-series tooling).
+
+**NOT in Workbench v0.2:** Alignment comparison UI, live weight vector tuning, re-run with different config button, per-axiom Phase 3 re-run, batch resolution, import-closure handling, multi-user, full WCAG AA audit, automated browser testing (Playwright/Cypress), Web Worker Tau Prolog, large-ontology performance tuning.
+
+---
+
 ## Decisions Deferred
 
 | Decision | Options | Decide By |

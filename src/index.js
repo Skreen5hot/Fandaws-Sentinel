@@ -190,3 +190,13 @@ export { OrchestrationAdapter } from './adapters/orchestration/orchestration-ada
 // Adapter implementations (Phase 8)
 export { NullIntegrationAdapter } from './adapters/integration/null-integration-adapter.js';
 export { SynchronousOrchestrationAdapter } from './adapters/orchestration/synchronous-orchestration-adapter.js';
+
+// M2M Orchestration (Phase 13)
+export { M2MOrchestrationAdapter } from './adapters/orchestration/m2m-orchestration-adapter.js';
+
+// Ingestion pipeline (Phases D1, D2)
+export { evaluatePlacement, routePlacement } from './core/ingestion/placement-sandbox.js';
+export { buildFingerprint, scoreAgainstAll, validateWeightVector, DEFAULT_WEIGHT_VECTOR, computeMatchScore } from './core/ingestion/fingerprint-matcher.js';
+export { routeCandidate, validateSubPropertyPromotion, validateMergeTarget } from './core/ingestion/disambiguation-router.js';
+export { buildFactBase, extractSubclassFacts } from './core/ingestion/fact-base-builder.js';
+export { parseOntology, detectFormat } from './core/ingestion/ontology-parser.js';

@@ -35,6 +35,8 @@
     "jest": "^30.2.0"
   },
   "dependencies": {
+    "n3": "^2.0.3",
+    "rdfxml-streaming-parser": "^3.2.0",
     "tau-prolog": "^0.3.4"
   }
 }

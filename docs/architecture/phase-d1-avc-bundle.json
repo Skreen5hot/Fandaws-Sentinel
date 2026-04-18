@@ -1,0 +1,1163 @@
+{
+  "bundle_id": "phase-d1-pipeline-class-placement",
+  "bundle_version": 1,
+  "authored": "2026-04-17",
+  "status": "awaits_implementation",
+  "verifies_phase": "Phase D1 \u2014 Ingestion Pipeline Infrastructure + Class Placement",
+  "depends_on": "Phase C2 (quarantine store, RECC, provenance authority required)",
+  "locked_decisions": {
+    "D-1": "Phase split: D1 (pipeline + class placement) + D2 (disambiguation + consistency). D1 ships first.",
+    "D-2": "Ingestion pipeline is batch, not conversational. No interactive prompts. Violations \u2192 quarantine or PendingHumanResolution.",
+    "D-3": "Class placement sandbox: JavaScript validation. Heuristic rules return placement + confidence + justification.",
+    "D-4": "Blocking rule: Phase N+1 cannot begin while Phase N has PendingHumanResolution items.",
+    "D-5": "Ingestion session records: permanent, never deleted (VD-5).",
+    "D-6": "Candidate staging records: CandidateClass shape with source metadata.",
+    "D-7": "Placement thresholds: >=0.7 single (or delta >=0.15 over runner-up) = Confirmed, >=0.7 with delta <0.15 = Ambiguous, <0.7 = Ambiguous, none = Rejected. Delta is tunable parameter.",
+    "clarification_rename": "_quarantineStore renamed to _sourceAxiomGraph per VD-1 alignment.",
+    "clarification_bfo": "BFO re-ingestion auto-re-evaluates all placements. Only classes dropping below 0.7 go to PendingHumanResolution."
+  },
+  "scenarios": [
+    {
+      "id": "session-created-with-metadata",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 5.9.1 \u2014 IngestionSession",
+        "Decision D-5"
+      ],
+      "description": "Starting an ingestion session creates an IngestionSession record with source ontology, start timestamp, and initial counters at zero.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "startIngestionSession",
+        "sourceOntology": "https://example.org/cco/1.4",
+        "autoMergeThreshold": 0.85
+      },
+      "expect": {
+        "session": {
+          "exists": true,
+          "sourceOntology": "https://example.org/cco/1.4",
+          "sessionStartedAt": "ANY_ISO_DATETIME",
+          "sessionCompletedAt": null,
+          "classesIngested": 0,
+          "autoMergeThreshold": 0.85
+        }
+      }
+    },
+    {
+      "id": "session-retained-permanently",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule VD-5 \u2014 sessions never deleted"
+      ],
+      "description": "After a completed ingestion session with all items resolved, the session record remains in the Canonical Lane. It is never deleted.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "completedSessions": [
+          {
+            "sessionId": "fandaws:session/old",
+            "sourceOntology": "https://example.org/old-ontology",
+            "sessionCompletedAt": "2026-01-01T00:00:00Z",
+            "classesIngested": 5,
+            "classesPlaced": 5
+          }
+        ]
+      },
+      "trigger": {
+        "type": "querySessions"
+      },
+      "expect": {
+        "sessions": {
+          "count": "ANY_GTE(1)",
+          "containsSession": "fandaws:session/old",
+          "note": "Old completed session still present. VD-5: never deleted."
+        }
+      }
+    },
+    {
+      "id": "session-tracks-counts",
+      "version": 1,
+      "verifies": [
+        "Decision D-5 \u2014 session tracks counts per phase"
+      ],
+      "description": "After Phase 1 completes, the session record reflects accurate counts: classesIngested, classesPlaced, classesAmbiguous, classesRejected.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Wheel",
+            "label": "Wheel",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Mystery",
+            "label": "Mystery",
+            "superclass": null
+          }
+        ]
+      },
+      "expect": {
+        "session": {
+          "classesIngested": 3,
+          "classesPlaced": "ANY_GTE(2)",
+          "note": "Engine and Wheel have explicit BFO superclass \u2192 PlacementConfirmed. Mystery has no superclass \u2192 PlacementAmbiguous or Rejected."
+        }
+      }
+    },
+    {
+      "id": "session-completion-timestamp",
+      "version": 1,
+      "verifies": [
+        "Decision D-5 \u2014 session completion recorded"
+      ],
+      "description": "When all phases of an ingestion session complete, sessionCompletedAt is set and compilationEpochAtCompletion records the current epoch.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/simple-ontology",
+        "classes": [
+          {
+            "iri": "ex:Widget",
+            "label": "Widget",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ]
+      },
+      "expect": {
+        "session": {
+          "sessionCompletedAt": "ANY_ISO_DATETIME",
+          "compilationEpochAtCompletion": "ANY_POSITIVE_INTEGER",
+          "note": "Session marked complete with timestamp and epoch."
+        }
+      }
+    },
+    {
+      "id": "staging-candidate-class-created",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 2.2.1 \u2014 Ingestion Staging",
+        "Decision D-6"
+      ],
+      "description": "Every external class enters as a CandidateClass staging record in SourceAxiomGraph before evaluation. The staging record carries source metadata.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ]
+      },
+      "expect": {
+        "stagingRecords": {
+          "candidateClassCount": 1,
+          "record": {
+            "type": "CandidateClass",
+            "sourceIRI": "ex:Engine",
+            "sourceLabel": "Engine",
+            "sourceOntology": "https://example.org/test-ontology",
+            "ingestedInSession": "ANY_SESSION_ID"
+          }
+        }
+      }
+    },
+    {
+      "id": "staging-not-in-canonical",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 2.2.1 \u2014 staging records not part of active model"
+      ],
+      "description": "Staging records are NOT in the canonical graph. They don't have skos:broader, don't participate in the concept hierarchy, don't appear in exports. They exist only in SourceAxiomGraph.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ],
+        "stopAfterStaging": true
+      },
+      "expect": {
+        "stagingRecords": {
+          "candidateClassCount": 1
+        },
+        "canonicalLane": {
+          "conceptExists_Engine": false,
+          "note": "Engine is staged, not yet evaluated. Not in canonical."
+        },
+        "executionLane": {
+          "artifactExists_Engine": false
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "staging is isolation",
+          "description": "CandidateClass records MUST NOT appear in the canonical graph or execution lane before evaluation."
+        }
+      ]
+    },
+    {
+      "id": "staging-vd1-three-types-only",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule VD-1 \u2014 SourceAxiomGraph record types"
+      ],
+      "description": "SourceAxiomGraph contains staging records (CandidateClass, CandidateRelation), quarantine records (QuarantineRecord), and raw source axioms (RawSourceAxiom). No other types.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ]
+      },
+      "expect": {
+        "sourceAxiomGraph": {
+          "allowedTypes": [
+            "CandidateClass",
+            "CandidateRelation",
+            "QuarantineRecord",
+            "RawSourceAxiom"
+          ],
+          "noOtherTypes": true
+        }
+      }
+    },
+    {
+      "id": "placement-explicit-superclass-confirmed",
+      "version": 1,
+      "verifies": [
+        "Decision D-3 \u2014 explicit BFO superclass heuristic",
+        "Decision D-7 \u2014 \u22650.7 single = Confirmed"
+      ],
+      "description": "External class with explicit rdfs:subClassOf bfo:MaterialEntity \u2192 PlacementConfirmed with high confidence (\u22650.9). Auto-promoted to canonical.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ]
+      },
+      "expect": {
+        "stagingRecords": {
+          "record": {
+            "candidateStatus": "PlacementConfirmed",
+            "placementConfidence": "ANY_GTE(0.9)",
+            "placementJustification": "ANY_NONEMPTY_STRING"
+          }
+        },
+        "canonicalLane": {
+          "classRecord": {
+            "exists": true,
+            "label": "Engine",
+            "bfoPlacement": "ANY_IRI_MATCHING(material-entity)",
+            "owlEquivalentClass": "ex:Engine",
+            "sourceOntology": "https://example.org/test-ontology",
+            "placementConfidence": "ANY_GTE(0.9)",
+            "compilationStatus": "Compiled"
+          }
+        }
+      }
+    },
+    {
+      "id": "placement-no-superclass-ambiguous",
+      "version": 1,
+      "verifies": [
+        "Decision D-7 \u2014 no consistent placement \u2192 PlacementAmbiguous or Rejected"
+      ],
+      "description": "External class with no BFO superclass and no property hints. Placement confidence is low. Status is PlacementAmbiguous \u2192 PendingHumanResolution.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Mystery",
+            "label": "Mystery",
+            "superclass": null,
+            "properties": []
+          }
+        ]
+      },
+      "expect": {
+        "stagingRecords": {
+          "record": {
+            "candidateStatus": "ANY_MATCHING(PlacementAmbiguous|PlacementRejected)",
+            "normalizationStatus": "PendingHumanResolution"
+          }
+        },
+        "canonicalLane": {
+          "classRecordExists_Mystery": false,
+          "note": "Not promoted \u2014 awaiting human resolution."
+        }
+      }
+    },
+    {
+      "id": "placement-multiple-candidates-ambiguous",
+      "version": 1,
+      "verifies": [
+        "Decision D-7 \u2014 multiple placements with similar confidence \u2192 Ambiguous"
+      ],
+      "description": "External class has properties suggesting both MaterialEntity and Process with similar confidence. PlacementAmbiguous \u2014 human must choose.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Reaction",
+            "label": "Reaction",
+            "superclass": null,
+            "properties": [
+              {
+                "name": "has_participant",
+                "range": "bfo:MaterialEntity"
+              },
+              {
+                "name": "occurs_at",
+                "range": "bfo:TemporalRegion"
+              }
+            ],
+            "note": "Properties suggest Process (has_participant, occurs_at) but label is ambiguous (chemical reaction vs emotional reaction)"
+          }
+        ]
+      },
+      "expect": {
+        "stagingRecords": {
+          "record": {
+            "candidateStatus": "PlacementAmbiguous",
+            "normalizationStatus": "PendingHumanResolution"
+          }
+        }
+      }
+    },
+    {
+      "id": "placement-human-resolves-ambiguous",
+      "version": 1,
+      "verifies": [
+        "Decision D-4 \u2014 PendingHumanResolution resolved"
+      ],
+      "description": "Human selects BFO placement for an ambiguous class. Class is promoted to canonical with the selected placement.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "stagingRecords": [
+          {
+            "type": "CandidateClass",
+            "sourceIRI": "ex:Mystery",
+            "sourceLabel": "Mystery",
+            "candidateStatus": "PlacementAmbiguous",
+            "normalizationStatus": "PendingHumanResolution"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "resolvePlacement",
+        "candidateIRI": "ex:Mystery",
+        "selectedPlacement": "bfo:MaterialEntity"
+      },
+      "expect": {
+        "stagingRecords": {
+          "record": {
+            "candidateStatus": "PlacementConfirmed",
+            "normalizationStatus": "Normalized"
+          }
+        },
+        "canonicalLane": {
+          "classRecord": {
+            "exists": true,
+            "label": "Mystery",
+            "bfoPlacement": "ANY_IRI_MATCHING(material-entity)",
+            "owlEquivalentClass": "ex:Mystery",
+            "compilationStatus": "Compiled"
+          }
+        }
+      }
+    },
+    {
+      "id": "placement-disjointness-reduces-confidence",
+      "version": 1,
+      "verifies": [
+        "Decision D-3 \u2014 disjointness-consistent check"
+      ],
+      "description": "Tentative placement would create a disjointness violation with existing classes. Placement confidence is reduced, potentially triggering Ambiguous status.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has_part",
+                    "object": "user:cell"
+                  }
+                ]
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:cell",
+                "canonicalLabel": "cell",
+                "parent": "user:material-entity"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:CellDivision",
+            "label": "Cell Division",
+            "superclass": null,
+            "properties": [
+              {
+                "name": "has_participant",
+                "range": "ex:Cell"
+              }
+            ],
+            "note": "has_participant with Cell (MaterialEntity) suggests Process placement"
+          }
+        ]
+      },
+      "expect": {
+        "stagingRecords": {
+          "record": {
+            "placementJustification": "ANY_NONEMPTY_STRING",
+            "note": "Placement sandbox evaluated heuristics and produced a confidence-scored result. Disjointness check ran against existing graph."
+          }
+        }
+      }
+    },
+    {
+      "id": "placement-promoted-has-equivalent-class",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 4.6 \u2014 owl:equivalentClass on canonical class records"
+      ],
+      "description": "A promoted canonical class record carries owl:equivalentClass linking the Fandaws IRI to the external source IRI. This is a schema-level OWL assertion, not a compiler flag.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ]
+      },
+      "expect": {
+        "canonicalLane": {
+          "classRecord": {
+            "iriPattern": "fandaws:class/ANY_UUID/engine",
+            "owlEquivalentClass": "ex:Engine",
+            "sourceIRI": "ex:Engine",
+            "sourceOntology": "https://example.org/test-ontology",
+            "note": "Fandaws IRI \u2260 source IRI. owl:equivalentClass bridges them."
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "Fandaws IRI is fresh",
+          "description": "Promoted class gets a fandaws:class/ IRI, NOT the external IRI. The external IRI is referenced via owl:equivalentClass and sourceIRI."
+        }
+      ]
+    },
+    {
+      "id": "blocking-phase2-blocked-by-ambiguous",
+      "version": 1,
+      "verifies": [
+        "Decision D-4 \u2014 Phase 2 blocked by PendingHumanResolution"
+      ],
+      "description": "Phase 2 (property disambiguation) cannot begin while any Phase 1 class has PendingHumanResolution status. The pipeline halts after Phase 1.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Mystery",
+            "label": "Mystery",
+            "superclass": null
+          }
+        ],
+        "properties": [
+          {
+            "iri": "ex:has_component",
+            "label": "has component",
+            "domain": "ex:Engine",
+            "range": "ex:Mystery"
+          }
+        ]
+      },
+      "expect": {
+        "pipelineState": {
+          "phase1Complete": true,
+          "phase2Started": false,
+          "blockedBy": "PendingHumanResolution",
+          "unresolvedCount": 1,
+          "unresolvedClasses": [
+            "ex:Mystery"
+          ]
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "phase 2 blocked",
+          "description": "Pipeline MUST NOT begin property disambiguation while any Phase 1 class is PendingHumanResolution."
+        }
+      ]
+    },
+    {
+      "id": "blocking-phase2-proceeds-after-resolution",
+      "version": 1,
+      "verifies": [
+        "Decision D-4 \u2014 Phase 2 proceeds after all Phase 1 items resolved"
+      ],
+      "description": "After the human resolves all ambiguous placements, the pipeline advances to Phase 2.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "stagingRecords": [
+          {
+            "type": "CandidateClass",
+            "sourceIRI": "ex:Engine",
+            "candidateStatus": "PlacementConfirmed",
+            "normalizationStatus": "Normalized"
+          },
+          {
+            "type": "CandidateClass",
+            "sourceIRI": "ex:Mystery",
+            "candidateStatus": "PlacementAmbiguous",
+            "normalizationStatus": "PendingHumanResolution"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "resolvePlacement",
+        "candidateIRI": "ex:Mystery",
+        "selectedPlacement": "bfo:MaterialEntity"
+      },
+      "expect": {
+        "pipelineState": {
+          "phase1Complete": true,
+          "allPhase1Resolved": true,
+          "phase2CanProceed": true,
+          "note": "All Phase 1 items resolved. Phase 2 is unblocked."
+        }
+      }
+    },
+    {
+      "id": "blocking-rejected-does-not-block",
+      "version": 1,
+      "verifies": [
+        "Decision D-4 \u2014 PlacementRejected does not block"
+      ],
+      "description": "A PlacementRejected class goes to quarantine and does NOT block Phase 2 progression. Only PendingHumanResolution blocks.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Nonsense",
+            "label": "Nonsense",
+            "superclass": "ex:DoesNotExist",
+            "note": "Superclass doesn't resolve to any BFO node \u2192 PlacementRejected"
+          }
+        ],
+        "properties": []
+      },
+      "expect": {
+        "pipelineState": {
+          "phase1Complete": true,
+          "phase2Blocked": false,
+          "note": "Nonsense is PlacementRejected (quarantined). Engine is PlacementConfirmed. No PendingHumanResolution \u2192 Phase 2 can proceed."
+        }
+      }
+    },
+    {
+      "id": "batch-no-conversational-prompts",
+      "version": 1,
+      "verifies": [
+        "Decision D-2 \u2014 ingestion is batch, not conversational"
+      ],
+      "description": "During bulk ingestion, no CC Path A/B prompts fire. No MachineSignal emitted. Violations go to quarantine or PendingHumanResolution \u2014 no interactive prompts.",
+      "setup": {
+        "callerMode": "agent",
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Widget",
+            "label": "Widget",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Mystery",
+            "label": "Mystery",
+            "superclass": null
+          }
+        ]
+      },
+      "expect": {
+        "promptsFired": 0,
+        "machineSignalsEmitted": 0,
+        "note": "Zero prompts during ingestion. All issues captured as staging record statuses."
+      },
+      "negative_assertions": [
+        {
+          "condition": "no interactive prompts",
+          "description": "Ingestion pipeline MUST NOT fire CC Path A, CC Path B, homonymDisambiguation, or any other conversational prompt. Issues are queued, not prompted."
+        }
+      ]
+    },
+    {
+      "id": "batch-multiple-classes-single-session",
+      "version": 1,
+      "verifies": [
+        "Decision D-2 \u2014 batch processing"
+      ],
+      "description": "Ingesting an ontology with multiple classes processes all classes in a single session. Each gets a staging record and a placement evaluation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/multi-class",
+        "classes": [
+          {
+            "iri": "ex:Car",
+            "label": "Car",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Wheel",
+            "label": "Wheel",
+            "superclass": "bfo:MaterialEntity"
+          },
+          {
+            "iri": "ex:Driving",
+            "label": "Driving",
+            "superclass": "bfo:Process"
+          }
+        ]
+      },
+      "expect": {
+        "session": {
+          "classesIngested": 4,
+          "classesPlaced": "ANY_GTE(4)"
+        },
+        "stagingRecords": {
+          "candidateClassCount": 4
+        },
+        "canonicalLane": {
+          "classRecordCount": "ANY_GTE(4)",
+          "note": "All four have explicit BFO superclasses \u2192 all PlacementConfirmed and promoted."
+        }
+      }
+    },
+    {
+      "id": "batch-ingested-classes-compile-to-execution",
+      "version": 1,
+      "verifies": [
+        "Phase B dual-lane \u2014 ingested classes compile"
+      ],
+      "description": "Promoted canonical class records from ingestion compile to the Execution Lane with epoch stamps, same as conversational concepts.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/test-ontology",
+        "classes": [
+          {
+            "iri": "ex:Engine",
+            "label": "Engine",
+            "superclass": "bfo:MaterialEntity"
+          }
+        ]
+      },
+      "expect": {
+        "executionLane": {
+          "containsArtifactFor": "Engine",
+          "artifact": {
+            "hasEpoch": true,
+            "compilationStatus": "Compiled"
+          }
+        }
+      }
+    },
+    {
+      "id": "bfo-version-change-invalidates-placements",
+      "version": 2,
+      "verifies": [
+        "FANDAWS v2.1 Rule VD-6 \u2014 BFO version change invalidates placements"
+      ],
+      "description": "When BFO is re-ingested (simulating a version change), all prior Phase 1 placement decisions are auto-re-evaluated by the sandbox using the new BFO hierarchy. Classes whose confidence remains \u22650.7 stay canonical (with placementChanged flag if placement moved). Classes dropping below 0.7 go to PendingHumanResolution. v2: updated per SME clarification \u2014 auto-re-evaluation, not blanket invalidation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:engine",
+                "canonicalLabel": "engine",
+                "parent": "user:material-entity",
+                "placementConfidence": 0.91,
+                "ingestedInSession": "fandaws:session/old"
+              },
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "reingestion",
+        "target": "bfo"
+      },
+      "expect": {
+        "canonicalLane": {
+          "engine": {
+            "autoReEvaluated": true,
+            "note": "Engine had explicit bfo:MaterialEntity superclass. Re-evaluation against new BFO produces same placement at same confidence. Stays canonical. No PendingHumanResolution."
+          }
+        },
+        "pipelineState": {
+          "autoReEvaluationRan": true,
+          "classesReEvaluated": "ANY_GTE(1)",
+          "classesStillConfirmed": "ANY_GTE(1)",
+          "classesDroppedToAmbiguous": 0,
+          "note": "Auto-re-evaluation ran. Engine's placement unchanged. No classes dropped below 0.7."
+        }
+      }
+    },
+    {
+      "id": "bfo-version-change-event-recorded",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Section 3.9.3 \u2014 VersionChangeEvent"
+      ],
+      "description": "BFO re-ingestion produces a VersionChangeEvent record in the Canonical Lane documenting the version change and recompilation scope.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "reingestion",
+        "target": "bfo"
+      },
+      "expect": {
+        "canonicalLane": {
+          "versionChangeEvent": {
+            "exists": true,
+            "changedAt": "ANY_ISO_DATETIME",
+            "recompilationScope": "FullRecompilation"
+          }
+        }
+      }
+    },
+    {
+      "id": "reg-conversational-pipeline-unaffected",
+      "version": 1,
+      "verifies": [
+        "Decision D-2 \u2014 two entry points, shared validation"
+      ],
+      "description": "After ingestion pipeline is added, the conversational pipeline still works correctly. User assertions still fire CC checks and consequence prompts.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:organism",
+                "canonicalLabel": "organism",
+                "parent": "user:material-entity",
+                "restrictions": [
+                  {
+                    "verb": "has",
+                    "object": "user:dna"
+                  }
+                ]
+              },
+              {
+                "id": "user:animal",
+                "canonicalLabel": "animal",
+                "parent": "user:organism"
+              },
+              {
+                "id": "user:dna",
+                "canonicalLabel": "dna",
+                "parent": null
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {
+            "envelope": {
+              "promptType": "reclassificationConsequence"
+            }
+          }
+        },
+        "note": "Conversational pipeline fires CC Path A consequence prompt. Ingestion pipeline existence does not affect conversational behavior."
+      }
+    },
+    {
+      "id": "reg-quarantine-store-shared",
+      "version": 1,
+      "verifies": [
+        "Decision D-2 \u2014 shared quarantine store between pipelines"
+      ],
+      "description": "The quarantine store is shared between conversational and ingestion pipelines. A CC Path B 'assert anyway' (canonical quarantine) and an ingestion failure (quarantine store) coexist.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {
+                "id": "user:material-entity",
+                "canonicalLabel": "material entity",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:process",
+                "canonicalLabel": "process",
+                "parent": null,
+                "isImported": true
+              },
+              {
+                "id": "user:dog",
+                "canonicalLabel": "dog",
+                "parent": "user:material-entity"
+              },
+              {
+                "id": "user:running",
+                "canonicalLabel": "running",
+                "parent": "user:process"
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "sequentialActions",
+        "actions": [
+          {
+            "type": "utterance",
+            "value": "a dog has running",
+            "user_choice": {
+              "action": "assert_anyway"
+            }
+          },
+          {
+            "type": "ingestExternalAxiom",
+            "axiom": "ex:Cat subClassOf (has_part some ex:Swimming)",
+            "domainClass": "MaterialEntity",
+            "rangeClass": "Process"
+          }
+        ]
+      },
+      "expect": {
+        "canonicalLane": {
+          "dogHasRunning": {
+            "exists": true,
+            "normalizationStatus": "Quarantined"
+          }
+        },
+        "quarantineStore": {
+          "recordCount": 1,
+          "record": {
+            "type": "QuarantineRecord",
+            "note": "From ingestion, not from CC Path B"
+          }
+        },
+        "note": "Two quarantine mechanisms coexist: canonical quarantined (conversational) + quarantine store record (ingestion). No cross-contamination."
+      }
+    }
+  ]
+}

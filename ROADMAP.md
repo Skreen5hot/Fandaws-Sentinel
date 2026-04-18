@@ -1401,7 +1401,7 @@ These phases implement the FANDAWS v2.1 Relational Architectural Specification. 
 ### Phase C: RECC Enforcement `[FANDAWS v2.1 Roadmap Phase 2 Extension]`
 
 **Goal:** Make the compilation pipeline production-grade (C1) and make RECC constraints travel with the ontology (C2). Split into two sub-phases per Decision C-1.
-**Status:** Not Started
+**Status:** Complete
 **Priority:** High
 **Effort:** Medium
 **Depends on:** Phase B (dual-lane, RECC structural conformance)
@@ -1501,11 +1501,11 @@ Phase B implemented check 1. C1 adds checks 3-5. Check 2 (provenance authority) 
 ### Phase C2: RECC Externalization (External-Facing Changes)
 
 **Goal:** Provenance authority enforcement, RECC restrictions in exports, quarantine store. Makes RECC constraints enforceable by third-party OWL reasoners without Fandaws infrastructure.
-**Status:** Not Started (depends on C1)
+**Status:** Complete
 **Priority:** High
 **Effort:** Medium
 **Depends on:** Phase C1 (compilation lifecycle states required)
-**AVC Bundle:** `docs/architecture/phase-c2-avc-bundle.json` (v1, 20 scenarios)
+**AVC Bundle:** `docs/architecture/phase-c2-avc-bundle.json` (v1, ACTIVE — 20/20 scenarios passing, architect-confirmed 2026-04-17)
 
 #### C2.1 Provenance Authority Enforcement
 
@@ -1519,11 +1519,11 @@ Pre-materialization check 2: `fan:isSourceOf` validation. Three authority scope 
 - Pattern A/B/C routing based on relation type class schema
 
 **Acceptance Criteria:**
-- [ ] Pattern A (Single Authority): `owl:hasValue` RECC on `fan:isSourceOf` inverse. Restriction instance missing the required standalone provenance triple → `CompilerRejected` with `failedCheck: 'provenance_authority'`
-- [ ] Pattern A with valid standalone `fan:isSourceOf` triple → restriction compiles successfully
-- [ ] Pattern C (Open Provenance): no RECC provenance restriction on the relation type. Restriction compiles without provenance check. Only normalizer quarantine enforces.
-- [ ] Standalone triple required (Rule RECC-4): provenance triple embedded inside the restriction's subject block is invalid → `CompilerRejected` with `failedCheck: 'provenance_standalone'`
-- [ ] Tier 1 bare properties (`has`) carry NO provenance requirement — no relation type class → Pattern C by default. Compiler does NOT check for `fan:isSourceOf` on Tier 1 restrictions.
+- [x] Pattern A (Single Authority): `owl:hasValue` RECC on `fan:isSourceOf` inverse. Restriction instance missing the required standalone provenance triple → `CompilerRejected` with `failedCheck: 'provenance_authority'`
+- [x] Pattern A with valid standalone `fan:isSourceOf` triple → restriction compiles successfully
+- [x] Pattern C (Open Provenance): no RECC provenance restriction on the relation type. Restriction compiles without provenance check. Only normalizer quarantine enforces.
+- [x] Standalone triple required (Rule RECC-4): provenance triple embedded inside the restriction's subject block is invalid → `CompilerRejected` with `failedCheck: 'provenance_standalone'`
+- [x] Tier 1 bare properties (`has`) carry NO provenance requirement — no relation type class → Pattern C by default. Compiler does NOT check for `fan:isSourceOf` on Tier 1 restrictions.
 
 #### C2.2 RECC Restrictions in Exports
 
@@ -1532,39 +1532,38 @@ Pre-materialization check 2: `fan:isSourceOf` validation. Three authority scope 
 The key Phase C2 deliverable: relation type class schemas with structural conformance and provenance authority restrictions emitted in Turtle exports.
 
 **Deliverables:**
-- Three bundled seed schemas: `fandaws:relationType/inheres_in`, `fandaws:relationType/has_part`, `fandaws:relationType/obligated_to`
-- Export engine maps verb IRIs to relation type class schemas
+- `src/core/export-engine/relation-type-schemas.js` — Three bundled seed schemas
+- Export engine maps verb IRIs to relation type class schemas in `turtle-export.js`
 - Verbatim schema emission (not compiler-generated, Rule RECC-5)
 
 **Acceptance Criteria:**
-- [ ] Inherence-type schema: export includes `owl:Restriction` on `bfo:specifically_depends_on` with `owl:someValuesFrom fan:quality` AND `fan:towards` with `owl:someValuesFrom fan:materialEntity`. Class declares `rdfs:subClassOf fan:RelationalQuality, bfo:Quality`.
-- [ ] Mereological schema: structural conformance restrictions only. No BFO subcategory beyond base (`fan:RelationalQuality` only). No `bfo:Quality`, `bfo:Disposition`, or `bfo:Role`.
-- [ ] Deontic schema: declares `rdfs:subClassOf bfo:Disposition` on the relation type class.
-- [ ] Provenance authority: export includes `owl:hasValue` RECC with inverse of `fan:isSourceOf` for Pattern A relation types. Standalone provenance triple emitted.
-- [ ] Tier 1 bare properties: NO relation type class schema emitted. No RECC in export. Restriction exports normally but without schema accompaniment. (Decision C-6 clarified)
-- [ ] Seed schemas are static bundled assets emitted verbatim (Rule RECC-5). Export matches seed exactly — compiler does not generate or modify them.
-- [ ] A third-party OWL reasoner loading the exported Turtle can detect a non-conformant instance without running Fandaws.
+- [x] Inherence-type schema: export includes `owl:Restriction` on `bfo:specifically_depends_on` with `owl:someValuesFrom fan:quality` AND `fan:towards` with `owl:someValuesFrom fan:materialEntity`. Class declares `rdfs:subClassOf fan:RelationalQuality, bfo:Quality`.
+- [x] Mereological schema: structural conformance restrictions only. No BFO subcategory beyond base (`fan:RelationalQuality` only). No `bfo:Quality`, `bfo:Disposition`, or `bfo:Role`.
+- [x] Deontic schema: declares `rdfs:subClassOf bfo:Disposition` on the relation type class.
+- [x] Provenance authority: export includes `owl:hasValue` RECC with inverse of `fan:isSourceOf` for Pattern A relation types. Standalone provenance triple emitted.
+- [x] Tier 1 bare properties: NO relation type class schema emitted. No RECC in export. Restriction exports normally but without schema accompaniment. (Decision C-6 clarified)
+- [x] Seed schemas are static bundled assets emitted verbatim (Rule RECC-5). Export matches seed exactly — compiler does not generate or modify them.
 
-#### C2.3 Quarantine Store
+#### C2.3 SourceAxiomGraph (formerly Quarantine Store)
 
 **Spec Reference:** FANDAWS v2.1 Sections 8, 10.2-10.4; Rules RECC-6, QS-1, QS-2, VD-1; Decision C-7
 
-External axioms that fail normalization or RECC checks are quarantined — they never enter the canonical model.
+External axioms that fail normalization or RECC checks are quarantined — they never enter the canonical model. Renamed from `_quarantineStore` to `_sourceAxiomGraph` at Phase D1 per VD-1 alignment.
 
 **Deliverables:**
-- `_quarantineStore` Map on StateAdapter
+- `_sourceAxiomGraph` Map on StateAdapter (renamed from `_quarantineStore`)
 - `QuarantineRecord` shape with `FailureTrace`
 - Three-state lifecycle: PendingReview → Rejected | Released
 - External axiom ingestion path through normalization
 
 **Acceptance Criteria:**
-- [ ] `_quarantineStore` Map on StateAdapter, separate from canonical and execution lanes (Decision C-7)
-- [ ] External axiom that violates RECC structural conformance (e.g., MaterialEntity connected to Process via has_part) → `QuarantineRecord` created with `quarantineStatus: PendingReview`
-- [ ] Failure trace shape: `violationRule`, `relation`, `subjectNode`, `objectNode`, `subjectType`, `objectType`, `suggestedRepair` — all present (Rule VD-4)
-- [ ] Quarantined records NOT in canonical graph, NOT in execution lane, NOT in exports (Rule QS-1)
-- [ ] Release: `quarantineStatus` → `Released`, canonical restriction created at confidence 0.7 (Decision C-3), `compile()` fires, execution artifact in Flagged tier with confidence annotation
-- [ ] Reject: `quarantineStatus` → `Rejected`, record retained permanently for audit, nothing enters canonical or execution
-- [ ] `fandaws:SourceAxiomGraph` contains exactly three record types: staging (`CandidateRelation`, `CandidateClass`), quarantine (`QuarantineRecord`), raw source axioms (`RawSourceAxiom`) — Rule VD-1
+- [x] `_sourceAxiomGraph` Map on StateAdapter, separate from canonical and execution lanes (Decision C-7)
+- [x] External axiom that violates RECC structural conformance (e.g., MaterialEntity connected to Process via has_part) → `QuarantineRecord` created with `quarantineStatus: PendingReview`
+- [x] Failure trace shape: `violationRule`, `relation`, `subjectNode`, `objectNode`, `subjectType`, `objectType`, `suggestedRepair` — all present (Rule VD-4)
+- [x] Quarantined records NOT in canonical graph, NOT in execution lane, NOT in exports (Rule QS-1)
+- [x] Release: `quarantineStatus` → `Released`, canonical restriction created at confidence 0.7 (Decision C-3), `compile()` fires, execution artifact in Flagged tier with confidence annotation
+- [x] Reject: `quarantineStatus` → `Rejected`, record retained permanently for audit, nothing enters canonical or execution
+- [x] `fandaws:SourceAxiomGraph` contains exactly four record types: staging (`CandidateRelation`, `CandidateClass`), quarantine (`QuarantineRecord`), raw source axioms (`RawSourceAxiom`) — Rule VD-1
 
 #### C2.4 Two Quarantine Mechanisms — Distinction
 
@@ -1573,19 +1572,19 @@ External axioms that fail normalization or RECC checks are quarantined — they 
 Two distinct quarantine mechanisms serve different purposes and must not cross-contaminate.
 
 **Acceptance Criteria:**
-- [ ] CC Path B "assert anyway" → restriction written to canonical graph with `normalizationStatus: Quarantined`. User deliberately asserted it. It IS in the canonical model but flagged as structurally suspect.
-- [ ] External axiom ingestion failure → `QuarantineRecord` in `_quarantineStore`. It NEVER entered the canonical model. Must be Released to create a canonical record.
-- [ ] After CC Path B "assert anyway", `_quarantineStore` has zero records. The two mechanisms do not cross-contaminate.
-- [ ] Canonical `normalizationStatus: Quarantined` fails pre-mat check 5 → not compiled to Execution Lane until resolved.
-- [ ] Released `QuarantineRecord` creates canonical record with `normalizationStatus: Normalized` and `confidence: 0.7` → compiles to Flagged tier.
+- [x] CC Path B "assert anyway" → restriction written to canonical graph with `normalizationStatus: Quarantined`. User deliberately asserted it. It IS in the canonical model but flagged as structurally suspect.
+- [x] External axiom ingestion failure → `QuarantineRecord` in `_sourceAxiomGraph`. It NEVER entered the canonical model. Must be Released to create a canonical record.
+- [x] After CC Path B "assert anyway", `_sourceAxiomGraph` has zero records. The two mechanisms do not cross-contaminate.
+- [x] Canonical `normalizationStatus: Quarantined` fails pre-mat check 5 → not compiled to Execution Lane until resolved.
+- [x] Released `QuarantineRecord` creates canonical record with `normalizationStatus: Normalized` and `confidence: 0.7` → compiles to Flagged tier.
 
 #### C2.5 Regression
 
-- [ ] Phase C1 confidence tiers intact after C2 additions (tentative at 0.55 still works)
-- [ ] Phase C1 retraction protocol still works after C2 additions (downgrade with tombstone)
-- [ ] Phase 12 (25), Phase 13 (24), Phase B (27), Phase C1 (26) scenarios all still passing
+- [x] Phase C1 confidence tiers intact after C2 additions (tentative at 0.55 still works)
+- [x] Phase C1 retraction protocol still works after C2 additions (downgrade with tombstone)
+- [x] Phase 12 (25), Phase 13 (24), Phase B (27), Phase C1 (26) scenarios all still passing
 
-**Phase C totals (C1 + C2):** Two sub-phases, 7 locked architectural decisions, separate AVC bundles. C1: 26 scenarios (internal lifecycle). C2: 20 scenarios (external RECC). Total: 46 scenarios. Combined with P12 (25), P13 (24), Phase B (27) = 122 total AVC scenarios.
+**Phase C totals (C1 + C2):** Two sub-phases, 7 locked architectural decisions, separate AVC bundles. C1: 26 scenarios (internal lifecycle). C2: 20 scenarios (external RECC). Total: 46 scenarios. Combined with P12 (25), P13 (24), Phase B (27) = 122 total AVC scenarios. Three spot-check transcripts confirmed: provenance authority rejection, RECC export emission, two-quarantine mechanism distinction.
 
 **NOT in Phase C:** Bulk ingestion pipeline (Phase D), `fan:RelationalQuality` reification (Phase D), namespace split (Phase D), Horn clause sandbox (Phase D), disambiguation records (Phase D), sub-property retraction cascade (Phase D).
 
@@ -1593,24 +1592,325 @@ Two distinct quarantine mechanisms serve different purposes and must not cross-c
 
 ### Phase D: Bulk Ingestion Pipeline `[FANDAWS v2.1 Roadmap Phase 3]`
 
-**Goal:** Enable Fandaws to ingest external ontologies (CCO, Gene Ontology, etc.) through a three-phase pipeline: class placement → property disambiguation → consistency sandbox.
+**Goal:** Enable Fandaws to ingest external ontologies (CCO, Gene Ontology, domain-specific OWL files) at scale. Split into D1 (infrastructure + class placement) and D2 (property disambiguation + consistency sandbox) per Decision D-1.
 **Status:** Not Started
 **Priority:** High
 **Effort:** Very High
-**Depends on:** Phase C (RECC, stale detection, retraction)
+**Depends on:** Phase C2 (quarantine store / SourceAxiomGraph, RECC, provenance authority)
+**Locked Decisions:** `docs/architecture/phase-d-locked-decisions.md` (7 decisions + 2 clarifications, LOCKED)
 
-**Scope:**
-- Phase 1: Class placement with BFO alignment and confidence scoring
-- Phase 2: Property disambiguation (verb-to-relation matching, merge/reject/promote)
-- Phase 3: Consistency sandbox (Horn clause validation via Tau Prolog or JS sandbox)
-- `fan:RelationalQuality` reification pattern (canonical records as first-class nodes)
-- Quarantine store with structured failure traces (`fandaws:FailureTrace`)
-- Disambiguation records and merge record structure
-- Namespace split (`fan:` for ontological vocabulary, `fandaws:` for metadata)
-- Named graph support (or equivalent)
-- `fandaws:CandidateRelation` and `fandaws:CandidateClass` staging records
+#### Decision D-1: Phase Split
 
-**NOT in Phase D:** HIRI publication, Weaver SDK integration, FNSR deontic services, multi-service Execution Lane consumption.
+| Subsection | D1 | D2 |
+|------------|----|----|
+| Ingestion session management | ✓ | |
+| Staging records (CandidateClass) | ✓ | |
+| Phase 1 class placement sandbox | ✓ | |
+| Placement lifecycle + blocking rule | ✓ | |
+| BFO version invalidation | ✓ | |
+| Property disambiguation | | ✓ |
+| Consistency sandbox | | ✓ |
+| Namespace split, RelationalQuality reification | | ✓ |
+
+D1 ships independently. D2 depends on D1.
+
+---
+
+### Phase D1: Ingestion Pipeline Infrastructure + Class Placement
+
+**Goal:** Establish the batch ingestion pipeline and implement Phase 1 (BFO class placement with confidence scoring). This is the first time Fandaws has two distinct processing pathways — conversational and batch — sharing the same canonical model.
+**Status:** Complete
+**Priority:** High
+**Effort:** High
+**Depends on:** Phase C2 (SourceAxiomGraph, RECC, provenance authority required)
+**AVC Bundle:** `docs/architecture/phase-d1-avc-bundle.json` (v1, ACTIVE — 23/23 scenarios passing, architect-confirmed 2026-04-17)
+
+#### D1.1 Ingestion Session Management
+
+**Spec Reference:** FANDAWS v2.1 Section 5.9.1; Decision D-5
+
+Ingestion sessions are metadata records that track processing runs. Stored in a dedicated `_ingestionSessions` Map on StateAdapter (not in the concept graph, not in SourceAxiomGraph).
+
+**Deliverables:**
+- `_ingestionSessions` Map on `InMemoryStateAdapter`
+- `startIngestionSession()` method
+- `querySessions()` method
+- `VersionChangeEvent` records stored alongside sessions
+
+**Acceptance Criteria:**
+- [x] Starting an ingestion session creates an `IngestionSession` record with source ontology, start timestamp, and initial counters at zero
+- [x] Session record shape: `sessionId`, `type: "IngestionSession"`, `sourceOntology`, `sessionStartedAt`, `sessionCompletedAt` (null if in progress), `classesIngested`, `classesPlaced`, `classesAmbiguous`, `classesRejected`, `autoMergeThreshold`, `compilationEpochAtCompletion`
+- [x] After Phase 1 completes, session record reflects accurate counts: `classesIngested`, `classesPlaced`, `classesAmbiguous`, `classesRejected`
+- [x] When all phases complete, `sessionCompletedAt` is set and `compilationEpochAtCompletion` records the current epoch
+- [x] Completed session records are retained permanently — never deleted (VD-5)
+- [x] `querySessions()` returns all sessions including completed ones
+
+#### D1.2 Staging Records
+
+**Spec Reference:** FANDAWS v2.1 Section 2.2.1; Decision D-6
+
+Every external class enters the pipeline as a `CandidateClass` staging record in `_sourceAxiomGraph` before evaluation. Staging records are not part of the active canonical model.
+
+**Deliverables:**
+- `CandidateClass` record creation in `ingestOntology()`
+- `stopAfterStaging` option on `ingestOntology()` (adapter-level feature)
+
+**Acceptance Criteria:**
+- [x] Every external class creates a `CandidateClass` staging record with `sourceIRI`, `sourceLabel`, `sourceOntology`, `ingestedInSession`
+- [x] Staging records live in `_sourceAxiomGraph` alongside quarantine records (VD-1 compliance — three record type categories: staging, quarantine, raw axiom — with four concrete shapes: `CandidateClass`, `CandidateRelation`, `QuarantineRecord`, `RawSourceAxiom`)
+- [x] With `stopAfterStaging: true`, method pauses after creating records but before running placement sandbox
+- [x] Staging records NOT in canonical graph (no `skos:broader`, no concept hierarchy participation)
+- [x] Staging records NOT in execution lane (no compiled artifacts)
+- [x] `_sourceAxiomGraph` contains only allowed types: `CandidateClass`, `CandidateRelation`, `QuarantineRecord`, `RawSourceAxiom` — no others
+
+#### D1.3 Class Placement Sandbox
+
+**Spec Reference:** Decision D-3 (JavaScript validation, not Prolog); Decision D-7 (placement thresholds)
+
+JavaScript heuristic rules evaluate BFO placement for each external class. Returns `{ placement, confidence, justification }`.
+
+**Deliverables:**
+- `src/core/ingestion/placement-sandbox.js` — Heuristic rules engine
+- BFO property-to-domain lookup table (property name → BFO category signal)
+- Confidence delta parameter (default 0.15, configurable per session)
+
+**Heuristic Categories (evaluated in order):**
+1. **Explicit BFO superclass:** External class declares `rdfs:subClassOf` a BFO class → confidence ≥ 0.9
+2. **Property-based inference:** Property NAME as signal via BFO property→domain lookup table (`has_participant` → Process, `has_part` → IndependentContinuant, `inheres_in` → Quality). Confidence 0.6–0.8 depending on specificity
+3. **Label-based heuristic:** Class label matches known pattern (contains "process", "event" → Process). Confidence 0.3–0.5
+4. **Disjointness consistency check:** Tentative placement checked against BFO Disjointness Map. Violations reduce confidence
+
+**Acceptance Criteria:**
+- [x] Explicit BFO superclass (`rdfs:subClassOf bfo:MaterialEntity`) → `PlacementConfirmed` with confidence ≥ 0.9, auto-promoted to canonical
+- [x] No superclass, no property hints → `PlacementAmbiguous` with low confidence → `PendingHumanResolution`
+- [x] Multiple property signals with conflicting BFO targets + confidence delta < 0.15 → `PlacementAmbiguous`
+- [x] Declared superclass that doesn't resolve to any BFO node → `PlacementRejected` (quarantined)
+- [x] Disjointness consistency check runs against existing graph; violations reduce confidence
+- [x] Sandbox returns `{ placement, confidence, justification }` — justification is always a non-empty string listing contributing heuristics
+- [x] Confidence delta (0.15) is a configurable parameter on the ingestion session, defaulting to 0.15
+
+#### D1.4 Placement Lifecycle
+
+**Spec Reference:** Decisions D-4, D-7
+
+**Acceptance Criteria:**
+
+*Placement Thresholds (Decision D-7):*
+- [x] ≥ 0.7 single consistent placement (or top candidate leads by ≥ 0.15 delta) → `PlacementConfirmed`
+- [x] ≥ 0.7 with multiple candidates and delta < 0.15 → `PlacementAmbiguous`
+- [x] < 0.7 single placement → `PlacementAmbiguous`
+- [x] No consistent placement → `PlacementRejected`
+
+*Promotion to Canonical:*
+- [x] `PlacementConfirmed` → promoted to canonical via `_promoteCandidate()` method
+- [x] Promoted concept: `fandaws:isImported: false` (user CAN modify), `owl:equivalentClass` bridges to source IRI, `fandaws:ingestSource`, `fandaws:placementConfidence`, `fandaws:ingestedInSession`
+- [x] Promoted concept gets a fresh `fandaws:class/` IRI (NOT the external IRI)
+- [x] Promoted concept does NOT trigger `owl:imports` declarations in export (not treated as imported)
+- [x] `compile()` fires after promotion, execution artifact created with epoch stamp
+
+*Human Resolution:*
+- [x] `PlacementAmbiguous` → `PendingHumanResolution`. Not promoted until human selects BFO placement
+- [x] Human selects placement via `resolvePlacement()` → staging record updated to `PlacementConfirmed`, promoted to canonical
+- [x] `PlacementRejected` → quarantined, not promoted, no human resolution required
+
+*Blocking Rule (Decision D-4):*
+- [x] Phase 2 (property disambiguation) CANNOT begin while any Phase 1 class has `PendingHumanResolution` status
+- [x] `PlacementRejected` does NOT block Phase 2 (rejected classes are quarantined, pipeline continues)
+- [x] After all ambiguous placements resolved, Phase 2 can proceed
+
+#### D1.5 Batch Behavior
+
+**Spec Reference:** Decision D-2
+
+The ingestion pipeline fires zero interactive prompts. No CC Path A/B. No MachineSignal. Violations produce staging record statuses or quarantine records.
+
+**Acceptance Criteria:**
+- [x] Zero prompts during ingestion — all issues captured as staging record statuses
+- [x] No CC Path A or CC Path B checks during ingestion
+- [x] No MachineSignal emitted during ingestion
+- [x] Multiple classes processed in a single session, each getting a staging record and placement evaluation
+- [x] Promoted canonical classes compile to Execution Lane with epoch stamps (same as conversational concepts)
+
+#### D1.6 BFO Version Change
+
+**Spec Reference:** FANDAWS v2.1 Rule VD-6; Clarification: auto-re-evaluation
+
+BFO re-ingestion auto-re-evaluates all prior Phase 1 placement decisions using the new BFO hierarchy. Only classes dropping below 0.7 go to `PendingHumanResolution`.
+
+**Acceptance Criteria:**
+- [x] BFO re-ingestion triggers the placement sandbox to re-run on ALL previously placed classes (identified by `fandaws:ingestedInSession`)
+- [x] Re-evaluation produces same or different placement. If confidence stays ≥ 0.7, class stays canonical. If placement CHANGED, class flagged with `fandaws:placementChanged: true` for optional review but NOT set to `PendingHumanResolution`
+- [x] If re-evaluation drops confidence below 0.7, class IS set to `PendingHumanResolution`
+- [x] `VersionChangeEvent` record created with `changedAt` timestamp and `recompilationScope: "FullRecompilation"`, stored in `_ingestionSessions`
+- [x] Human reviews only classes where BFO update created actual ambiguity — not the vast majority whose placement is unchanged
+
+#### D1.7 Regression
+
+- [x] Conversational pipeline still works correctly after D1 code is added (consequence prompts fire, CC checks work)
+- [x] SourceAxiomGraph shared between conversational and ingestion pipelines — CC Path B "assert anyway" (canonical quarantine) and ingestion failure (SourceAxiomGraph QuarantineRecord) coexist without cross-contamination
+- [x] Phase 12 (25), Phase 13 (24), Phase B (27), Phase C1 (26), Phase C2 (20) scenarios all still passing
+
+**Phase D1 totals:** 23 AVC scenarios across session management (4), staging records (3), placement (6), blocking rule (3), batch behavior (3), BFO version change (2), regression (2). All passing. Architect-confirmed 2026-04-17. Zero discrepancy reports. Three clean spot-check transcripts: placement proof (staging → sandbox → promote → compile), phase gate (blocking rule enforced), two-pipeline isolation (zero prompts during batch).
+
+**NOT in Phase D1:** Property disambiguation (D2), merge records (D2), consistency sandbox (D2), namespace split (D2), `fan:RelationalQuality` reification (deferred beyond D2), user-defined relation type classes (deferred beyond D2).
+
+---
+
+### Phase D2: Property Disambiguation + Consistency Sandbox
+
+**Goal:** Pipeline Phase 2 (structural fingerprint matching of external relation type classes against the canonical relation type inventory) and Phase 3 (Tau Prolog consistency sandbox running edge-canonical in the browser). Completes the full v2.1 bulk ingestion pipeline.
+**Status:** Complete
+**Priority:** Very High (larger than D1: ≈1.4× scenario count, introduces Tau Prolog as net-new dependency)
+**Effort:** Very High
+**Depends on:** Phase D1 (staging records, placement lifecycle, ingestion session management)
+**AVC Bundle:** `docs/architecture/phase-d2-avc-bundle.json` (v1, ACTIVE — 33/33 scenarios passing, architect-confirmed 2026-04-18)
+**Cover Memo:** `docs/architecture/phase-d2-cover-memo.md`
+**Locked Decisions:** D-8 through D-20 + 3 clarifications (in bundle header)
+
+#### D2.1 Property Disambiguation — Structural Fingerprint Matching (Pipeline Phase 2)
+
+**Spec Reference:** FANDAWS v2.1 D2 Spec v1.0; Rules PD-1 through PD-10
+**AVC Scenarios:** Band 1 — scenarios 1–13
+
+External OWL object properties (candidate relation type classes) are matched against the canonical relation type inventory using structural fingerprints — NOT verb-to-relation matching (TagTeam-style verb extraction is explicitly deferred per OQ-6).
+
+**Fingerprint dimensions (per Rule PD-10, Decision D-9):**
+- Domain BFO category (weight 0.30)
+- Range BFO category (weight 0.30)
+- BFO subcategory (weight 0.15)
+- Characteristic set — transitivity, symmetry, reflexivity (weight 0.10)
+- `allowsInheresIn` flag (weight 0.05)
+- Lexical similarity — label distance (weight 0.10)
+
+**Fingerprint weight vector bounds:** Structural physics (Domain + Range + Subcategory) MUST sum to ≥ 0.70. Lexical weight MUST NOT exceed 0.10. Enforced at session init.
+
+**Deliverables:**
+- `src/core/ingestion/fingerprint-matcher.js` — Structural fingerprint builder + comparison engine
+- `src/core/ingestion/disambiguation-router.js` — Four-way routing: auto-merge / disambiguation / novel promotion / sub-property promotion
+- Disambiguation records and merge records with `owl:equivalentProperty`
+
+**Acceptance Criteria:**
+
+*Fingerprint computation:*
+- [x] External relation type class fingerprinted on all six dimensions
+- [x] Schema-only fingerprints (Rule PD-1, Invariant I-1): type-violating instance assertions in source ontology MUST NOT influence fingerprint computation; bad instances routed separately to Phase 3
+- [x] Fingerprint compared against all canonical relation types; top-N scored
+- [x] Fingerprint weight vector validated at session init; structural ≥ 0.70, lexical ≤ 0.10; non-conformant vector → session rejected with structured error
+
+*Routing:*
+- [x] Auto-merge: score ≥ threshold (default 0.85, configurable) AND margin ≥ 0.05 over second-highest → merged with `owl:equivalentProperty` assertion
+- [x] Auto-merge blocked by near-tie: score ≥ threshold but margin < 0.05 → disambiguation record created, `PendingHumanResolution`
+- [x] Disambiguation window: score in [0.60, 0.85) → routed to disambiguation panel with proposed matches and four available actions (Merge, Reject, PromoteAsSubProperty, PromoteAsNewRelation)
+- [x] Novel promotion: score < 0.60 disambiguation floor → routed to Novel Promotion Panel with default action PromoteAsNewRelation
+- [x] Disjoint hard floor (Rule PD-2): if candidate's domain BFO category is disjoint with canonical's domain, match score MUST be exactly 0.0 regardless of all other components — lexical homonyms with different physics forced to Novel Promotion
+- [x] Sub-property structural narrowing (Rule PD-6, Invariant I-3): PromoteAsSubProperty rejected if candidate domain is BROADER than parent's domain; disambiguation record re-surfaced with correction notice
+- [x] Valid sub-property promotion: candidate with properly narrower domain inherits parent's BFO subcategory exactly (Rule PD-7)
+- [x] `owl:equivalentProperty` merge MUST be named-property-to-named-property only (Rule PD-9); merge targeting `owl:topObjectProperty` rejected
+
+*Records:*
+- [x] Disambiguation records carry both candidates, their scores, and the margin
+- [x] Merge records carry `owl:equivalentProperty` linking external IRI to canonical execution property IRI
+
+#### D2.2 Three-Namespace Split
+
+**Spec Reference:** Rule PD-9; Decision D-17
+**AVC Scenarios:** Scenario 9 (`promote-as-new-relation-with-namespace-split`)
+
+Three namespaces coexist after D2, each serving a distinct layer:
+
+| Namespace | Layer | Example |
+|-----------|-------|---------|
+| `fandaws:class/relation/UUID/label` | Canonical relation type class (schema layer) | `fandaws:class/relation/a1b2c3/has-component` |
+| `rel:...` | Compiled execution property (execution layer) | `rel:hasComponent` — destination of `owl:equivalentProperty` |
+| External IRI (e.g., `ex:hasComponent`) | Source provenance only | Never enters canonical taxonomy directly; appears in `sourceIRI` and `owl:equivalentProperty` assertion |
+
+`fan:` (core RelationalQuality reification vocabulary) and `fandaws:` (metadata) retain their existing roles. Neither is where the D2 namespace work happens.
+
+**Acceptance Criteria:**
+- [x] Promoted novel relation type gets a fresh `fandaws:class/relation/UUID/label` canonical IRI (NOT the external IRI)
+- [x] Compiled execution property gets a `rel:` IRI in the execution lane
+- [x] External source IRI bridged to canonical via `owl:equivalentProperty` — never appears in canonical taxonomy directly
+- [x] All three namespaces coexist in exported Turtle with correct prefix declarations
+
+#### D2.3 Consistency Sandbox — Tau Prolog (Pipeline Phase 3)
+
+**Spec Reference:** Rules PS-1 through PS-9; Decisions D-8, D-12, D-13, D-14, D-15, D-16, D-20
+**AVC Scenarios:** Band 2 — scenarios 14–28 (authoritative acceptance list for Phase 3)
+
+The consistency sandbox uses **Tau Prolog** (a Prolog interpreter written in JavaScript) running edge-canonical in the browser. It is NOT hand-rolled JavaScript rule evaluation. Phase 2 (fingerprint matching) is the JavaScript side; Phase 3 (consistency checking) is the Prolog side. The engine boundary is at the Phase 2→3 handoff.
+
+**Deliverables:**
+- `src/core/ingestion/consistency-sandbox.js` — Tau Prolog integration wrapper
+- `src/core/ingestion/fact-base-builder.js` — Converts canonical graph state to Prolog fact base
+- Horn clause rule set for consistency violation detection
+- `tau-prolog` npm dependency (pinned version, recorded per session as `fandaws:tauPrologVersion`)
+
+**Acceptance Criteria:**
+
+*Sandbox discipline:*
+- [x] Sandbox purity guarantee (PS-1, Decision D-13): sandbox MUST NOT mutate canonical graph; content-hash verified before and after execution. Routing to quarantine/NoViolations happens in JS after sandbox returns, not inside Tau Prolog.
+- [x] Fresh session per run (PS-2, Decision D-14): new Tau Prolog session and fresh fact base per Phase 3 run. No session reuse. Two sequential runs produce two distinct session instances.
+- [x] Horn inference step cap (PS-8, Decision D-12): fixed 10,000 steps per session, non-adaptive, cannot change mid-session. Attempt to reconfigure mid-session → structured error `InferenceCapImmutableMidSession`.
+- [x] Subclass closure as ground facts (PS-9, Decision D-15): reflexive-transitive closure of `subclass/2` asserted by the fact-base builder. Violation rules MUST NOT contain recursive `subclass(X,Y) :- subclass(X,Z), subclass(Z,Y)` clauses. All transitive lookups resolve via ground-fact unification.
+- [x] Tau Prolog runs edge-canonical (browser-compatible, no server dependency)
+- [x] Unrecognized axiom type (PS-3): axiom with `axiomType` not in recognized catalog → quarantined as `AxiomTypeUnrecognized`. Silent ignore prohibited.
+
+*Violation rule catalog (PS-4a through PS-4f):*
+- [x] PS-4a — TypeDisjointnessViolation (Invariant I-2): restriction target's BFO category disjoint with relation's expected range → quarantined. Uses pre-computed BFO Disjointness Map.
+- [x] PS-4b — RangeMismatchViolation: target is NOT a subclass of expected range AND NOT disjoint (PS-4a doesn't fire) → quarantined. Narrower than type disjointness.
+- [x] PS-4c — DomainMismatchViolation: subject's BFO category is not a subclass of expected domain and not disjoint → quarantined.
+- [x] PS-4d — CycleViolation: proposed `subPropertyOf(R1, R2)` would close a cycle with existing `subPropertyOf(R2, R1)` → quarantined.
+- [x] PS-4e — DisjointnessContradictionViolation: proposed `owl:disjointWith(A, B)` contradicts existing class C where C is subclass of both A and B → quarantined with witness C.
+- [x] PS-4f — HornDerivationUnbounded: inference exceeds 10,000 step cap → axiom quarantined as `HornDerivationUnbounded` with `inferenceStepsUsed = cap`. No retry, no backoff.
+
+*FailureTrace and repair:*
+- [x] FailureTrace completeness (PS-6, Decision D-16): all fields required — `violationRule`, `relation`, `subjectNode`, `objectNode`, `subjectType`, `objectType`, `prologTrace`, `suggestedRepair`, `ruleSetVersion`, `inferenceStepsUsed`, `producedAt`. No null or empty string.
+- [x] Prolog trace authenticity (Decision D-16, AC-D2-17): `prologTrace` field contains genuine Tau Prolog engine output with Call/Exit/Redo entries, parseable as Prolog source. Hand-rolled prose summaries are non-conformant.
+- [x] Suggested repair specificity (PS-7, Decision D-20): `suggestedRepair` MUST name at least one concrete action (specific class, relation, or declaration). Generic strings like "resolve the violation" are non-conformant.
+
+*Routing:*
+- [x] `NoViolations` → axiom available for compilation
+- [x] `Quarantined` → quarantine store with structured FailureTrace
+
+#### D2.4 Merge Records and Disambiguation Records
+
+**Spec Reference:** Rules PD-8, PD-9; Decision D-19
+**AVC Scenarios:** Scenarios 10–12
+
+**Acceptance Criteria:**
+- [x] Merge record shape (complete field inventory): `mergedCandidate`, `mergedInto`, `mergeTrigger` (AutoMerge | HumanConfirmed), `mergeConfidence`, `mergeRationale`, `equivalencyAssertion` (subject/predicate/object triple), `mergedAt`, `mergedBy`, `ingestedInSession`
+- [x] Merge records retained permanently (Rule PD-8, Decision D-19): deprecation of merged canonical relation type annotates the merge record (`owl:deprecated=true`) but does NOT delete it
+- [x] Disambiguation record shape: carries both candidates, their fingerprint scores, margin, resolution status, available actions
+- [x] Human resolves disambiguation → selected candidate merged, unselected noted in session metadata
+- [x] Auto-merge threshold (default 0.85, configurable per session) with mandatory margin requirement (≥ 0.05 to second-highest score)
+
+#### D2.5 Phase 2/3 Composition and Blocking
+
+**Spec Reference:** Rules D2-1, D2-2; FANDAWS v2.1 §3.8.4
+**AVC Scenarios:** Band 3 — scenarios 29–31
+
+**Acceptance Criteria:**
+- [x] Phase 3 blocking (D2-1, Decision D-18): Phase 3 sandbox MUST NOT begin while any Phase 2 item remains in `PendingHumanResolution`. Attempt → structured error naming blocking items.
+- [x] Session summary completeness (D2-2): on session completion, `IngestionSession` record carries `phase2Summary` (candidateRelationCount, autoMergedCount, humanMergedCount, promotedNewCount, promotedSubPropertyCount, rejectedCount — counts sum to total) and `phase3Summary` (candidateAxiomCount, noViolationsCount, quarantinedCount, hornUnboundedCount — counts sum to total). Session also carries `hornInferenceStepCap`, `tauPrologVersion`, `fingerprintPolicyApplied`, `violationRuleSetApplied`.
+- [x] Conversational quarantine re-evaluation (v2.1 §3.8.4): a CC Path B "assert anyway" quarantined assertion can be re-evaluated through a one-axiom Phase 3 sandbox session, producing an expanded FailureTrace consistent with the original conversational warning.
+
+#### D2.6 Regression and Boundary Conditions
+
+**AVC Scenarios:** Band 4 — scenarios 32–33
+
+- [x] BFO mid-session version change (VD-6 in D2 context): if BFO is re-ingested during an active D2 session, the session halts. Phase 1 placement outputs are invalidated. Operator must restart from Phase 1 with the new BFO version. No partial continuation with stale Disjointness Map.
+- [x] Conversational pipeline unaffected by D2 additions — CC Path A/B fires on single-assertion input as before. No D2 pipeline triggered for conversational input.
+- [x] D1 placement pipeline unaffected by D2 additions (classes still place correctly)
+- [x] All prior AVC bundles still passing: P12 (25), P13 (24), Phase B (27), C1 (26), C2 (20), D1 (23) = 145
+- [x] Total after D2: 145 + 33 = 178 AVC scenarios
+
+**Phase D2 totals:** 33 AVC scenarios across four bands: Phase 2 property disambiguation (13), Phase 3 Tau Prolog sandbox (15), composition and blocking (3), regression and boundary (2). All passing. Architect-confirmed 2026-04-18. Zero discrepancy reports. Combined with prior phases = 178 total AVC scenarios.
+
+**Implementation sequencing (from cover memo):** Fingerprint machinery (scenarios 1,2,4,5,6) → routing logic (3,7,8,9) → merge records and validation (10,11,12,13) → Tau Prolog integration (14) → rule catalog (15–20) → trace production (21,22) → session discipline (23–28) → composition (29–31) → regression (32,33).
+
+**Spot-check transcript targets:** `fingerprint-schema-only` (Invariant I-1 proof), `disambiguation-auto-merge-margin-blocks-near-tie` (PD-4 margin safeguard), `sandbox-purity-no-canonical-mutation` (PS-1 content-hash verification).
+
+**NOT in Phase D2:** `fan:RelationalQuality` reification (separate phase — data model migration that touches every restriction, too risky to combine with disambiguation), HIRI publication, Weaver SDK integration, FNSR deontic services, user-defined relation type classes, n-ary canonical records.
 
 ---
 

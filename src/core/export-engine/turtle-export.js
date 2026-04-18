@@ -9,6 +9,8 @@
 
 import { extractTriples } from './triple-extractor.js';
 import { serializeTurtle } from './turtle-serializer.js';
+import { VERB_TO_SCHEMA } from './relation-type-schemas.js';
+import { isRestrictionNode } from '../../types/type-checks.js';
 
 // ── Full Prefixes ──
 
@@ -35,5 +37,28 @@ const ALL_PREFIXES = {
  */
 export function exportTurtle(graph, config = {}) {
   const allTriples = extractTriples(graph, config);
-  return serializeTurtle(allTriples, ALL_PREFIXES);
+  let turtle = serializeTurtle(allTriples, ALL_PREFIXES);
+
+  // Append RECC relation type class schemas (Rule RECC-5: verbatim seed set).
+  // Scan all restrictions for Tier 2A verbs that map to a relation type class.
+  // Only emit each schema once, regardless of how many restrictions use it.
+  const emittedSchemas = new Set();
+  const concepts = graph['fandaws:concepts'] || [];
+  for (const concept of concepts) {
+    for (const entry of (concept['rdfs:subClassOf'] || [])) {
+      if (!isRestrictionNode(entry)) continue;
+      const onProp = entry['owl:onProperty'];
+      if (typeof onProp !== 'string') continue;
+      // Extract verb tail from fandaws:objectProperty/<verb>
+      const verbPrefix = 'fandaws:objectProperty/';
+      if (!onProp.startsWith(verbPrefix)) continue;
+      const verb = onProp.slice(verbPrefix.length);
+      if (verb in VERB_TO_SCHEMA && !emittedSchemas.has(verb)) {
+        emittedSchemas.add(verb);
+        turtle += '\n' + VERB_TO_SCHEMA[verb].schema.trim() + '\n';
+      }
+    }
+  }
+
+  return turtle;
 }

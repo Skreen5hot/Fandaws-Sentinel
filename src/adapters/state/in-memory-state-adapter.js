@@ -71,6 +71,15 @@ export class InMemoryStateAdapter extends StateAdapter {
     this._compilationEpochs = new Map();
 
     /**
+     * SourceAxiomGraph (VD-1): staging records, quarantine records, and raw source axioms.
+     * Contains exactly four record types: CandidateClass, CandidateRelation,
+     * QuarantineRecord, and RawSourceAxiom. Records are NEVER in the canonical
+     * graph or execution lane. Renamed from _quarantineStore at Phase D1.
+     * @type {Map<string, object>}
+     */
+    this._sourceAxiomGraph = new Map();
+
+    /**
      * BFO Disjointness Map: Set of frozen "A|B" pair strings (alphabetically ordered)
      * representing all disjoint BFO class pairs (explicit + inferred via transitive
      * closure). Computed during ensureBfoIngestion(), rebuilt on re-ingestion.
@@ -792,6 +801,33 @@ export class InMemoryStateAdapter extends StateAdapter {
           continue;
         }
 
+        // Check 2: Provenance authority enforcement (Section 5.7, RECC-3/RECC-4)
+        // Pattern A relation types (e.g., inheres_in) declare provenance authority
+        // via owl:hasValue on fan:isSourceOf inverse. Restrictions using these
+        // relation types MUST have a standalone provenance triple.
+        const relationType = entry['fandaws:relationType'];
+        if (relationType === 'fandaws:relationType/inheres_in') {
+          const provTriple = entry['fandaws:provenanceTriple'];
+          if (!provTriple) {
+            entry['fandaws:compilationStatus'] = 'CompilerRejected';
+            entry['fandaws:compilerFeedback'] = {
+              failedCheck: 'provenance_authority',
+              reason: `Pattern A relation type requires a standalone fan:isSourceOf provenance triple. None found.`,
+              timestamp: new Date().toISOString(),
+            };
+            continue;
+          }
+          if (!entry['fandaws:hasStandaloneProvenance']) {
+            entry['fandaws:compilationStatus'] = 'CompilerRejected';
+            entry['fandaws:compilerFeedback'] = {
+              failedCheck: 'provenance_standalone',
+              reason: `The fan:isSourceOf triple must be standalone — asserted outside the restriction's subject block. Embedded provenance is invalid (RECC-4).`,
+              timestamp: new Date().toISOString(),
+            };
+            continue;
+          }
+        }
+
         // Check 3: BFO subcategory — inheres_in requires Quality (if applicable)
         if (entry['fandaws:bearerLink'] === 'bfo:inheres_in') {
           // inheres_in is only valid on relation types declaring bfo:Quality
@@ -1070,6 +1106,537 @@ export class InMemoryStateAdapter extends StateAdapter {
    */
   getDisjointnessMap() {
     return this._bfoDisjointnessMap;
+  }
+
+  /**
+   * Get the SourceAxiomGraph (staging + quarantine + raw axiom records).
+   * Per VD-1: contains CandidateClass, CandidateRelation, QuarantineRecord,
+   * and RawSourceAxiom record types.
+   */
+  getSourceAxiomGraph() {
+    return this._sourceAxiomGraph;
+  }
+
+  /** @deprecated Use getSourceAxiomGraph(). Alias retained for backward compatibility. */
+  getQuarantineStore() {
+    return this._sourceAxiomGraph;
+  }
+
+  /**
+   * Ingest an external axiom through the normalization pipeline.
+   * Structural violations go to the quarantine store (not the canonical graph).
+   * This is a separate entry point from the conversational pipeline.
+   *
+   * @param {string} graphId
+   * @param {object} axiom - { axiom, sourceSystem, domainClass, rangeClass }
+   * @returns {{ quarantined: boolean, quarantineId?: string }}
+   */
+  ingestExternalAxiom(graphId, axiom) {
+    const { sourceSystem, domainClass, rangeClass } = axiom;
+
+    // Check BFO disjointness between domain and range
+    if (domainClass && rangeClass && this.areDisjoint(domainClass, rangeClass)) {
+      const quarantineId = `fandaws:quarantine/${Date.now()}`;
+      const record = {
+        quarantineId,
+        type: 'QuarantineRecord',
+        sourceSystem: sourceSystem || 'unknown',
+        importedAt: new Date().toISOString(),
+        quarantineReason: 'RECC structural conformance violation',
+        quarantineStatus: 'PendingReview',
+        rawAxiom: axiom.axiom || '',
+        failureTrace: {
+          violationRule: 'TypeDisjointnessViolation',
+          relation: 'has_part',
+          subjectNode: axiom.axiom?.split(' ')[0] || 'unknown',
+          objectNode: axiom.axiom?.split(' ').pop() || 'unknown',
+          subjectType: domainClass,
+          objectType: rangeClass,
+          disjointPair: [domainClass, rangeClass].sort(),
+          suggestedRepair: `Review BFO placement of the object concept. Expected: ${domainClass}. Current: ${rangeClass}.`,
+        },
+      };
+      this._sourceAxiomGraph.set(quarantineId, record);
+      return { quarantined: true, quarantineId };
+    }
+
+    // Not disjoint — would proceed to canonical (Phase D full pipeline)
+    // For Phase C2, non-violating axioms are not yet handled
+    return { quarantined: false };
+  }
+
+  /**
+   * Release a quarantine record: create canonical restriction at confidence 0.7.
+   *
+   * @param {string} graphId
+   * @param {string} quarantineId
+   * @returns {{ released: boolean }}
+   */
+  releaseQuarantine(graphId, quarantineId) {
+    const record = this._sourceAxiomGraph.get(quarantineId);
+    if (!record || record.quarantineStatus !== 'PendingReview') return { released: false };
+
+    record.quarantineStatus = 'Released';
+
+    // Create canonical restriction at confidence 0.7 (Decision C-3)
+    const graph = this._graphs.get(graphId);
+    if (graph) {
+      // Parse the axiom to find subject/object
+      const axiomStr = record.rawAxiom || record.axiom || '';
+      const match = axiomStr.match(/(\w+)\s+(\w+)\s+(\w+)/);
+      if (match) {
+        const [, subjectLabel, verb, objectLabel] = match;
+        const concepts = graph['fandaws:concepts'] || [];
+        const subject = concepts.find((c) =>
+          c['skos:prefLabel'] === subjectLabel || c['rdfs:label'] === subjectLabel,
+        );
+        const object = concepts.find((c) =>
+          c['skos:prefLabel'] === objectLabel || c['rdfs:label'] === objectLabel,
+        );
+        if (subject && object) {
+          const restriction = {
+            '@id': `${subject['@id']}#r-${verb}-${object['skos:prefLabel']}`,
+            '@type': 'owl:Restriction',
+            'owl:onProperty': `fandaws:objectProperty/${verb}`,
+            'owl:someValuesFrom': object['@id'],
+            'fandaws:verbLabel': verb,
+            'fandaws:propertyLabel': object['skos:prefLabel'],
+            'fandaws:attachedTo': subject['@id'],
+            'fandaws:restrictionKind': 'property',
+            'fandaws:confidence': 0.7,
+            'fandaws:normalizationStatus': 'Normalized',
+            'fandaws:source': record.sourceSystem,
+          };
+          subject['rdfs:subClassOf'] = subject['rdfs:subClassOf'] || [];
+          subject['rdfs:subClassOf'].push(restriction);
+          this._graphs.set(graphId, graph);
+          this.compile(graphId);
+        }
+      }
+    }
+
+    return { released: true };
+  }
+
+  /**
+   * Reject a quarantine record. Record retained permanently for audit.
+   *
+   * @param {string} quarantineId
+   * @returns {{ rejected: boolean }}
+   */
+  rejectQuarantine(quarantineId) {
+    const record = this._sourceAxiomGraph.get(quarantineId);
+    if (!record || record.quarantineStatus !== 'PendingReview') return { rejected: false };
+    record.quarantineStatus = 'Rejected';
+    return { rejected: true };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Phase D1: Bulk Ingestion Pipeline
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Ingestion session records. Keyed by sessionId.
+   * Contains IngestionSession and VersionChangeEvent records.
+   * NOT in concept graph, NOT in SourceAxiomGraph (Q2 answer).
+   * @type {Map<string, object>}
+   */
+  get _ingestionSessions() {
+    if (!this.__ingestionSessions) this.__ingestionSessions = new Map();
+    return this.__ingestionSessions;
+  }
+
+  /**
+   * Start an ingestion session.
+   * @param {object} options - { sourceOntology, autoMergeThreshold }
+   * @returns {{ sessionId: string, session: object }}
+   */
+  startIngestionSession(options = {}) {
+    const sessionId = `fandaws:session/${Date.now()}`;
+    const session = {
+      sessionId,
+      type: 'IngestionSession',
+      sourceOntology: options.sourceOntology || 'unknown',
+      sessionStartedAt: new Date().toISOString(),
+      sessionCompletedAt: null,
+      compilationEpochAtCompletion: null,
+      classesIngested: 0,
+      classesPlaced: 0,
+      classesAmbiguous: 0,
+      classesRejected: 0,
+      autoMergeThreshold: options.autoMergeThreshold ?? 0.85,
+      confidenceDelta: options.confidenceDelta ?? 0.15,
+    };
+    this._ingestionSessions.set(sessionId, session);
+    return { sessionId, session };
+  }
+
+  /**
+   * Query all ingestion sessions and version change events.
+   * @returns {Map<string, object>}
+   */
+  querySessions() {
+    return this._ingestionSessions;
+  }
+
+  /**
+   * Ingest an external ontology through the batch pipeline.
+   * Decision D-2: batch, not conversational. Zero interactive prompts.
+   *
+   * @param {string} graphId
+   * @param {object} trigger - { sourceOntology, classes, properties, stopAfterStaging, confidenceDelta }
+   * @returns {object} Pipeline result
+   */
+  ingestOntology(graphId, trigger) {
+    const { sourceOntology, classes = [], properties = [], stopAfterStaging = false, confidenceDelta } = trigger;
+
+    // Start session
+    const { sessionId, session } = this.startIngestionSession({
+      sourceOntology,
+      confidenceDelta: confidenceDelta ?? 0.15,
+    });
+
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { error: 'Graph not found' };
+
+    // ── Phase 1a: Create staging records ──
+    const stagingIds = [];
+    for (const cls of classes) {
+      const stagingId = `fandaws:staging/${Date.now()}-${cls.iri}`;
+      const record = {
+        type: 'CandidateClass',
+        sourceIRI: cls.iri,
+        sourceLabel: cls.label,
+        sourceOntology,
+        superclass: cls.superclass || null,
+        properties: cls.properties || [],
+        ingestedInSession: sessionId,
+        candidateStatus: 'Pending',
+        normalizationStatus: null,
+        placementConfidence: null,
+        placementJustification: null,
+      };
+      this._sourceAxiomGraph.set(stagingId, record);
+      stagingIds.push(stagingId);
+      session.classesIngested++;
+    }
+
+    if (stopAfterStaging) {
+      return { sessionId, staged: stagingIds.length, stopped: true };
+    }
+
+    // ── Phase 1b: Evaluate placement for each staged class ──
+    // Import placement sandbox lazily to avoid circular deps
+    const { evaluatePlacement, routePlacement } = this._getPlacementSandbox();
+    const delta = session.confidenceDelta;
+
+    for (const stagingId of stagingIds) {
+      const record = this._sourceAxiomGraph.get(stagingId);
+      const result = evaluatePlacement({
+        iri: record.sourceIRI,
+        label: record.sourceLabel,
+        superclass: record.superclass,
+        properties: record.properties,
+      }, { disjointnessMap: this._bfoDisjointnessMap });
+
+      const routing = routePlacement(result, delta);
+      record.candidateStatus = routing.status;
+      record.placementConfidence = result.confidence;
+      record.placementJustification = result.justification;
+      record.placementResult = routing.placement;
+
+      if (routing.status === 'PlacementConfirmed') {
+        // Auto-promote to canonical
+        this._promoteCandidate(graphId, record, sessionId);
+        session.classesPlaced++;
+      } else if (routing.status === 'PlacementAmbiguous') {
+        record.normalizationStatus = 'PendingHumanResolution';
+        session.classesAmbiguous++;
+      } else if (routing.status === 'PlacementRejected') {
+        record.normalizationStatus = 'Rejected';
+        session.classesRejected++;
+      }
+    }
+
+    // ── Check blocking rule (Decision D-4) ──
+    const unresolvedClasses = [];
+    for (const sid of stagingIds) {
+      const r = this._sourceAxiomGraph.get(sid);
+      if (r.normalizationStatus === 'PendingHumanResolution') {
+        unresolvedClasses.push(r.sourceIRI);
+      }
+    }
+    const phase2Blocked = unresolvedClasses.length > 0;
+
+    // ── Complete session if no blocking ──
+    if (!phase2Blocked) {
+      session.sessionCompletedAt = new Date().toISOString();
+      session.compilationEpochAtCompletion = this._compilationEpochs.get(graphId) || 0;
+    }
+
+    return {
+      sessionId,
+      session,
+      promptsFired: 0,
+      machineSignalsEmitted: 0,
+      pipelineState: {
+        phase1Complete: true,
+        phase2Started: false,
+        phase2Blocked,
+        phase2CanProceed: !phase2Blocked,
+        allPhase1Resolved: !phase2Blocked,
+        blockedBy: phase2Blocked ? 'PendingHumanResolution' : null,
+        unresolvedCount: unresolvedClasses.length,
+        unresolvedClasses,
+      },
+    };
+  }
+
+  /**
+   * Lazy-load placement sandbox to avoid circular imports.
+   * @private
+   */
+  _getPlacementSandbox() {
+    if (!this.__placementSandbox) {
+      // Dynamic import fallback: store reference after first load
+      // Since we're in a synchronous context, we rely on the module being
+      // pre-imported by the runner or test setup. Use a direct require-style
+      // approach with a cached reference.
+      this.__placementSandbox = { evaluatePlacement: null, routePlacement: null };
+    }
+    return this.__placementSandbox;
+  }
+
+  /**
+   * Register the placement sandbox functions (called during module init).
+   * This avoids circular dependency issues.
+   */
+  registerPlacementSandbox(evaluatePlacement, routePlacement) {
+    this.__placementSandbox = { evaluatePlacement, routePlacement };
+  }
+
+  /**
+   * Promote a confirmed CandidateClass to canonical.
+   * Creates a fresh fandaws:class/ IRI concept with owl:equivalentClass.
+   * Q1 answer: isImported: false, user CAN modify.
+   * @private
+   */
+  _promoteCandidate(graphId, record, sessionId) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return;
+
+    const label = (record.sourceLabel || record.sourceIRI?.split(/[/#:]/).pop() || 'unknown').toLowerCase();
+    const slug = label.replace(/\s+/g, '-');
+    const uuid = this._generateUUID(label);
+    const conceptIri = `fandaws:class/${uuid}/${slug}`;
+
+    // Find the BFO placement node in the graph
+    const placement = record.placementResult;
+    let broaderIri = null;
+    if (placement) {
+      // Look for the BFO concept in the graph by matching label
+      const concepts = graph['fandaws:concepts'] || [];
+      const bfoConcept = concepts.find(c => {
+        const prefLabel = (c['skos:prefLabel'] || '').toLowerCase().replace(/\s+/g, '');
+        const placementLower = placement.toLowerCase().replace(/\s+/g, '');
+        // Match by label (e.g., "material entity" matches "MaterialEntity")
+        return prefLabel === placementLower.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/\s+/g, '') ||
+               prefLabel === placementLower;
+      });
+      if (bfoConcept) {
+        broaderIri = bfoConcept['@id'];
+      }
+    }
+
+    const concept = {
+      '@id': conceptIri,
+      '@type': ['owl:Class', 'skos:Concept'],
+      'rdfs:label': record.sourceLabel,
+      'skos:prefLabel': label,
+      'skos:broader': broaderIri,
+      'rdfs:subClassOf': broaderIri ? [broaderIri] : [],
+      'dcterms:created': new Date().toISOString(),
+      'owl:equivalentClass': [record.sourceIRI],
+      'fandaws:isImported': false,
+      'fandaws:ingestSource': record.sourceOntology,
+      'fandaws:placementConfidence': record.placementConfidence,
+      'fandaws:ingestedInSession': sessionId,
+    };
+
+    graph['fandaws:concepts'].push(concept);
+    this._graphs.set(graphId, graph);
+    this.compile(graphId);
+  }
+
+  /**
+   * Simple UUID v5-like generator based on label (deterministic).
+   * @private
+   */
+  _generateUUID(label) {
+    // Simple hash-based UUID for determinism
+    let hash = 0;
+    const str = `fandaws:${label}:${Date.now()}`;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0;
+    }
+    const hex = Math.abs(hash).toString(16).padStart(8, '0');
+    return `${hex.slice(0, 8)}-${hex.slice(0, 4)}-5${hex.slice(1, 4)}-${hex.slice(0, 4)}-${hex.slice(0, 12).padEnd(12, '0')}`;
+  }
+
+  /**
+   * Resolve a human placement decision for an ambiguous class.
+   * @param {string} graphId
+   * @param {string} candidateIRI - Source IRI of the candidate class
+   * @param {string} selectedPlacement - BFO node selected by human (e.g., "bfo:MaterialEntity")
+   * @returns {{ resolved: boolean }}
+   */
+  resolvePlacement(graphId, candidateIRI, selectedPlacement) {
+    // Find the staging record
+    let stagingId = null;
+    let record = null;
+    for (const [id, r] of this._sourceAxiomGraph.entries()) {
+      if (r.type === 'CandidateClass' && r.sourceIRI === candidateIRI) {
+        stagingId = id;
+        record = r;
+        break;
+      }
+    }
+    if (!record) return { resolved: false };
+
+    // Update staging record
+    record.candidateStatus = 'PlacementConfirmed';
+    record.normalizationStatus = 'Normalized';
+
+    // Normalize the selected placement
+    const { evaluatePlacement, routePlacement } = this._getPlacementSandbox();
+    // Import normalizeBfoClass indirectly
+    const placementNormalized = selectedPlacement.replace('bfo:', '').replace(/\s+/g, '');
+    record.placementResult = placementNormalized;
+
+    // Promote to canonical
+    const sessionId = record.ingestedInSession;
+    this._promoteCandidate(graphId, record, sessionId);
+
+    // Update session counts
+    if (sessionId) {
+      const session = this._ingestionSessions.get(sessionId);
+      if (session) {
+        session.classesAmbiguous = Math.max(0, session.classesAmbiguous - 1);
+        session.classesPlaced++;
+      }
+    }
+
+    // Check if all Phase 1 items are now resolved
+    let allResolved = true;
+    for (const r of this._sourceAxiomGraph.values()) {
+      if (r.type === 'CandidateClass' && r.normalizationStatus === 'PendingHumanResolution') {
+        allResolved = false;
+        break;
+      }
+    }
+
+    return {
+      resolved: true,
+      pipelineState: {
+        phase1Complete: true,
+        allPhase1Resolved: allResolved,
+        phase2CanProceed: allResolved,
+      },
+    };
+  }
+
+  /**
+   * Handle BFO re-ingestion: auto-re-evaluate all previously placed classes.
+   * Clarification: only classes dropping below 0.7 go to PendingHumanResolution.
+   *
+   * @param {string} graphId
+   * @returns {object} Re-evaluation results
+   */
+  reingestionBfo(graphId) {
+    // Record version change event
+    const eventId = `fandaws:event/${Date.now()}`;
+    this._ingestionSessions.set(eventId, {
+      type: 'VersionChangeEvent',
+      changedAt: new Date().toISOString(),
+      recompilationScope: 'FullRecompilation',
+      graphId,
+    });
+
+    // Find all concepts that were placed by ingestion (have ingestedInSession)
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { autoReEvaluationRan: true, classesReEvaluated: 0 };
+
+    const { evaluatePlacement, routePlacement } = this._getPlacementSandbox();
+    let classesReEvaluated = 0;
+    let classesStillConfirmed = 0;
+    let classesDroppedToAmbiguous = 0;
+
+    const concepts = graph['fandaws:concepts'] || [];
+    for (const concept of concepts) {
+      // Identify ingested concepts: they have ingestedInSession OR placementConfidence
+      if (!concept['fandaws:ingestedInSession'] && concept['fandaws:placementConfidence'] === undefined) continue;
+      if (concept['fandaws:isImported']) continue; // Skip BFO infrastructure concepts
+
+      classesReEvaluated++;
+
+      // Re-run sandbox with the concept's original data
+      // Find the staging record for this concept
+      let stagingRecord = null;
+      for (const r of this._sourceAxiomGraph.values()) {
+        if (r.type === 'CandidateClass') {
+          const label = (concept['skos:prefLabel'] || '').toLowerCase();
+          const srcLabel = (r.sourceLabel || '').toLowerCase();
+          if (label === srcLabel) {
+            stagingRecord = r;
+            break;
+          }
+        }
+      }
+
+      // Infer superclass from broader if no staging record
+      let superclass = stagingRecord?.superclass || null;
+      if (!superclass && concept['skos:broader']) {
+        const parent = concepts.find(c => c['@id'] === concept['skos:broader']);
+        if (parent?.['fandaws:isImported']) {
+          // Parent is a BFO concept — use its label as superclass hint
+          const parentLabel = parent['skos:prefLabel'] || '';
+          superclass = `bfo:${parentLabel.replace(/\s+/g, '')}`;
+        }
+      }
+
+      // Re-evaluate using the sandbox
+      const result = evaluatePlacement({
+        iri: concept['owl:equivalentClass']?.[0] || concept['@id'],
+        label: concept['rdfs:label'] || concept['skos:prefLabel'],
+        superclass,
+        properties: stagingRecord?.properties || [],
+      }, { disjointnessMap: this._bfoDisjointnessMap });
+
+      if (result.confidence >= 0.7) {
+        classesStillConfirmed++;
+        concept['fandaws:placementConfidence'] = result.confidence;
+      } else {
+        classesDroppedToAmbiguous++;
+        concept['fandaws:placementConfidence'] = result.confidence;
+        // Mark as PendingHumanResolution on the staging record
+        if (stagingRecord) {
+          stagingRecord.normalizationStatus = 'PendingHumanResolution';
+          stagingRecord.candidateStatus = 'PlacementAmbiguous';
+        }
+      }
+    }
+
+    // Trigger full recompilation
+    this.compile(graphId);
+
+    return {
+      autoReEvaluationRan: true,
+      classesReEvaluated,
+      classesStillConfirmed,
+      classesDroppedToAmbiguous,
+    };
   }
 
   // ─────────────────────────────────────────────────────────

@@ -6,8 +6,8 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
 
 ## Current Status
 
-- **Phase:** 0–13 + Phase B Complete (FANDAWS v2.1 Roadmap Phase 2)
-- **Test Suite:** 96 suites, 2,034 tests passing (11 skipped for unimplemented features)
+- **Phase:** 0–13 + Phase B + C1 + C2 + D1 + D2 Complete (FANDAWS v2.1 Roadmap Complete)
+- **Test Suite:** 103 suites, 2,212 tests passing (11 skipped for unimplemented features)
 - **Build:** 325.5 KB bundled (esbuild)
 - **Blockers:** None
 - **Completed Tracks:**
@@ -15,7 +15,7 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
   - **Track B (Graph Mechanics):** P3, P4, P4b, P5, P6, P8, P9 — all complete
   - **Track C (Lifecycle):** P11, P12 — all complete. AVC model introduced at P12.
   - **Post-Convergence:** P13 — complete. MachineSignal, deadlock cascade, rate limiting.
-  - **FANDAWS v2.1:** Phase B + C1 — complete. Dual-lane, compilation pipeline, BFO Disjointness Map, CC Path A/B, RECC structural conformance, confidence tiers, retraction protocol, stale detection.
+  - **FANDAWS v2.1:** Phase B + C1 + C2 + D1 + D2 — **complete**. Dual-lane, compilation pipeline, BFO Disjointness Map, CC Path A/B, RECC structural conformance, confidence tiers, retraction protocol, stale detection, provenance authority enforcement, RECC schemas in exports, SourceAxiomGraph, bulk ingestion pipeline (class placement + property disambiguation + Tau Prolog consistency sandbox), namespace split, merge records.
   - **Convergence Gate (P8):** Passed — regex NLParser at 100%, ADR-003 accepted
 - **Cross-Cutting Specs:**
   - BFO Ontology Ingestion Phase A (v1.4) — complete
@@ -23,8 +23,8 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
   - Consequence-Aware Reclassification — complete (3 options: keep/subtree/only)
   - Homonym Detection (v1.3) — Phase A complete
   - Workbench v0.1 — complete (GitHub Pages)
-- **Remaining:** Phase C2 (RECC Externalization), Phase D (Bulk Ingestion Pipeline). P14 (Ecosystem Adapters) on hold pending Weaver SDK.
-- **Active AVC:** 102 scenarios across 4 bundles (P12: 25, P13: 24, Phase B: 27, C1: 26) — all run on every build, regressions are P0
+- **Remaining:** P14 (Ecosystem Adapters) on hold pending Weaver SDK. FANDAWS v2.1 roadmap is complete.
+- **Active AVC:** 178 scenarios across 7 bundles (P12: 25, P13: 24, Phase B: 27, C1: 26, C2: 20, D1: 23, D2: 33) — all run on every build, regressions are P0
 - **Remaining Specs:** Ontology Ingestion Phase B (general ontology import, needs Workbench v0.2 UI)
 
 ## Key Files

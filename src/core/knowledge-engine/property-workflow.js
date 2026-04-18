@@ -313,34 +313,42 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
   // Pre-commit gate: check BFO disjointness between subject and object.
   // If disjoint, fire conversationalConsistencyCheck prompt BEFORE creating
   // any restriction. The user/agent decides whether to proceed.
-  if (adapter && !options.consistencyCheckOverride) {
-    const subjectBfo = adapter._getBfoCategory
-      ? adapter._getBfoCategory(subject, graph['fandaws:concepts'] || [])
-      : null;
+  // When consistencyCheckOverride === 'assert_anyway', the restriction is created
+  // but with normalizationStatus: Quarantined (Q5 answer — canonical quarantine,
+  // NOT the _sourceAxiomGraph).
+  let ccPathBQuarantined = false;
+  if (adapter && adapter._getBfoCategory && adapter.areDisjoint) {
+    const subjectBfo = adapter._getBfoCategory(subject, graph['fandaws:concepts'] || []);
     const objectConcept = (graph['fandaws:concepts'] || []).find(
       (c) => c['@id'] === propertyConceptIri,
     );
-    const objectBfo = (adapter._getBfoCategory && objectConcept)
+    const objectBfo = objectConcept
       ? adapter._getBfoCategory(objectConcept, graph['fandaws:concepts'] || [])
       : null;
 
-    if (subjectBfo && objectBfo && adapter.areDisjoint && adapter.areDisjoint(subjectBfo, objectBfo)) {
-      const prompt = createConversationPrompt({
-        promptType: 'conversationalConsistencyCheck',
-        text: `Warning — type mismatch: "${rawSubject}" (${subjectBfo}) and "${rawProperty}" (${objectBfo}) are in disjoint BFO categories. This assertion would create a structurally invalid triple.`,
-        options: ['assert_anyway', 'cancel'],
-        context: {
-          action: 'property',
-          subject: rawSubject,
-          object: rawProperty,
-          subjectIri,
-          objectIri: propertyConceptIri,
-          subjectBFO: subjectBfo,
-          objectBFO: objectBfo,
-          disjoint: true,
-        },
-      });
-      return { ...noOp, prompts: [prompt] };
+    if (subjectBfo && objectBfo && adapter.areDisjoint(subjectBfo, objectBfo)) {
+      if (options.consistencyCheckOverride === 'assert_anyway') {
+        // User chose to assert despite disjointness warning.
+        // Restriction goes to canonical with normalizationStatus: Quarantined.
+        ccPathBQuarantined = true;
+      } else {
+        const prompt = createConversationPrompt({
+          promptType: 'conversationalConsistencyCheck',
+          text: `Warning — type mismatch: "${rawSubject}" (${subjectBfo}) and "${rawProperty}" (${objectBfo}) are in disjoint BFO categories. This assertion would create a structurally invalid triple.`,
+          options: ['assert_anyway', 'cancel'],
+          context: {
+            action: 'property',
+            subject: rawSubject,
+            object: rawProperty,
+            subjectIri,
+            objectIri: propertyConceptIri,
+            subjectBFO: subjectBfo,
+            objectBFO: objectBfo,
+            disjoint: true,
+          },
+        });
+        return { ...noOp, prompts: [prompt] };
+      }
     }
   }
 
@@ -373,6 +381,13 @@ export function processProperty(action, graph, indices, options = {}, adapter = 
     scope: attachmentIri === subjectIri ? 'concept-specific' : 'inherited',
     source: 'user',
   });
+
+  // CC Path B assert-anyway: mark restriction as Quarantined in canonical lane.
+  // This is NOT the _sourceAxiomGraph — it's normalizationStatus on the canonical
+  // restriction itself (Q5 answer: two distinct quarantine mechanisms).
+  if (ccPathBQuarantined) {
+    propertyNode['fandaws:normalizationStatus'] = 'Quarantined';
+  }
 
   const redundancy = checkPropertyRedundancy(propertyNode, graph);
 

@@ -1,0 +1,1790 @@
+{
+  "bundle_id": "phase-d2-disambiguation-consistency-sandbox",
+  "bundle_version": 1,
+  "authored": "2026-04-17",
+  "status": "awaits_implementation",
+  "verifies_phase": "Phase D2 — Property Disambiguation + Merge Records + Consistency Sandbox + Namespace Split",
+  "depends_on": "Phase D1 (ingestion pipeline infrastructure + class placement required). D2 consumes D1's post-Phase-1 canonical class records as fact-base input.",
+  "locked_decisions": {
+    "D-8": "Phase 2 is implemented in JavaScript (arithmetic fingerprint scoring, threshold routing). Phase 3 is implemented in Tau Prolog (Prolog interpreter in JS). Both run edge-canonical with no backend.",
+    "D-9": "Fingerprint weight vector: Domain 0.30, Range 0.30, BFO Subcategory 0.15, Characteristics 0.10, AllowsInheresIn 0.05, Lexical 0.10. Structural physics (Domain+Range+Subcategory) MUST sum to >=0.70. Lexical weight MUST NOT exceed 0.10. Hardened in v1.0 as Rule PD-10.",
+    "D-10": "Auto-merge fires when top score >= 0.85 AND margin to second-highest >= 0.05. Near-tie (<0.05 margin) forces disambiguation regardless of absolute score (Rule PD-4).",
+    "D-11": "Disambiguation window floor: 0.60. Arithmetic-derived: Domain+Range+Subcategory match = 0.75 (clears floor, routes to human review). Domain+Lexical only = 0.40 (fails floor, routes to Novel Promotion).",
+    "D-12": "Tau Prolog inference step cap: fixed 10,000 per session. No adaptive caps, no exponential backoff, no retry-with-larger-cap. Axioms exceeding cap are quarantined as HornDerivationUnbounded (Rule PS-8).",
+    "D-13": "Sandbox purity: Phase 3 sandbox MUST NOT mutate the canonical graph. Tau Prolog session mutations are discarded at session destruction. Routing to quarantine/NoViolations occurs in JS after sandbox returns (Rule PS-1).",
+    "D-14": "Fresh fact base + fresh Tau Prolog session per Phase 3 run. No session reuse across runs (Rule PS-2).",
+    "D-15": "Reflexive-transitive closure of subclass is pre-computed by fact base builder and asserted as ground facts. Violation rules MUST NOT perform recursive subclass traversal at query time. Preserves Invariant I-2 under Tau Prolog (Rule PS-9).",
+    "D-16": "FailureTrace MUST contain genuine Tau Prolog derivation trace (Call/Exit/Redo entries), not a hand-rolled declarative summary. All eight fields required: violationRule, relation, subjectNode, objectNode, subjectType, objectType, prologTrace, suggestedRepair (Rule PS-6).",
+    "D-17": "Namespace split on relation promotion: promoted canonical relation type class gets a fresh fandaws:class/UUID/label IRI, NOT the external IRI. Merge action writes owl:equivalentProperty from source IRI to execution property in rel: namespace (Rules PD-9, PD-8).",
+    "D-18": "Phase 3 MUST NOT begin while any Phase 2 item is in PendingHumanResolution. Sequential execution within a session is the D2 contract (Rule D2-1).",
+    "D-19": "Merge records retained permanently. Deprecation of a merged canonical relation type annotates the merge record but does not delete it (Rule PD-8).",
+    "D-20": "suggestedRepair field MUST name at least one concrete action (specific class, relation, or declaration). Generic strings like 'resolve the violation' are non-conformant (Rule PS-7).",
+    "clarification_engine": "Tau Prolog is a Prolog interpreter written in JavaScript. Running it client-side in the browser satisfies the Edge-Canonical First Principle. v0.1 had miscategorized it as a deferred D4 swap-in; v1.0 corrected this. It is the D2 default and only sandbox engine.",
+    "clarification_phase2_language": "Phase 2 does NOT use Tau Prolog. Fingerprint scoring is arithmetic over structured values (JS). Tau Prolog is engaged in Phase 3 only.",
+    "clarification_invariants": "Three load-bearing invariants flagged by SME review: I-1 (PD-1 schema-only fingerprints), I-2 (PS-4a inferred disjointness reuse), I-3 (PD-6 structural narrowing on promotion). Any revision weakening any of these is a breaking change requiring architectural review."
+  },
+  "scenarios": [
+    {
+      "id": "fingerprint-schema-only",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-1 — Invariant I-1",
+        "Decision D-9"
+      ],
+      "description": "Fingerprints are computed from schema-level declarations only. When a candidate relation's source ontology contains type-violating instance assertions, those instances MUST NOT influence fingerprint computation. The candidate is fingerprinted from its declared domain/range/characteristics and merged on that basis; the bad instances are handled separately in Phase 3.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true},
+              {"id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/noisy-ontology",
+        "properties": [
+          {
+            "iri": "ex:hasPart",
+            "label": "has part",
+            "declaredDomain": "bfo:MaterialEntity",
+            "declaredRange": "bfo:MaterialEntity",
+            "declaredCharacteristics": ["owl:TransitiveProperty"],
+            "instances": [
+              {"subject": "ex:Car", "object": "ex:Running", "note": "type-violating instance: Car is MaterialEntity but Running is a Process"}
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "phase2Result": {
+          "candidateFingerprint": {
+            "domainBFOCategory": "bfo:MaterialEntity",
+            "rangeBFOCategory": "bfo:MaterialEntity",
+            "characteristics": ["transitive"],
+            "note": "Fingerprint reflects declared schema, NOT instance data"
+          },
+          "disposition": "AutoMerged",
+          "mergedInto": "fandaws:class/relation/has-part"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no instance data in fingerprint",
+          "description": "The bad instance (ex:Car ex:hasPart ex:Running) MUST NOT pollute the fingerprint. It must be routed to Phase 3 as a separate candidate axiom concern."
+        }
+      ]
+    },
+    {
+      "id": "disambiguation-auto-merge-above-threshold",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-4 — auto-merge threshold",
+        "Decision D-10",
+        "Test T-PD-1"
+      ],
+      "description": "Candidate relation scores >= 0.85 against exactly one existing canonical relation type with margin >= 0.05 to second-highest. Auto-merge fires. Candidate transitions to Normalized. MergeRecord is created with mergeTrigger=AutoMerge.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]},
+              {"id": "fandaws:class/relation/located-in", "canonicalLabel": "located in", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": []}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/vehicle",
+        "properties": [
+          {
+            "iri": "ex:hasComponent",
+            "label": "has component",
+            "declaredDomain": "bfo:MaterialEntity",
+            "declaredRange": "bfo:MaterialEntity",
+            "declaredCharacteristics": ["owl:TransitiveProperty"]
+          }
+        ]
+      },
+      "expect": {
+        "candidateRelation": {
+          "matchConfidenceToHasPart": "ANY_GTE(0.85)",
+          "matchConfidenceToLocatedIn": "ANY_LT(0.80)",
+          "margin": "ANY_GTE(0.05)",
+          "disposition": "AutoMerged"
+        },
+        "stagingRecord": {
+          "normalizationStatus": "Normalized"
+        },
+        "mergeRecord": {
+          "exists": true,
+          "mergedCandidate": "ex:hasComponent",
+          "mergedInto": "fandaws:class/relation/has-part",
+          "mergeTrigger": "AutoMerge",
+          "equivalencyAssertion": {
+            "subject": "ex:hasComponent",
+            "predicate": "owl:equivalentProperty",
+            "object": "ANY_IRI_MATCHING(rel:has-part|rel:has_part)"
+          }
+        }
+      }
+    },
+    {
+      "id": "disambiguation-auto-merge-margin-blocks-near-tie",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-4 — margin enforcement",
+        "Decision D-10"
+      ],
+      "description": "Candidate scores 0.88 against one canonical and 0.86 against another. Margin is only 0.02 (< 0.05). Despite both exceeding the auto-merge threshold, auto-merge MUST NOT fire. Candidate is routed to disambiguation with sandboxVerdict=MultipleCloseMatches.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/contains", "canonicalLabel": "contains", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]},
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/containment",
+        "properties": [
+          {
+            "iri": "ex:includes",
+            "label": "includes",
+            "declaredDomain": "bfo:MaterialEntity",
+            "declaredRange": "bfo:MaterialEntity",
+            "declaredCharacteristics": ["owl:TransitiveProperty"],
+            "note": "Structurally identical to both has-part and contains; lexical similarity tips slightly to one"
+          }
+        ]
+      },
+      "expect": {
+        "candidateRelation": {
+          "topScore": "ANY_GTE(0.85)",
+          "secondScore": "ANY_GTE(0.80)",
+          "margin": "ANY_LT(0.05)",
+          "disposition": "DisambiguationRecord"
+        },
+        "disambiguationRecord": {
+          "exists": true,
+          "sandboxVerdict": "MultipleCloseMatches",
+          "normalizationStatus": "PendingHumanResolution"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no auto-merge on near-tie",
+          "description": "Even though both scores exceed the 0.85 threshold, the <0.05 margin MUST force human review. Auto-merge silently on a near-tie is the failure mode PD-4 was written to prevent."
+        }
+      ]
+    },
+    {
+      "id": "disambiguation-window-routing",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 §2.7 — disambiguation window",
+        "Decision D-11",
+        "Test T-PD-2"
+      ],
+      "description": "Candidate scores 0.65 against top canonical relation (below 0.85 auto-merge threshold, above 0.60 disambiguation floor). Routed to Disambiguation Panel as PendingHumanResolution.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/vague",
+        "properties": [
+          {
+            "iri": "ex:associatedWith",
+            "label": "associated with",
+            "declaredDomain": "bfo:MaterialEntity",
+            "declaredRange": "bfo:MaterialEntity",
+            "declaredCharacteristics": [],
+            "note": "Domain+Range match but no characteristic match and low lexical similarity → ~0.65"
+          }
+        ]
+      },
+      "expect": {
+        "candidateRelation": {
+          "topScore": "ANY_RANGE(0.60, 0.85)",
+          "disposition": "DisambiguationRecord"
+        },
+        "disambiguationRecord": {
+          "exists": true,
+          "candidate": "ex:associatedWith",
+          "normalizationStatus": "PendingHumanResolution",
+          "proposedMatches": {
+            "containsTarget": "fandaws:class/relation/has-part",
+            "descendingByConfidence": true
+          },
+          "availableActions": ["Merge", "Reject", "PromoteAsSubProperty", "PromoteAsNewRelation"]
+        }
+      }
+    },
+    {
+      "id": "novel-promotion-routing",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 §2.10 — Novel Promotion Path",
+        "Decision D-11",
+        "Test T-PD-3"
+      ],
+      "description": "Candidate scores 0.40 against every existing canonical relation (below 0.60 disambiguation floor). Routed to Novel Promotion Panel with default action PromoteAsNewRelation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true},
+              {"id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/deontic",
+        "properties": [
+          {
+            "iri": "ex:obligatedTo",
+            "label": "obligated to",
+            "declaredDomain": "bfo:Agent",
+            "declaredRange": "bfo:Process",
+            "declaredCharacteristics": [],
+            "note": "Domain=Agent, Range=Process, Deontic subcategory — disjoint with has-part on range physics → low score"
+          }
+        ]
+      },
+      "expect": {
+        "candidateRelation": {
+          "topScore": "ANY_LT(0.60)",
+          "disposition": "NovelPromotionPanel"
+        },
+        "novelPromotionRecord": {
+          "exists": true,
+          "candidate": "ex:obligatedTo",
+          "sandboxVerdict": "NovelRelation",
+          "proposedMatches": {"count": 0, "note": "Empty list — below disambiguation floor"},
+          "defaultProposedAction": "PromoteAsNewRelation",
+          "normalizationStatus": "PendingHumanResolution"
+        }
+      }
+    },
+    {
+      "id": "disambiguation-disjoint-hard-floor",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-2 — disjoint hard floor",
+        "Test T-PD-4"
+      ],
+      "description": "Candidate has identical lexical label AND identical characteristic set to existing canonical, BUT its declared domain BFO category is disjoint with the canonical's domain. Match confidence MUST be exactly 0.0 regardless of other components. Candidate routes to Novel Promotion.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true},
+              {"id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ],
+            "bfoDisjointnessMap": {
+              "pairs": [["bfo:MaterialEntity", "bfo:Process"], ["bfo:Continuant", "bfo:Occurrent"]]
+            }
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/homonym",
+        "properties": [
+          {
+            "iri": "ex:has_part",
+            "label": "has part",
+            "declaredDomain": "bfo:Process",
+            "declaredRange": "bfo:Process",
+            "declaredCharacteristics": ["owl:TransitiveProperty"],
+            "note": "Identical label 'has part' and transitive characteristic, but Process domain is disjoint with MaterialEntity domain of canonical has-part"
+          }
+        ]
+      },
+      "expect": {
+        "candidateRelation": {
+          "matchConfidenceToHasPart": 0.0,
+          "disposition": "NovelPromotionPanel",
+          "disjointFloorTriggered": true
+        },
+        "novelPromotionRecord": {
+          "exists": true,
+          "candidate": "ex:has_part",
+          "sandboxVerdict": "NovelRelation"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "disjoint domain forces 0.0",
+          "description": "Even with an identical label and identical characteristic set, a disjoint domain pair MUST force the match score to exactly 0.0. The remaining weight components are NOT summed. Lexical homonyms with different physics are the dangerous case this rule exists to catch."
+        }
+      ]
+    },
+    {
+      "id": "promote-as-sub-property-narrowing-rejected",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-6 — Invariant I-3",
+        "Test T-PD-5"
+      ],
+      "description": "User selects PromoteAsSubProperty for a candidate relation, targeting existing canonical 'has-part' as parent. But the candidate's declared domain (Entity) is broader than has-part's domain (MaterialEntity). The normalizer MUST reject the promotion and re-surface the DisambiguationRecord with a structured correction notice. The child MUST NOT enter the canonical inventory.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:entity", "canonicalLabel": "entity", "parent": null, "isImported": true},
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": "user:entity", "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "pendingDisambiguation": {
+          "candidateIRI": "ex:generalHasPart",
+          "normalizationStatus": "PendingHumanResolution"
+        }
+      },
+      "trigger": {
+        "type": "resolveDisambiguation",
+        "candidateIRI": "ex:generalHasPart",
+        "action": "PromoteAsSubProperty",
+        "parentRelation": "fandaws:class/relation/has-part",
+        "childDeclaredDomain": "user:entity",
+        "childDeclaredRange": "user:material-entity",
+        "note": "childDomain (Entity) is BROADER than parent has-part domain (MaterialEntity)"
+      },
+      "expect": {
+        "promotionOutcome": {
+          "accepted": false,
+          "rejectionReason": "StructuralNarrowingViolation",
+          "violationDetail": {
+            "parentDomain": "user:material-entity",
+            "proposedChildDomain": "user:entity",
+            "subclassRelation": "Entity is a SUPERCLASS of MaterialEntity, not a subclass"
+          }
+        },
+        "canonicalLane": {
+          "childRelationExists": false,
+          "note": "Child NOT created. Canonical taxonomy unchanged."
+        },
+        "disambiguationRecord": {
+          "normalizationStatus": "PendingHumanResolution",
+          "note": "Re-surfaced for operator with correction notice"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "invariant I-3 holds",
+          "description": "A sub-property promotion with a broader domain than its parent MUST be rejected at the normalizer. This prevents the disambiguation panel from being used as an attack surface to corrupt the canonical taxonomy."
+        }
+      ]
+    },
+    {
+      "id": "promote-as-sub-property-valid",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-6 — positive case",
+        "FANDAWS v2.1 Rule PD-7 — BFO subcategory inheritance"
+      ],
+      "description": "Complement to T-PD-5. User promotes a candidate as sub-property with a properly narrower domain and matching BFO subcategory. Promotion succeeds. New canonical relation type class is created with rdfs:subClassOf the parent, inheriting the parent's BFO subcategory exactly.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true},
+              {"id": "user:organism", "canonicalLabel": "organism", "parent": "user:material-entity"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "pendingDisambiguation": {
+          "candidateIRI": "ex:hasOrgan",
+          "normalizationStatus": "PendingHumanResolution"
+        }
+      },
+      "trigger": {
+        "type": "resolveDisambiguation",
+        "candidateIRI": "ex:hasOrgan",
+        "action": "PromoteAsSubProperty",
+        "parentRelation": "fandaws:class/relation/has-part",
+        "childDeclaredDomain": "user:organism",
+        "childDeclaredRange": "user:material-entity"
+      },
+      "expect": {
+        "promotionOutcome": {"accepted": true},
+        "canonicalLane": {
+          "childRelation": {
+            "exists": true,
+            "iriPattern": "fandaws:class/relation/ANY_UUID/has-organ",
+            "parentRelation": "fandaws:class/relation/has-part",
+            "domain": "user:organism",
+            "range": "user:material-entity",
+            "bfoSubcategory": null,
+            "note": "Inherited BFO subcategory (null) from parent exactly (PD-7)"
+          }
+        }
+      }
+    },
+    {
+      "id": "promote-as-new-relation-with-namespace-split",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 §2.9 — PromoteAsNewRelation",
+        "Decision D-17 — namespace split on promotion"
+      ],
+      "description": "Novel candidate relation is promoted as a new canonical relation type class. The new class gets a FRESH fandaws:class/relation/UUID/label IRI — NOT the external IRI. The external IRI is preserved via owl:equivalentProperty bridging to the minted execution property in the rel: namespace.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:agent", "canonicalLabel": "agent", "parent": null, "isImported": true},
+              {"id": "user:action", "canonicalLabel": "action", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "pendingNovelPromotion": {
+          "candidateIRI": "ex:obligatedTo",
+          "candidateLabel": "obligated to",
+          "declaredDomain": "user:agent",
+          "declaredRange": "user:action",
+          "bfoSubcategory": "bfo:Disposition"
+        }
+      },
+      "trigger": {
+        "type": "resolveNovelPromotion",
+        "candidateIRI": "ex:obligatedTo",
+        "action": "PromoteAsNewRelation"
+      },
+      "expect": {
+        "canonicalLane": {
+          "newCanonicalRelation": {
+            "exists": true,
+            "iriPattern": "fandaws:class/relation/ANY_UUID/obligated-to",
+            "canonicalLabel": "obligated to",
+            "sourceIRI": "ex:obligatedTo",
+            "sourceOntology": "ANY_NONEMPTY_STRING",
+            "owlEquivalentProperty": {
+              "from": "ex:obligatedTo",
+              "to": "ANY_IRI_MATCHING(rel:obligated-to|rel:obligated_to)"
+            },
+            "domain": "user:agent",
+            "range": "user:action",
+            "bfoSubcategory": "bfo:Disposition"
+          }
+        },
+        "note": "Three namespaces coexist: ex: (external source), fandaws:class/relation/ (canonical schema), rel: (compiled execution property). owl:equivalentProperty is the ONLY bridge written."
+      },
+      "negative_assertions": [
+        {
+          "condition": "fresh Fandaws IRI minted",
+          "description": "Canonical relation IRI is fandaws:class/relation/UUID/... NOT the external ex: IRI. The external IRI appears only in sourceIRI and the owl:equivalentProperty assertion."
+        },
+        {
+          "condition": "rel: used for execution property",
+          "description": "Execution property (target of owl:equivalentProperty) is in rel: namespace, NOT in bfo: or fandaws: or the source namespace."
+        }
+      ]
+    },
+    {
+      "id": "merge-record-auto-merge-structure",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 §2.11 — Merge Record Structure",
+        "Decision D-17"
+      ],
+      "description": "When auto-merge fires, a MergeRecord is created with complete field inventory: mergedCandidate, mergedInto, mergeTrigger=AutoMerge, mergeConfidence, mergeRationale, equivalencyAssertion (subject/predicate/object triple), mergedAt, mergedBy, ingestedInSession.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null, "characteristics": ["transitive"]}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "ingestOntology",
+        "sourceOntology": "https://example.org/vehicle",
+        "properties": [
+          {
+            "iri": "ex:hasComponent",
+            "label": "has component",
+            "declaredDomain": "bfo:MaterialEntity",
+            "declaredRange": "bfo:MaterialEntity",
+            "declaredCharacteristics": ["owl:TransitiveProperty"]
+          }
+        ]
+      },
+      "expect": {
+        "mergeRecord": {
+          "exists": true,
+          "type": "MergeRecord",
+          "mergedCandidate": "ANY_IRI_MATCHING(candidate_rel.*hasComponent)",
+          "mergedInto": "fandaws:class/relation/has-part",
+          "mergeTrigger": "AutoMerge",
+          "mergeConfidence": "ANY_GTE(0.85)",
+          "mergeRationale": "ANY_NONEMPTY_STRING",
+          "equivalencyAssertion": {
+            "subject": "ex:hasComponent",
+            "predicate": "owl:equivalentProperty",
+            "object": "ANY_IRI_MATCHING(rel:has-part|rel:has_part)"
+          },
+          "mergedAt": "ANY_ISO_DATETIME",
+          "mergedBy": "ANY_NONEMPTY_STRING",
+          "ingestedInSession": "ANY_SESSION_ID"
+        }
+      }
+    },
+    {
+      "id": "merge-record-retained-after-deprecation",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-8 — merge records retained permanently",
+        "Decision D-19"
+      ],
+      "description": "When a merged canonical relation type is later deprecated, the MergeRecord is NOT deleted. Instead the record is annotated: mergedInto carries owl:deprecated=true. The record persists in the audit trail indefinitely.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "canonicalLabel": "has part", "deprecated": false}
+            ],
+            "mergeRecords": [
+              {"id": "fandaws:merge/001", "mergedCandidate": "ex:hasComponent", "mergedInto": "fandaws:class/relation/has-part", "mergedAt": "2026-01-01T00:00:00Z"}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "deprecateRelation",
+        "relation": "fandaws:class/relation/has-part"
+      },
+      "expect": {
+        "mergeRecord": {
+          "id": "fandaws:merge/001",
+          "stillExists": true,
+          "mergedIntoDeprecated": true,
+          "recordDeleted": false,
+          "note": "PD-8: deprecation annotates but does not delete"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "merge record permanence",
+          "description": "The MergeRecord MUST NOT be deleted under any relation lifecycle event. It is part of the permanent audit trail."
+        }
+      ]
+    },
+    {
+      "id": "equivalent-property-named-only",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-9 — named-property-to-named-property only"
+      ],
+      "description": "A merge action that attempts to write owl:equivalentProperty with owl:topObjectProperty (or any schema-top property) as the target MUST be rejected by the normalizer. Merge fails; no MergeRecord created; candidate remains pending resolution.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [],
+            "canonicalRelations": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "pendingDisambiguation": {
+          "candidateIRI": "ex:someProp",
+          "normalizationStatus": "PendingHumanResolution"
+        }
+      },
+      "trigger": {
+        "type": "resolveDisambiguation",
+        "candidateIRI": "ex:someProp",
+        "action": "Merge",
+        "mergeTarget": "owl:topObjectProperty",
+        "note": "Malformed attempt: target is a schema-top property, not a named canonical relation"
+      },
+      "expect": {
+        "mergeOutcome": {
+          "accepted": false,
+          "rejectionReason": "TopPropertyEquivalenceForbidden"
+        },
+        "mergeRecord": {"exists": false},
+        "disambiguationRecord": {"normalizationStatus": "PendingHumanResolution"}
+      }
+    },
+    {
+      "id": "weight-vector-bounds-enforced-at-session-init",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PD-10",
+        "Decision D-9"
+      ],
+      "description": "Session initialization validates the fingerprint weight vector. A weight vector with lexical weight > 0.10 (e.g., 0.25) or with structural physics sum (Domain+Range+Subcategory) < 0.70 MUST be rejected. The session does not start. A structured error identifies the offending weight and the bound it violated.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "startIngestionSession",
+        "sourceOntology": "https://example.org/test",
+        "fingerprintWeightVector": {
+          "domain": 0.25,
+          "range": 0.25,
+          "bfoSubcategory": 0.10,
+          "characteristics": 0.10,
+          "allowsInheresIn": 0.05,
+          "lexical": 0.25,
+          "note": "Invalid: lexical=0.25 exceeds 0.10 cap. Structural sum=0.60 < 0.70."
+        }
+      },
+      "expect": {
+        "sessionStarted": false,
+        "error": {
+          "code": "WeightVectorNonConformant",
+          "offendingComponent": "lexical",
+          "boundViolated": "ANY_NONEMPTY_STRING",
+          "structuralSum": 0.60,
+          "lexicalWeight": 0.25
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "session not started",
+          "description": "No IngestionSession record is created. The rejection happens at init, before any candidate records are staged."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-clean-axiom-passes",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 §3.8 — quarantine routing (no-violation path)",
+        "Test T-PS-1"
+      ],
+      "description": "Candidate axiom violates no rules in the Phase 3 catalog. Tau Prolog sandbox returns zero violation(Rule, ...) solutions. Axiom transitions to normalizationStatus=NoViolations and is available for compilation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true},
+              {"id": "user:car", "canonicalLabel": "car", "parent": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:engine", "canonicalLabel": "engine", "parent": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_car_has_engine",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:car",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:engine"
+          }
+        ]
+      },
+      "expect": {
+        "candidateAxiom": {
+          "normalizationStatus": "NoViolations"
+        },
+        "failureTrace": {"exists": false},
+        "quarantineRecord": {"exists": false}
+      }
+    },
+    {
+      "id": "sandbox-type-disjointness",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-4a — Invariant I-2",
+        "Test T-PS-2"
+      ],
+      "description": "Candidate axiom: Car hasPart Driver, where Driver is classified as Process. has-part's expected range is MaterialEntity. MaterialEntity and Process are disjoint in the pre-computed BFO Disjointness Map. Sandbox produces a TypeDisjointnessViolation FailureTrace. Axiom quarantined.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true, "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true, "bfoCategory": "bfo:Process"},
+              {"id": "user:car", "canonicalLabel": "car", "parent": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:driver", "canonicalLabel": "driver", "parent": "user:process", "bfoCategory": "bfo:Process"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null}
+            ],
+            "bfoDisjointnessMap": {
+              "pairs": [["bfo:MaterialEntity", "bfo:Process"], ["bfo:Continuant", "bfo:Occurrent"]]
+            }
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_car_has_driver",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:car",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:driver"
+          }
+        ]
+      },
+      "expect": {
+        "candidateAxiom": {
+          "normalizationStatus": "Quarantined"
+        },
+        "quarantineRecord": {
+          "exists": true,
+          "type": "QuarantineRecord",
+          "failureTrace": {
+            "violationRule": "TypeDisjointnessViolation",
+            "relation": "fandaws:class/relation/has-part",
+            "subjectNode": "user:car",
+            "objectNode": "user:driver",
+            "subjectType": "bfo:MaterialEntity",
+            "objectType": "bfo:Process",
+            "disjointPair": ["bfo:MaterialEntity", "bfo:Process"]
+          }
+        }
+      }
+    },
+    {
+      "id": "sandbox-range-mismatch",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-4b",
+        "Test T-PS-3"
+      ],
+      "description": "Candidate axiom: Car hasPart Service, where Service is classified as Entity (not Process, so not disjoint with MaterialEntity) but is also NOT a subclass of MaterialEntity. Sandbox produces a RangeMismatchViolation (narrower than type disjointness).",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:entity", "canonicalLabel": "entity", "parent": null, "isImported": true, "bfoCategory": "bfo:Entity"},
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": "user:entity", "isImported": true, "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:car", "canonicalLabel": "car", "parent": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:service", "canonicalLabel": "service", "parent": "user:entity", "bfoCategory": "bfo:Entity", "note": "Entity is a superclass of MaterialEntity, so not a subclass, and not disjoint"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_car_has_service",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:car",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:service"
+          }
+        ]
+      },
+      "expect": {
+        "candidateAxiom": {
+          "normalizationStatus": "Quarantined"
+        },
+        "quarantineRecord": {
+          "failureTrace": {
+            "violationRule": "RangeMismatchViolation",
+            "relation": "fandaws:class/relation/has-part",
+            "expectedRange": "user:material-entity",
+            "actualTarget": "user:service"
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "type disjointness not fired",
+          "description": "The target's BFO category is NOT disjoint with the expected range (Entity is a superclass of MaterialEntity). Therefore PS-4a MUST NOT fire. Only PS-4b (RangeMismatch) fires."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-domain-mismatch",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-4c"
+      ],
+      "description": "Candidate axiom applies has-part to a subject whose BFO category is neither a subclass of the expected domain nor disjoint with it. Sandbox produces a DomainMismatchViolation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:entity", "canonicalLabel": "entity", "parent": null, "isImported": true, "bfoCategory": "bfo:Entity"},
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": "user:entity", "isImported": true, "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:engine", "canonicalLabel": "engine", "parent": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:concept", "canonicalLabel": "concept", "parent": "user:entity", "bfoCategory": "bfo:Entity"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity", "bfoSubcategory": null}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_concept_has_engine",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:concept",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:engine"
+          }
+        ]
+      },
+      "expect": {
+        "quarantineRecord": {
+          "failureTrace": {
+            "violationRule": "DomainMismatchViolation",
+            "expectedDomain": "user:material-entity",
+            "actualSubject": "user:concept"
+          }
+        }
+      }
+    },
+    {
+      "id": "sandbox-cycle-detection",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-4d",
+        "Test T-PS-4"
+      ],
+      "description": "Candidate axiom proposes subPropertyOf(R1, R2). The canonical graph already contains subPropertyOf(R2, R1). Adding the proposed axiom would close a cycle. Sandbox produces a CycleViolation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/R1", "domain": "user:material-entity", "range": "user:material-entity"},
+              {"id": "fandaws:class/relation/R2", "domain": "user:material-entity", "range": "user:material-entity"}
+            ],
+            "subPropertyEdges": [
+              {"child": "fandaws:class/relation/R2", "parent": "fandaws:class/relation/R1", "note": "R2 is sub-property of R1"}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_r1_sub_r2",
+            "axiomType": "SubPropertyDeclaration",
+            "onClass": "fandaws:class/relation/R1",
+            "onProperty": "fandaws:class/relation/R2",
+            "note": "Proposes R1 subPropertyOf R2. Combined with existing R2 subPropertyOf R1 → cycle."
+          }
+        ]
+      },
+      "expect": {
+        "candidateAxiom": {
+          "normalizationStatus": "Quarantined"
+        },
+        "quarantineRecord": {
+          "failureTrace": {
+            "violationRule": "CycleViolation",
+            "subjectNode": "fandaws:class/relation/R1",
+            "objectNode": "fandaws:class/relation/R2"
+          }
+        }
+      }
+    },
+    {
+      "id": "sandbox-disjointness-contradiction",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-4e"
+      ],
+      "description": "Candidate axiom proposes owl:disjointWith between class A and class B. Canonical graph contains a class C where C rdfs:subClassOf A AND C rdfs:subClassOf B. Accepting the disjointness would make the current model inconsistent. Sandbox produces a DisjointnessContradictionViolation naming C as witness.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:A", "canonicalLabel": "A", "parent": null},
+              {"id": "user:B", "canonicalLabel": "B", "parent": null},
+              {"id": "user:C", "canonicalLabel": "C", "parent": "user:A", "additionalParents": ["user:B"], "note": "C is a subclass of both A and B"}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_A_disjoint_B",
+            "axiomType": "DisjointnessDeclaration",
+            "onClass": "user:A",
+            "onProperty": "user:B"
+          }
+        ]
+      },
+      "expect": {
+        "quarantineRecord": {
+          "failureTrace": {
+            "violationRule": "DisjointnessContradictionViolation",
+            "subjectNode": "user:A",
+            "objectNode": "user:B",
+            "witness": "user:C"
+          }
+        }
+      }
+    },
+    {
+      "id": "sandbox-horn-unbounded",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-4f",
+        "FANDAWS v2.1 Rule PS-8",
+        "Decision D-12",
+        "Test T-PS-5"
+      ],
+      "description": "Candidate axiom declares a relation transitive. Canonical instance base contains a long chain that would require more than hornInferenceStepCap (10,000) Tau Prolog inference steps to reach fixpoint. Query halts at the cap. Axiom quarantined as HornDerivationUnbounded with inferenceStepsUsed = cap. No runaway session.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/linked-to", "domain": "user:thing", "range": "user:thing"}
+            ],
+            "syntheticInstanceChain": {
+              "relation": "fandaws:class/relation/linked-to",
+              "chainLength": 15000,
+              "note": "Synthetic chain longer than cap to force unbounded signal"
+            }
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true,
+        "sessionConfig": {
+          "hornInferenceStepCap": 10000
+        }
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_linked_to_transitive",
+            "axiomType": "CharacteristicDeclaration",
+            "onClass": "fandaws:class/relation/linked-to",
+            "onProperty": "transitive"
+          }
+        ]
+      },
+      "expect": {
+        "candidateAxiom": {
+          "normalizationStatus": "Quarantined"
+        },
+        "quarantineRecord": {
+          "failureTrace": {
+            "violationRule": "HornDerivationUnbounded",
+            "inferenceStepsUsed": 10000,
+            "note": "Cap honored exactly. Engine halted at 10,000, did not continue."
+          }
+        },
+        "sessionHealth": {
+          "browserThreadResponsive": true,
+          "note": "Browser session did not hang or exceed reasonable wall time"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no backoff triggered",
+          "description": "Sandbox MUST NOT retry with a larger cap on unbounded signal. Quarantine is terminal for this axiom in this session (PS-8)."
+        },
+        {
+          "condition": "inferenceStepsUsed equals cap",
+          "description": "Verifies the cap was honored precisely — not overshot and not undershot."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-failure-trace-complete",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-6",
+        "Decision D-16",
+        "Test T-PS-6"
+      ],
+      "description": "For the TypeDisjointnessViolation produced by T-PS-2, the FailureTrace is examined field-by-field. All required fields MUST be populated: violationRule, relation, subjectNode, objectNode, subjectType, objectType, disjointPair (where applicable), prologTrace (genuine engine output), suggestedRepair, ruleSetVersion, inferenceStepsUsed. No field is null or empty string.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "canonicalLabel": "material entity", "parent": null, "isImported": true, "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:process", "canonicalLabel": "process", "parent": null, "isImported": true, "bfoCategory": "bfo:Process"},
+              {"id": "user:car", "canonicalLabel": "car", "parent": "user:material-entity"},
+              {"id": "user:driver", "canonicalLabel": "driver", "parent": "user:process"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity"}
+            ],
+            "bfoDisjointnessMap": {"pairs": [["bfo:MaterialEntity", "bfo:Process"]]}
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_car_has_driver",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:car",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:driver"
+          }
+        ]
+      },
+      "expect": {
+        "failureTrace": {
+          "violationRule": "TypeDisjointnessViolation",
+          "relation": "ANY_NONEMPTY_STRING",
+          "subjectNode": "ANY_NONEMPTY_STRING",
+          "objectNode": "ANY_NONEMPTY_STRING",
+          "subjectType": "bfo:MaterialEntity",
+          "objectType": "bfo:Process",
+          "disjointPair": ["bfo:MaterialEntity", "bfo:Process"],
+          "prologTrace": "ANY_PROLOG_TRACE",
+          "suggestedRepair": "ANY_NONEMPTY_STRING",
+          "ruleSetVersion": "ANY_NONEMPTY_STRING",
+          "inferenceStepsUsed": "ANY_POSITIVE_INTEGER",
+          "producedAt": "ANY_ISO_DATETIME"
+        }
+      }
+    },
+    {
+      "id": "sandbox-prolog-trace-is-engine-output",
+      "version": 1,
+      "verifies": [
+        "Decision D-16 — genuine Prolog trace",
+        "FANDAWS v2.1 AC-D2-17"
+      ],
+      "description": "The prologTrace field in FailureTrace contains genuine Tau Prolog engine output. Recognizable Call/Exit/Redo entries must be present. The trace must parse back as syntactically valid Prolog (predicate(arg1, arg2, ...). form). A hand-rolled declarative summary (e.g., 'Type disjointness detected between X and Y') is non-conformant.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:car", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:driver", "bfoCategory": "bfo:Process"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity"}
+            ],
+            "bfoDisjointnessMap": {"pairs": [["bfo:MaterialEntity", "bfo:Process"]]}
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_car_has_driver",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:car",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:driver"
+          }
+        ]
+      },
+      "expect": {
+        "prologTrace": {
+          "containsCallEntries": true,
+          "containsExitEntries": true,
+          "parsableAsProlog": true,
+          "containsLiteralEnginePhrases": ["Call:", "Exit:"],
+          "note": "Not a prose description. Engine trace output only."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no prose summary",
+          "description": "If prologTrace reads as English prose describing the violation (e.g., 'The target Driver is disjoint with the expected range MaterialEntity'), that is non-conformant. The trace must be the engine's derivation record."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-purity-no-canonical-mutation",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-1",
+        "Decision D-13"
+      ],
+      "description": "Running the Phase 3 sandbox MUST NOT mutate the canonical graph. A content hash (or equivalent snapshot) of the canonical graph taken before and after the sandbox run must be identical. Any mutation by the Tau Prolog session exists only inside the session and is discarded when the session is destroyed.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:car", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:engine", "bfoCategory": "bfo:MaterialEntity"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity"}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3SandboxWithHashCheck",
+        "candidateAxioms": [
+          {"iri": "fandaws:candidate_axiom_a", "axiomType": "SubclassRestriction", "onClass": "user:car", "onProperty": "fandaws:class/relation/has-part", "restrictionType": "owl:someValuesFrom", "restrictionTarget": "user:engine"}
+        ]
+      },
+      "expect": {
+        "canonicalGraphHashBefore": "ANY_NONEMPTY_STRING",
+        "canonicalGraphHashAfter": "EQUAL_TO_canonicalGraphHashBefore",
+        "sessionDestroyed": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "no canonical side effects",
+          "description": "Zero triples added, modified, or retracted in the canonical graph by sandbox execution. Routing to quarantine/NoViolations happens AFTER the sandbox returns, in the JS pipeline stage, not inside Tau Prolog."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-fresh-session-per-run",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-2",
+        "Decision D-14"
+      ],
+      "description": "Each Phase 3 run instantiates a new Tau Prolog session and rebuilds the fact base fresh from the canonical graph. A stale session is never reused. After the run, the session is destroyed. Running Phase 3 twice in sequence produces two distinct session instances.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [],
+            "canonicalRelations": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3SandboxTwice",
+        "runA": {"candidateAxioms": [{"iri": "ax-a", "axiomType": "SubclassRestriction", "onClass": "user:x", "onProperty": "rel:y", "restrictionType": "owl:someValuesFrom", "restrictionTarget": "user:z"}]},
+        "runB": {"candidateAxioms": [{"iri": "ax-b", "axiomType": "SubclassRestriction", "onClass": "user:x", "onProperty": "rel:y", "restrictionType": "owl:someValuesFrom", "restrictionTarget": "user:z"}]}
+      },
+      "expect": {
+        "runA": {"sessionId": "ANY_NONEMPTY_STRING", "factBaseRebuilt": true},
+        "runB": {"sessionId": "ANY_NONEMPTY_STRING_DIFFERENT_FROM(runA.sessionId)", "factBaseRebuilt": true},
+        "note": "Two distinct session IDs. No shared Prolog engine state across runs."
+      }
+    },
+    {
+      "id": "sandbox-subclass-closure-asserted-as-facts",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-9",
+        "Decision D-15"
+      ],
+      "description": "The fact base asserted into the Tau Prolog session contains the reflexive-transitive closure of subclass as ground facts. Violation rules MUST NOT perform recursive subclass traversal at query time. Verification: for a canonical hierarchy A <- B <- C, the fact base contains subclass(C,A), subclass(C,B), subclass(B,A), subclass(C,C), subclass(B,B), subclass(A,A) — all as ground facts, not derived via a recursive subclass/2 clause.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:A", "parent": null},
+              {"id": "user:B", "parent": "user:A"},
+              {"id": "user:C", "parent": "user:B"}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "inspectFactBase"
+      },
+      "expect": {
+        "factBase": {
+          "subclassFacts": {
+            "contains": [
+              "subclass(user:A, user:A)",
+              "subclass(user:B, user:B)",
+              "subclass(user:C, user:C)",
+              "subclass(user:B, user:A)",
+              "subclass(user:C, user:B)",
+              "subclass(user:C, user:A)"
+            ],
+            "allGroundFacts": true,
+            "noRecursiveClauses": true
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no recursive subclass clause",
+          "description": "The rule catalog MUST NOT contain 'subclass(X,Y) :- subclass(X,Z), subclass(Z,Y).' or any equivalent recursive definition. All transitive subclass lookups resolve via ground-fact unification. This preserves Invariant I-2 on the Tau Prolog side."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-axiom-type-unrecognized",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-3"
+      ],
+      "description": "A candidate axiom with an axiomType not in the recognized catalog (SubclassRestriction, SubPropertyDeclaration, DisjointnessDeclaration, DomainRangeDeclaration, CharacteristicDeclaration) is quarantined with AxiomTypeUnrecognized. Silent ignore is prohibited.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [],
+            "canonicalRelations": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_weird",
+            "axiomType": "ThisTypeIsNotRecognized",
+            "onClass": "user:x",
+            "onProperty": "user:y"
+          }
+        ]
+      },
+      "expect": {
+        "candidateAxiom": {
+          "normalizationStatus": "Quarantined"
+        },
+        "quarantineRecord": {
+          "failureTrace": {
+            "violationRule": "AxiomTypeUnrecognized"
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "not silently ignored",
+          "description": "The unrecognized axiom MUST generate a quarantine record. If it produces no record at all, it would appear to have succeeded while producing no effect — this is the failure mode PS-3 prevents."
+        }
+      ]
+    },
+    {
+      "id": "sandbox-inference-cap-immutable-mid-session",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-8",
+        "Decision D-12"
+      ],
+      "description": "Once Phase 3 has begun within an ingestion session, the hornInferenceStepCap MUST NOT be changed. An attempt to reconfigure it produces a structured error. The cap is read once into a session-scoped constant at session start.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true,
+        "phase3InProgress": true,
+        "sessionConfig": {"hornInferenceStepCap": 10000}
+      },
+      "trigger": {
+        "type": "reconfigureSandbox",
+        "newHornInferenceStepCap": 100000
+      },
+      "expect": {
+        "reconfigurationAccepted": false,
+        "error": {
+          "code": "InferenceCapImmutableMidSession",
+          "attemptedValue": 100000,
+          "currentValue": 10000
+        },
+        "effectiveCap": 10000
+      }
+    },
+    {
+      "id": "sandbox-suggested-repair-names-concrete-action",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule PS-7",
+        "Decision D-20"
+      ],
+      "description": "The suggestedRepair field of a FailureTrace MUST name at least one concrete action: a specific class to reclassify, a specific relation to select differently, or a specific declaration to change. Generic strings like 'resolve the violation' are non-conformant. Test inspects the repair string from a TypeDisjointness violation.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:car", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:driver", "bfoCategory": "bfo:Process"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity"}
+            ],
+            "bfoDisjointnessMap": {"pairs": [["bfo:MaterialEntity", "bfo:Process"]]}
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true
+      },
+      "trigger": {
+        "type": "runPhase3Sandbox",
+        "candidateAxioms": [
+          {
+            "iri": "fandaws:candidate_axiom_car_has_driver",
+            "axiomType": "SubclassRestriction",
+            "onClass": "user:car",
+            "onProperty": "fandaws:class/relation/has-part",
+            "restrictionType": "owl:someValuesFrom",
+            "restrictionTarget": "user:driver"
+          }
+        ]
+      },
+      "expect": {
+        "failureTrace": {
+          "suggestedRepair": {
+            "containsClassReference": true,
+            "namesConcreteAction": true,
+            "mentionsAtLeastOneOf": ["user:driver", "user:car", "has-part", "bfo:MaterialEntity"],
+            "note": "Repair text must reference a specific entity the operator can act on"
+          }
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no generic repair strings",
+          "description": "A repair string of 'resolve the violation', 'fix the error', or any form that does not name a specific class/relation/declaration is non-conformant and MUST be rejected during implementation validation."
+        }
+      ]
+    },
+    {
+      "id": "blocking-phase3-blocked-by-phase2-pending",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule D2-1",
+        "Decision D-18"
+      ],
+      "description": "Phase 3 sandbox MUST NOT begin while any Phase 2 item remains in PendingHumanResolution. If the operator has an unresolved DisambiguationRecord or Novel Promotion item, attempting to trigger Phase 3 is refused with a structured error naming the blocking items.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Incomplete": {
+          "pendingDisambiguations": [
+            {"candidate": "ex:relA", "normalizationStatus": "PendingHumanResolution"},
+            {"candidate": "ex:relB", "normalizationStatus": "PendingHumanResolution"}
+          ]
+        }
+      },
+      "trigger": {
+        "type": "attemptStartPhase3"
+      },
+      "expect": {
+        "phase3Started": false,
+        "error": {
+          "code": "Phase3BlockedByPhase2Pending",
+          "blockingItemCount": 2,
+          "blockingItems": ["ex:relA", "ex:relB"]
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "sequential execution invariant",
+          "description": "Phase 3 MUST NOT start until every Phase 2 PendingHumanResolution item is resolved (Normalized, Rejected, or promoted). D2-1 is the serial execution contract."
+        }
+      ]
+    },
+    {
+      "id": "session-summary-phase2-phase3-populated",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule D2-2"
+      ],
+      "description": "On ingestion session completion, the IngestionSession record carries phase2Summary and phase3Summary blocks with counts that sum correctly to candidate totals. Also carries hornInferenceStepCap and tauPrologVersion as first-class session fields.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "runFullD2Session",
+        "candidateRelations": 15,
+        "candidateAxioms": 28,
+        "expectedOutcomes": {
+          "phase2": {"autoMerged": 6, "humanMerged": 4, "promotedNew": 3, "promotedSubProperty": 1, "rejected": 1},
+          "phase3": {"noViolations": 22, "quarantined": 5, "hornUnbounded": 1}
+        }
+      },
+      "expect": {
+        "session": {
+          "phase2Summary": {
+            "candidateRelationCount": 15,
+            "autoMergedCount": 6,
+            "humanMergedCount": 4,
+            "promotedNewCount": 3,
+            "promotedSubPropertyCount": 1,
+            "rejectedCount": 1,
+            "countsSumToTotal": true
+          },
+          "phase3Summary": {
+            "candidateAxiomCount": 28,
+            "noViolationsCount": 22,
+            "quarantinedCount": 5,
+            "hornUnboundedCount": 1,
+            "countsSumToTotal": true
+          },
+          "hornInferenceStepCap": 10000,
+          "tauPrologVersion": "ANY_NONEMPTY_STRING",
+          "fingerprintPolicyApplied": "ANY_NONEMPTY_STRING",
+          "violationRuleSetApplied": "ANY_NONEMPTY_STRING"
+        }
+      }
+    },
+    {
+      "id": "reeval-conversational-quarantine-in-sandbox",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 §3.8.4 — conversational quarantine re-evaluation",
+        "FANDAWS v2.1 §4.2 — conversational/bulk division of labor"
+      ],
+      "description": "A conversational violation that the operator chose to quarantine via 'Assert anyway' (CC Path B) can be re-evaluated through the Phase 3 Tau Prolog sandbox. A one-axiom session is built against the current canonical graph, producing an expanded FailureTrace consistent with the original conversational warning.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:process", "bfoCategory": "bfo:Process"},
+              {"id": "user:dog", "parent": "user:material-entity"},
+              {"id": "user:running", "parent": "user:process"}
+            ],
+            "canonicalRelations": [
+              {"id": "fandaws:class/relation/has-part", "domain": "user:material-entity", "range": "user:material-entity"}
+            ],
+            "canonicalQuarantinedAssertions": [
+              {
+                "id": "user:dog_has_running",
+                "source": "CC Path B 'Assert anyway'",
+                "normalizationStatus": "Quarantined",
+                "originalConversationalWarning": "hasPart connects MaterialEntity to MaterialEntity; Running is Process. Disjoint in BFO."
+              }
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a"
+      },
+      "trigger": {
+        "type": "reevaluateInPhase3Sandbox",
+        "quarantinedAssertion": "user:dog_has_running"
+      },
+      "expect": {
+        "sandboxOutcome": {
+          "singleAxiomSessionCreated": true,
+          "failureTrace": {
+            "violationRule": "TypeDisjointnessViolation",
+            "disjointPair": ["bfo:MaterialEntity", "bfo:Process"],
+            "prologTrace": "ANY_PROLOG_TRACE",
+            "consistentWithConversationalWarning": true
+          },
+          "sessionDestroyedAfter": true
+        }
+      }
+    },
+    {
+      "id": "bfo-change-mid-d2-session-halts",
+      "version": 1,
+      "verifies": [
+        "FANDAWS v2.1 Rule VD-6 — D2 context"
+      ],
+      "description": "If BFO is re-ingested during an active D2 session (between Phase 2 and Phase 3, or mid-phase), the session halts. Phase 1 placement outputs are invalidated and must be re-evaluated. The operator cannot proceed with the current D2 session — they must restart from Phase 1 with the new BFO version.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": []
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "phase2Complete": true,
+        "phase3AboutToStart": true
+      },
+      "trigger": {
+        "type": "reingestion",
+        "target": "bfo",
+        "newBfoVersion": "2025"
+      },
+      "expect": {
+        "activeSession": {
+          "halted": true,
+          "reason": "BFOVersionChange",
+          "resumeAllowed": false
+        },
+        "phase1ReEvaluationRequired": true,
+        "phase2Results": {"invalidated": true},
+        "phase3NotStarted": true,
+        "note": "VD-6 cascades to a full session restart. D2 does not attempt to proceed with a stale BFO Disjointness Map."
+      },
+      "negative_assertions": [
+        {
+          "condition": "no partial continuation",
+          "description": "System MUST NOT attempt to continue Phase 3 with the pre-change BFO Disjointness Map. The structural invariants depend on the active BFO version."
+        }
+      ]
+    },
+    {
+      "id": "reg-conversational-check-unchanged",
+      "version": 1,
+      "verifies": [
+        "Decision D-2 (from D1) — conversational pipeline unchanged by D2"
+      ],
+      "description": "Regression: after D2 is deployed, the conversational consistency check (v2.1 §3.8 Path A/B) still fires on single-assertion input with the same behavior as before. D2's bulk pipeline does not affect conversational pathway.",
+      "setup": {
+        "scopes": [
+          {
+            "scopeType": "user",
+            "graphId": "user-graph-a",
+            "graphVersion": "1.0.0",
+            "bfoIngested": true,
+            "concepts": [
+              {"id": "user:material-entity", "bfoCategory": "bfo:MaterialEntity"},
+              {"id": "user:organism", "parent": "user:material-entity", "restrictions": [{"verb": "has", "object": "user:dna"}]},
+              {"id": "user:animal", "parent": "user:organism"},
+              {"id": "user:dna"}
+            ]
+          }
+        ],
+        "activeScope": "user-graph-a",
+        "d2Deployed": true
+      },
+      "trigger": {
+        "type": "utterance",
+        "value": "an animal is a material entity"
+      },
+      "expect": {
+        "prompt": {
+          "fired": true,
+          "machineSignal": {"envelope": {"promptType": "reclassificationConsequence"}}
+        },
+        "note": "CC Path A consequence prompt fires exactly as before D2. No bulk pipeline invoked. No Tau Prolog session created for single utterance."
+      },
+      "negative_assertions": [
+        {
+          "condition": "no D2 pipeline on conversational input",
+          "description": "Single-utterance input MUST NOT trigger Phase 2 fingerprinting or Phase 3 sandbox. Those are reserved for bulk axiom ingestion."
+        }
+      ]
+    }
+  ]
+}

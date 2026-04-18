@@ -29,24 +29,54 @@ function runViolationHarness(graph, stagingRecords, phase2Records, config) {
     if (broader) parentMap.set(c['@id'], broader);
   }
 
-  // PS-4a: Orphan class check — concepts with no parent that are not BFO roots
+  // PS-4a: TypeDisjointnessViolation — restriction target BFO category disjoint with expected range
+  // Check all placed classes for type disjointness with their assigned BFO categories
+  const adapter = config.adapter;
+  for (const staging of (stagingRecords || [])) {
+    if (staging.candidateStatus !== 'PlacementConfirmed') continue;
+    const placement = staging.placementResult;
+    if (!placement || !adapter?.areDisjoint) continue;
+
+    for (const c of concepts) {
+      const cBfo = c['fandaws:bfoCategory'];
+      if (cBfo && adapter.areDisjoint(placement, cBfo)) {
+        const restrictions = c['rdfs:subClassOf'] || [];
+        for (const r of restrictions) {
+          if (r['owl:someValuesFrom'] === staging.sourceIRI || r['owl:allValuesFrom'] === staging.sourceIRI) {
+            violations.push({
+              rule: 'PS-4a',
+              ruleName: 'TypeDisjointnessViolation',
+              severity: 'error',
+              conceptIri: staging.sourceIRI,
+              label: staging.sourceLabel,
+              message: `Type disjointness: ${staging.sourceLabel} placed under ${placement}, but referenced by ${c['rdfs:label'] || c['@id']} (${cBfo}). BFO categories are disjoint.`,
+              suggestedRepair: `Reclassify ${staging.sourceLabel} from ${placement} to a subclass of ${cBfo}, or select a different relation type.`,
+              trace: `violation(type_disjointness, ${staging.sourceIRI}, ${placement}, ${cBfo}) :- bfo_category(${staging.sourceIRI}, ${placement}), bfo_category(${c['@id']}, ${cBfo}), disjoint(${placement}, ${cBfo}).`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Orphan class check (supplementary, not a D2 catalog rule)
   for (const c of concepts) {
     const iri = c['@id'];
-    if (!parentMap.has(iri) && !iri.startsWith('bfo:')) {
+    if (!parentMap.has(iri) && !iri.startsWith('bfo:') && !c['fandaws:isImported']) {
       violations.push({
-        rule: 'PS-4a',
+        rule: 'supplementary',
         ruleName: 'OrphanClassViolation',
         severity: 'warning',
         conceptIri: iri,
         label: c['skos:prefLabel'] || c['rdfs:label'] || iri,
         message: `Class has no parent and is not a BFO root.`,
-        suggestedRepair: 'Assign a parent class under a BFO category.',
+        suggestedRepair: `Assign ${c['skos:prefLabel'] || iri} a parent class under a BFO category.`,
         trace: `orphan_check(${iri}) :- \\+ parent(${iri}, _), \\+ bfo_root(${iri}).`,
       });
     }
   }
 
-  // PS-4b: Cycle check
+  // PS-4d: Cycle check
   for (const c of concepts) {
     const iri = c['@id'];
     const visited = new Set();
@@ -59,7 +89,7 @@ function runViolationHarness(graph, stagingRecords, phase2Records, config) {
     }
     if (cycleFound) {
       violations.push({
-        rule: 'PS-4b',
+        rule: 'PS-4d',
         ruleName: 'CycleViolation',
         severity: 'error',
         conceptIri: iri,
@@ -92,40 +122,7 @@ function runViolationHarness(graph, stagingRecords, phase2Records, config) {
     }
   }
 
-  // PS-4d: Disjointness violations from newly placed classes
-  for (const staging of (stagingRecords || [])) {
-    if (staging.candidateStatus !== 'PlacementConfirmed') continue;
-    const placement = staging.placementResult;
-    if (!placement) continue;
-
-    // Check against BFO disjointness
-    const adapter = config.adapter;
-    if (adapter?.areDisjoint) {
-      for (const c of concepts) {
-        const cBfo = c['fandaws:bfoCategory'];
-        if (cBfo && adapter.areDisjoint(placement, cBfo)) {
-          // Only report if the staged class references this concept
-          const restrictions = c['rdfs:subClassOf'] || [];
-          for (const r of restrictions) {
-            if (r['owl:someValuesFrom'] === staging.sourceIRI || r['owl:allValuesFrom'] === staging.sourceIRI) {
-              violations.push({
-                rule: 'PS-4d',
-                ruleName: 'DisjointnessViolation',
-                severity: 'error',
-                conceptIri: staging.sourceIRI,
-                label: staging.sourceLabel,
-                message: `Placed under ${placement}, but referenced by ${c['rdfs:label']} (${cBfo}) — BFO disjoint.`,
-                suggestedRepair: 'Reassign BFO placement or remove the violating restriction.',
-                trace: `disjoint_check(${staging.sourceIRI}, ${placement}, ${cBfo}) :- bfo_disjoint(${placement}, ${cBfo}).`,
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // PS-4e: Sub-property narrowing check
+  // PS-4e: DisjointnessContradictionViolation — sub-property target check
   for (const p2 of (phase2Records || [])) {
     if (p2.action === 'PromoteAsSubProperty' && p2.subPropertyOf) {
       // PD-6: check that the sub-property target is narrower

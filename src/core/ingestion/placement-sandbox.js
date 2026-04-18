@@ -159,8 +159,26 @@ export function evaluatePlacement(externalClass, context = {}) {
 
   // ── No candidates at all ──
   if (candidates.length === 0) {
-    // If a superclass was declared but didn't resolve → Rejected (Q4: tried and failed)
     if (superclass) {
+      // Check if superclass is from the same ontology namespace as the candidate.
+      // Intra-ontology superclasses (e.g., prov:Bundle rdfs:subClassOf prov:Entity)
+      // are valid hierarchy — they just don't resolve to BFO. Route to Ambiguous
+      // for human placement, not Rejected.
+      const candidateNs = iri ? iri.replace(/[^/#]*$/, '') : '';
+      const superNs = superclass.replace(/[^/#]*$/, '');
+      const isIntraOntology = candidateNs && superNs && candidateNs === superNs;
+
+      if (isIntraOntology) {
+        // Intra-ontology superclass — fall through to Ambiguous, not Rejected
+        return {
+          placement: null,
+          confidence: 0.1,
+          justification: `Superclass "${superclass}" is from the same ontology (intra-ontology hierarchy). No BFO mapping found. Manual placement required.`,
+          candidates: [],
+        };
+      }
+
+      // External superclass that doesn't resolve to BFO → Rejected (Q4: tried and failed)
       return {
         placement: null,
         confidence: 0,
@@ -170,7 +188,6 @@ export function evaluatePlacement(externalClass, context = {}) {
       };
     }
     // No superclass, no hints → low-confidence Ambiguous (Q4: absence of evidence)
-    // Return a minimal result that routes to Ambiguous, not Rejected
     return {
       placement: null,
       confidence: 0.1,

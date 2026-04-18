@@ -283,20 +283,32 @@ export function initPhase1ReviewPanel(el, nav) {
     // Build fingerprints and score against canonical inventory
     const phase2Records = [];
 
-    // Get canonical relations from the graph
+    // Get canonical relations: start with C2 seed relation type schemas
+    const canonicalRelations = [
+      { id: 'fandaws:class/relation/has-part', label: 'has part',
+        fingerprint: Fandaws.buildFingerprint({ declaredDomain: 'bfo:MaterialEntity', declaredRange: 'bfo:MaterialEntity', declaredCharacteristics: ['transitive'], label: 'has part' }) },
+      { id: 'fandaws:class/relation/inheres-in', label: 'inheres in',
+        fingerprint: Fandaws.buildFingerprint({ declaredDomain: 'bfo:Quality', declaredRange: 'bfo:IndependentContinuant', declaredCharacteristics: [], bfoSubcategory: 'bfo:Quality', label: 'inheres in' }) },
+      { id: 'fandaws:class/relation/obligated-to', label: 'obligated to',
+        fingerprint: Fandaws.buildFingerprint({ declaredDomain: 'bfo:Agent', declaredRange: 'bfo:Process', declaredCharacteristics: [], bfoSubcategory: 'bfo:Disposition', label: 'obligated to' }) },
+    ];
+
+    // Also add any restrictions from the existing graph as canonical relations
     const concepts = graph?.['fandaws:concepts'] || [];
-    const canonicalRelations = [];
     for (const c of concepts) {
       const restrictions = c['rdfs:subClassOf'] || [];
       for (const r of restrictions) {
-        if (r['owl:onProperty']) {
+        if (r['owl:onProperty'] && r['owl:onProperty'].startsWith('fandaws:objectProperty/')) {
+          const verbTail = r['owl:onProperty'].replace('fandaws:objectProperty/', '');
           canonicalRelations.push({
             id: r['owl:onProperty'],
-            label: (r['fandaws:propertyLabel'] || r['owl:onProperty'] || '').toLowerCase(),
-            declaredDomain: c['fandaws:bfoCategory'] || null,
-            declaredRange: r['fandaws:rangeBfoCategory'] || null,
-            bfoSubcategory: null,
-            declaredCharacteristics: [],
+            label: verbTail.replace(/_/g, ' '),
+            fingerprint: Fandaws.buildFingerprint({
+              declaredDomain: c['fandaws:bfoCategory'] || null,
+              declaredRange: null,
+              declaredCharacteristics: [],
+              label: verbTail.replace(/_/g, ' '),
+            }),
           });
         }
       }

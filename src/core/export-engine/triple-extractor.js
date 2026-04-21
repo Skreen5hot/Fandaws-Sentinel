@@ -21,6 +21,8 @@ export const NAMESPACE_MAP = {
   'dcterms:': 'http://purl.org/dc/terms/',
   'prov:': 'http://www.w3.org/ns/prov#',
   'fandaws:': 'https://fandaws.org/schema/',
+  'rel:': 'https://fandaws.org/schema/executionProperty/',
+  'fan:': 'https://fandaws.org/schema/fan/',
   'bfo:': 'http://purl.obolibrary.org/obo/',
   'schema:': 'https://schema.org/',
 };

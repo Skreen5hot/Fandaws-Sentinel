@@ -750,7 +750,75 @@ export class InMemoryStateAdapter extends StateAdapter {
     const concepts = graph['fandaws:concepts'] || [];
     const artifacts = new Map();
 
+    // ── Step 1: Emit owl:ObjectProperty artifacts for canonical relation type classes ──
+    // Rule EX-2: each rel:{name} property gets a standalone declaration with
+    // rdfs:domain, rdfs:range, and any owl:PropertyCharacteristic approved by the
+    // compiler. These execution artifacts coexist with concept artifacts in the
+    // execution lane — the export engine reads both.
     for (const concept of concepts) {
+      const types = Array.isArray(concept['@type']) ? concept['@type'] : [concept['@type']];
+      if (!types.includes('fandaws:RelationTypeClass')) continue;
+
+      const execIRI = concept['fandaws:executionPropertyIRI'];
+      if (!execIRI) continue;
+
+      const propertyArtifact = {
+        '@id': execIRI,
+        '@type': ['owl:ObjectProperty'],
+        'rdfs:label': concept['rdfs:label'],
+        'fandaws:canonicalRelationIRI': concept['@id'],
+        'fandaws:compilationEpoch': epoch,
+        'fandaws:compilationStatus': 'Compiled',
+      };
+
+      const domain = concept['fandaws:relationDomain'];
+      const range = concept['fandaws:relationRange'];
+      if (domain) propertyArtifact['rdfs:domain'] = domain;
+      if (range) propertyArtifact['rdfs:range'] = range;
+
+      // Characteristics: owl:TransitiveProperty, owl:SymmetricProperty, etc.
+      const chars = concept['fandaws:relationCharacteristics'] || [];
+      const extraTypes = [];
+      for (const ch of chars) {
+        if (ch === 'transitive' || ch === 'owl:TransitiveProperty') extraTypes.push('owl:TransitiveProperty');
+        if (ch === 'symmetric' || ch === 'owl:SymmetricProperty') extraTypes.push('owl:SymmetricProperty');
+        if (ch === 'reflexive' || ch === 'owl:ReflexiveProperty') extraTypes.push('owl:ReflexiveProperty');
+        if (ch === 'functional' || ch === 'owl:FunctionalProperty') extraTypes.push('owl:FunctionalProperty');
+        if (ch === 'inverseFunctional' || ch === 'owl:InverseFunctionalProperty') extraTypes.push('owl:InverseFunctionalProperty');
+      }
+      if (extraTypes.length > 0) {
+        propertyArtifact['@type'] = ['owl:ObjectProperty', ...extraTypes];
+      }
+
+      // Sub-property of parent relation (PD-6/PD-7)
+      if (concept['rdfs:subClassOf'] && concept['rdfs:subClassOf'].length > 0) {
+        propertyArtifact['rdfs:subPropertyOf'] = concept['rdfs:subClassOf']
+          .map((p) => {
+            // Look up parent's execution property IRI
+            const parent = concepts.find((c) => c['@id'] === p);
+            return parent?.['fandaws:executionPropertyIRI'] || null;
+          })
+          .filter(Boolean);
+      }
+
+      // owl:equivalentProperty bridges (Rule PD-9)
+      const equivs = concept['owl:equivalentProperty'] || [];
+      if (equivs.length > 0) {
+        propertyArtifact['owl:equivalentProperty'] = equivs.map((e) => ({
+          source: e.source,
+          target: e.target,
+        }));
+      }
+
+      artifacts.set(execIRI, propertyArtifact);
+    }
+
+    // ── Step 2: Emit concept artifacts (classes with rdfs:subClassOf restrictions) ──
+    for (const concept of concepts) {
+      // Skip canonical relation type classes — they're emitted as owl:ObjectProperty above
+      const types = Array.isArray(concept['@type']) ? concept['@type'] : [concept['@type']];
+      if (types.includes('fandaws:RelationTypeClass')) continue;
+
       const iri = concept['@id'];
       const subClassOf = concept['rdfs:subClassOf'] || [];
 
@@ -1637,6 +1705,226 @@ export class InMemoryStateAdapter extends StateAdapter {
       classesStillConfirmed,
       classesDroppedToAmbiguous,
     };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Phase D2: Canonical-graph write methods (UI → canonical → compile)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Compute a deterministic reproducibility hash (DP-2 invariant).
+   * @private
+   */
+  _reproducibilityHash(payload) {
+    const str = JSON.stringify(payload, Object.keys(payload).sort());
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return `sha-lite:${Math.abs(hash).toString(16).padStart(8, '0')}`;
+  }
+
+  /**
+   * Promote a candidate external property as a new canonical relation type class.
+   * Writes the canonical class record with BFO subcategory, domain, range,
+   * characteristics, and provenance. Rule PD-8, Decision D-17.
+   *
+   * @param {string} graphId
+   * @param {object} params - { candidateIRI, candidateLabel, declaredDomain, declaredRange, characteristics, bfoSubcategory, justification, ingestedInSession }
+   * @returns {{ promoted: boolean, canonicalRelationIRI: string, executionPropertyIRI: string }}
+   */
+  promoteCanonicalRelation(graphId, params) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { promoted: false };
+
+    const {
+      candidateIRI, candidateLabel, declaredDomain, declaredRange,
+      characteristics = [], bfoSubcategory = null, justification = '',
+      ingestedInSession = null, subPropertyOf = null,
+    } = params;
+
+    const label = (candidateLabel || candidateIRI.split(/[/#]/).pop() || 'unknown');
+    const slug = label.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const uuid = this._generateUUID(label);
+    const canonicalRelationIRI = `fandaws:class/relation/${uuid}/${slug}`;
+    const executionPropertyIRI = `rel:${slug.replace(/-/g, '_')}`;
+
+    const reproducibilityHash = this._reproducibilityHash({
+      candidateIRI, declaredDomain, declaredRange, characteristics, bfoSubcategory,
+    });
+
+    const relationClass = {
+      '@id': canonicalRelationIRI,
+      '@type': ['owl:Class', 'fandaws:RelationTypeClass'],
+      'rdfs:label': label,
+      'skos:prefLabel': label.toLowerCase(),
+      'rdfs:subClassOf': subPropertyOf ? [subPropertyOf] : [],
+      'dcterms:created': new Date().toISOString(),
+      'fandaws:executionPropertyIRI': executionPropertyIRI,
+      'fandaws:relationDomain': declaredDomain,
+      'fandaws:relationRange': declaredRange,
+      'fandaws:relationCharacteristics': characteristics,
+      'fandaws:bfoSubcategory': bfoSubcategory,
+      'fandaws:sourceIRI': candidateIRI,
+      'owl:equivalentProperty': [{ source: candidateIRI, target: executionPropertyIRI }],
+      'fandaws:ingestedInSession': ingestedInSession,
+      // DP-2 invariant: explanation, provenance, reproducibilityHash
+      'fandaws:explanation': justification || `Promoted from external property ${candidateIRI} as a new canonical relation type class.`,
+      'fandaws:provenance': {
+        source: candidateIRI,
+        promotedAt: new Date().toISOString(),
+        action: subPropertyOf ? 'PromoteAsSubProperty' : 'PromoteAsNewRelation',
+      },
+      'fandaws:reproducibilityHash': reproducibilityHash,
+    };
+
+    graph['fandaws:concepts'].push(relationClass);
+    this._graphs.set(graphId, graph);
+    this.compile(graphId);
+
+    return {
+      promoted: true,
+      canonicalRelationIRI,
+      executionPropertyIRI,
+      relationClass,
+    };
+  }
+
+  /**
+   * Merge an external property into an existing canonical relation type class.
+   * Writes a MergeRecord with owl:equivalentProperty bridging source IRI to the
+   * canonical execution property. Rule PD-8, Decision D-19.
+   *
+   * @param {string} graphId
+   * @param {object} params - { candidateIRI, candidateLabel, targetCanonicalIRI, mergeConfidence, justification, ingestedInSession }
+   * @returns {{ merged: boolean, mergeRecordId: string }}
+   */
+  mergeCanonicalRelation(graphId, params) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { merged: false };
+
+    const {
+      candidateIRI, candidateLabel, targetCanonicalIRI, mergeConfidence = null,
+      justification = '', ingestedInSession = null, mergeTrigger = 'HumanConfirmed',
+    } = params;
+
+    // Find the target canonical relation class to get its execution property IRI
+    const concepts = graph['fandaws:concepts'] || [];
+    const target = concepts.find((c) => c['@id'] === targetCanonicalIRI);
+    const executionPropertyIRI = target?.['fandaws:executionPropertyIRI']
+      || `rel:${(targetCanonicalIRI.split(/[/#]/).pop() || 'unknown').replace(/-/g, '_')}`;
+
+    const mergeRecordId = `fandaws:merge/${Date.now()}-${candidateIRI.split(/[/#]/).pop()}`;
+
+    const reproducibilityHash = this._reproducibilityHash({
+      candidateIRI, targetCanonicalIRI, executionPropertyIRI,
+    });
+
+    const mergeRecord = {
+      '@id': mergeRecordId,
+      type: 'MergeRecord',
+      mergedCandidate: candidateIRI,
+      mergedInto: targetCanonicalIRI,
+      mergeTrigger,
+      mergeConfidence,
+      mergeRationale: justification || `Merged ${candidateIRI} into ${targetCanonicalIRI} based on fingerprint match.`,
+      equivalencyAssertion: {
+        subject: candidateIRI,
+        predicate: 'owl:equivalentProperty',
+        object: executionPropertyIRI,
+      },
+      mergedAt: new Date().toISOString(),
+      mergedBy: mergeTrigger === 'AutoMerge' ? 'AutoMerge/D2Pipeline' : 'HumanResolution/D2Pipeline',
+      ingestedInSession,
+      // DP-2 invariant
+      'fandaws:explanation': justification || `Merge ${candidateLabel || candidateIRI} into canonical ${targetCanonicalIRI}.`,
+      'fandaws:provenance': { source: candidateIRI, mergedAt: new Date().toISOString() },
+      'fandaws:reproducibilityHash': reproducibilityHash,
+    };
+
+    this._sourceAxiomGraph.set(mergeRecordId, mergeRecord);
+
+    // Append the owl:equivalentProperty assertion to the target canonical concept
+    if (target) {
+      target['owl:equivalentProperty'] = target['owl:equivalentProperty'] || [];
+      target['owl:equivalentProperty'].push({ source: candidateIRI, target: executionPropertyIRI });
+      this._graphs.set(graphId, graph);
+    }
+
+    this.compile(graphId);
+
+    return {
+      merged: true,
+      mergeRecordId,
+      executionPropertyIRI,
+      targetCanonicalIRI,
+    };
+  }
+
+  /**
+   * Add an owl:Restriction to a target class's rdfs:subClassOf. Used by Phase 3
+   * Finalize to write NoViolations axioms into the canonical graph.
+   *
+   * @param {string} graphId
+   * @param {object} params - { classIRI, onPropertyIRI, someValuesFromIRI, propertyLabel, verbLabel, ingestedInSession, justification }
+   * @returns {{ added: boolean, restrictionId: string }}
+   */
+  addRestrictionToClass(graphId, params) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { added: false };
+
+    const {
+      classIRI, onPropertyIRI, someValuesFromIRI,
+      propertyLabel = '', verbLabel = '',
+      ingestedInSession = null, justification = '',
+    } = params;
+
+    const concept = (graph['fandaws:concepts'] || []).find((c) => c['@id'] === classIRI);
+    if (!concept) return { added: false };
+
+    const restrictionId = `${classIRI}#r-${(onPropertyIRI || 'unknown').split(/[/#:]/).pop()}-${(someValuesFromIRI || 'unknown').split(/[/#:]/).pop()}`;
+
+    const reproducibilityHash = this._reproducibilityHash({
+      classIRI, onPropertyIRI, someValuesFromIRI,
+    });
+
+    const restriction = {
+      '@id': restrictionId,
+      '@type': 'owl:Restriction',
+      'owl:onProperty': onPropertyIRI,
+      'owl:someValuesFrom': someValuesFromIRI,
+      'fandaws:restrictionKind': 'relationship',
+      'fandaws:propertyLabel': propertyLabel,
+      'fandaws:verbLabel': verbLabel,
+      'fandaws:attachedTo': classIRI,
+      'fandaws:normalizationStatus': 'Normalized',
+      'fandaws:ingestedInSession': ingestedInSession,
+      // DP-2 invariant
+      'fandaws:explanation': justification || `Restriction ${classIRI} ${onPropertyIRI} ${someValuesFromIRI} passed Phase 3 consistency sandbox with NoViolations.`,
+      'fandaws:provenance': { addedAt: new Date().toISOString(), phase: 'Phase3Finalize' },
+      'fandaws:reproducibilityHash': reproducibilityHash,
+    };
+
+    concept['rdfs:subClassOf'] = concept['rdfs:subClassOf'] || [];
+    concept['rdfs:subClassOf'].push(restriction);
+    this._graphs.set(graphId, graph);
+    this.compile(graphId);
+
+    return { added: true, restrictionId };
+  }
+
+  /**
+   * Get all canonical relation type classes (concepts with @type containing fandaws:RelationTypeClass).
+   * Used by Phase 2 scoring and the export engine.
+   */
+  getCanonicalRelationTypeClasses(graphId) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return [];
+    return (graph['fandaws:concepts'] || []).filter((c) => {
+      const types = Array.isArray(c['@type']) ? c['@type'] : [c['@type']];
+      return types.includes('fandaws:RelationTypeClass');
+    });
   }
 
   // ─────────────────────────────────────────────────────────

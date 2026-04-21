@@ -254,6 +254,65 @@ export function initPhase2ReviewPanel(el, nav) {
           record.inheritedBfoSubcategory = record.scores[0].bfoSubcategory || null;
         }
 
+        // ── Gap A/B fix: write to canonical graph, trigger compile() ──
+        const adapter = nav.wbState.getAdapter();
+        const graphId = nav.wbState.getGraphId();
+        const session = nav.ingestState.loadSession(sessionId);
+        const adapterSessionId = nav.ingestState.loadConfig(sessionId)?.adapterSessionId;
+
+        try {
+          if (action === 'Merge') {
+            // Gap A: MergeRecord + owl:equivalentProperty
+            const targetIRI = record.scores?.[0]?.canonicalId;
+            if (targetIRI) {
+              const result = adapter.mergeCanonicalRelation(graphId, {
+                candidateIRI: record.iri,
+                candidateLabel: record.label,
+                targetCanonicalIRI: targetIRI,
+                mergeConfidence: record.scores[0].score,
+                justification,
+                ingestedInSession: adapterSessionId,
+                mergeTrigger: 'HumanConfirmed',
+              });
+              record.executionPropertyIRI = result.executionPropertyIRI;
+              record.mergeRecordId = result.mergeRecordId;
+            }
+          } else if (action === 'PromoteAsNewRelation') {
+            // Gap B: mint fresh fandaws:class/relation/UUID concept
+            const result = adapter.promoteCanonicalRelation(graphId, {
+              candidateIRI: record.iri,
+              candidateLabel: record.label,
+              declaredDomain: record.declaredDomain,
+              declaredRange: record.declaredRange,
+              characteristics: record.declaredCharacteristics || [],
+              bfoSubcategory: null,
+              justification,
+              ingestedInSession: adapterSessionId,
+            });
+            record.canonicalRelationIRI = result.canonicalRelationIRI;
+            record.executionPropertyIRI = result.executionPropertyIRI;
+          } else if (action === 'PromoteAsSubProperty') {
+            // Gap B: mint sub-property, parent is the top-scored canonical
+            const parentIRI = record.scores?.[0]?.canonicalId;
+            const result = adapter.promoteCanonicalRelation(graphId, {
+              candidateIRI: record.iri,
+              candidateLabel: record.label,
+              declaredDomain: record.declaredDomain,
+              declaredRange: record.declaredRange,
+              characteristics: record.declaredCharacteristics || [],
+              bfoSubcategory: record.inheritedBfoSubcategory || null,
+              justification,
+              ingestedInSession: adapterSessionId,
+              subPropertyOf: parentIRI,
+            });
+            record.canonicalRelationIRI = result.canonicalRelationIRI;
+            record.executionPropertyIRI = result.executionPropertyIRI;
+          }
+          // Reject: no canonical mutation needed — resolution is recorded only
+        } catch (err) {
+          console.warn('[phase2-review] canonical write failed:', err);
+        }
+
         nav.ingestState.savePhase2Records(sessionId, records);
 
         // Move to next unresolved

@@ -351,6 +351,66 @@ export function initPhase3ReviewPanel(el, nav) {
   }
 
   function finalizeSession() {
+    // ── Gap D fix: write NoViolations candidate axioms into the canonical graph ──
+    // A NoViolations verdict is a permission slip, not the mutation itself.
+    // Construct the axioms (from Phase 2 resolved properties applied to promoted
+    // classes) and write them as rdfs:subClassOf [owl:Restriction ...] entries.
+    try {
+      const adapter = nav.wbState.getAdapter();
+      const graphId = nav.wbState.getGraphId();
+      const config = nav.ingestState.loadConfig(sessionId) || {};
+      const adapterSessionId = config.adapterSessionId;
+      const phase2Records = nav.ingestState.loadPhase2Records(sessionId) || [];
+      const graph = nav.wbState.getGraph();
+      const concepts = graph?.['fandaws:concepts'] || [];
+
+      let axiomsWritten = 0;
+      // For each Phase 2 property that was resolved (Merge / PromoteAsNewRelation /
+      // PromoteAsSubProperty), find the canonical class for the property's domain
+      // and add a restriction targeting the range.
+      for (const p2 of phase2Records) {
+        if (!p2.resolved) continue;
+        if (p2.action === 'Reject') continue;
+
+        const executionPropertyIRI = p2.executionPropertyIRI;
+        if (!executionPropertyIRI) continue;
+        if (!p2.declaredDomain || !p2.declaredRange) continue;
+        if (p2.declaredDomain.startsWith('ComplexExpression')) continue; // skip anonymous
+        if (p2.declaredRange.startsWith('ComplexExpression')) continue;
+
+        // Find the canonical class that owl:equivalentClass-bridges to the declared domain
+        const domainClass = concepts.find((c) => {
+          const equiv = c['owl:equivalentClass'];
+          if (!equiv) return false;
+          const arr = Array.isArray(equiv) ? equiv : [equiv];
+          return arr.includes(p2.declaredDomain);
+        });
+        const rangeClass = concepts.find((c) => {
+          const equiv = c['owl:equivalentClass'];
+          if (!equiv) return false;
+          const arr = Array.isArray(equiv) ? equiv : [equiv];
+          return arr.includes(p2.declaredRange);
+        });
+
+        if (!domainClass || !rangeClass) continue;
+
+        const result = adapter.addRestrictionToClass(graphId, {
+          classIRI: domainClass['@id'],
+          onPropertyIRI: executionPropertyIRI,
+          someValuesFromIRI: rangeClass['@id'],
+          propertyLabel: p2.label,
+          verbLabel: p2.label,
+          ingestedInSession: adapterSessionId,
+          justification: `Phase 3 NoViolations — ${p2.label} domain=${p2.declaredDomain} range=${p2.declaredRange}`,
+        });
+        if (result.added) axiomsWritten++;
+      }
+
+      console.log(`[phase3-review] Wrote ${axiomsWritten} axioms to canonical graph and triggered compile()`);
+    } catch (err) {
+      console.warn('[phase3-review] finalize canonical writes failed:', err);
+    }
+
     nav.ingestState.updateSession(sessionId, {
       phase: 'complete',
       phase3Complete: true,

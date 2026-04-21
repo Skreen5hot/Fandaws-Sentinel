@@ -1,0 +1,2236 @@
+{
+  "bundle_id": "fandaws-sentinel-d16",
+  "bundle_version": 3,
+  "spec_version": "D1.6 v1.1.0",
+  "spec_locked_date": "2026-04-18",
+  "description": "D1.6 architectural correction: Candidate Alignment Units with Normalized Logical Signatures, iterative pipeline, three-state evidence model, DP-1 soft-gate diagnostic, DP-2 hard-invariant epistemic-system commitments. Supersedes D1 per-class heuristic placement.",
+  "locked_decisions": {
+    "D1.6-L1": "Signature contents include property restrictions, characteristics, disjointness, equivalence, universal/existential restrictions, cardinality, hasValue, and normalized owl:oneOf enumerations. Cardinality/hasValue tagged with diagnosticWeight (High for inherence cardinality, Low otherwise).",
+    "D1.6-L2": "Sub-property entailments fully propagated with explicit cycle detection via visited-properties set. Depth bound of 10 levels as defense in depth.",
+    "D1.6-L3": "BFO Signature source is hybrid: BFO 2020 OWL extraction plus SME-reviewed curated additions covering Role/Function/Disposition distinctions.",
+    "D1.6-L4": "Signature comparison uses type-level Tau Prolog pattern entailment under background theory. NOT axiom-graph isomorphism. Fallback to structural correspondence at query granularity when 10K step cap exceeded.",
+    "D1.6-L5": "Iteration structure: hybrid single-pass-with-bounded-fallback. Fallback triggers only on contradiction or ambiguity, not cross-dependency. Maximum 3 rounds. IterationNonConvergence at round 3 routes to PendingHumanResolution.",
+    "D1.6-L6": "Iteration visibility: final state primary, expandable iteration history affordance secondary.",
+    "D1.6-L7": "Convergence failure is CAU-specific. Stabilized CAUs pass; oscillating CAUs flagged IterationNonConvergence.",
+    "D1.6-L8": "Phase 3 axioms as background theory during iterations. Phase 3 itself runs terminally as validation, not discovery. No new constraints introduced mid-pipeline.",
+    "D1.6-L9": "Entailment criterion: necessary-condition satisfaction against curated BFO Signature reference. NOT heuristically inferred.",
+    "D1.6-L10": "Plausible is flat with structured (machine-readable JSON) evidence annotations. No sub-scoring.",
+    "D1.6-L11": "Inconsistent routes to analyst review framed as possible source-ontology modeling error.",
+    "D1.6-L12": "Mixed-evidence resolution uses ontology structure (disjointness/subsumption), not evidence count. Disjoint categories = Inconsistent immediately. Hierarchical overlap = most specific subsumer wins.",
+    "D1.6-L13": "NotApplicable qualification hybrid with default-hard-toward-NotApplicable for axiom-poor CAUs. Analyst must explicitly override.",
+    "D1.6-L14": "13 medium-granularity BFO categories as target set (IndependentContinuant, MaterialEntity, ImmaterialEntity, GenericallyDependentContinuant, SpecificallyDependentContinuant, Process, ProcessBoundary, TemporalRegion, Site, Role, Disposition, Function, Quality). Previous drafts said '12' reflecting a simplification that folded Quality under SDC; the correct count per BFO 2020 is 13 distinct categories. Quality is explicitly included to handle measurement-value and observable-property classes correctly.",
+    "D1.6-L15": "Role/Function/Disposition: system attempts via curated necessary conditions; falls back to Plausible with annotations.",
+    "D1.6-L16": "NotApplicable CAUs terminal. Excluded from Phase 2 and Phase 3 processing.",
+    "D1.6-L17": "BFO Signature reference produced through internal draft + SME review. Treated as standard, not helper file.",
+    "D1.6-L18": "~100-110/178 existing AVC scenarios preserved. Iteration semantics leak into Phase 2 scenarios.",
+    "D1.6-L19": "Calendar time 10-12 weeks from v1.0 to PROV-O re-run.",
+    "D1.6-L20": "SME-in-the-loop checkpoints every 2-3 weeks during implementation.",
+    "D1.6-L21": "Phase 2 light correction: consumes CAU Signatures; lexical dimension demoted to 0.0 weight. Full rearchitecture deferred to D2.1.",
+    "D1.6-L22": "Normalized Logical Signature is new FANDAWS terminology. Publications map to 'normalized extraction of class-defining axioms (logical definition fragment).'",
+    "D1.6-L23": "No existing tool integration (ROBOT/LogMap/AgreementMaker) in v0.2. FANDAWS is novel hybrid.",
+    "D1.6-L24": "Calibration study methodology adjustments: CAU as unit of analysis, iteration trace analysis, evidence-state distribution, realist-compatibility assessment as top-level finding.",
+    "D1.6-DP1": "Realist compatibility: first-class diagnostic with soft-gate semantics. Session-level OntologyLikelyNonRealistCompatible disposition. Allows continuation under exploratoryMode. Downstream outputs carry compatibilityDegraded flag.",
+    "D1.6-DP2": "Epistemic system HARD INVARIANT: every canonical record carries mandatory explanation, provenance, reproducibilityHash. Missing any field is non-conformant.",
+    "D1.6-DQ1": "Default DP-1 thresholds: >40% NotApplicable OR >30% Inconsistent (disjunctive). Configurable per session.",
+    "D1.6-DQ2": "compatibilityDegraded flag informational only. Does not gate Phase 2 or Phase 3.",
+    "Q-V1.0-1": "Reproducibility hash: per-round hashes captured in iteration history (diagnostic); Final Hash authoritative for cross-session reproducibility.",
+    "Q-V1.0-2": "Curated BFO additions version changes = VD-6-equivalent event. Triggers re-evaluation of prior sessions.",
+    "Q-V1.0-3": "Analyst override of Inconsistent CAU: per-CAU flagging only. Does not trigger session-level compatibilityDegraded.",
+    "Q-V1.0-4": "localStorage quota: axiom dictionary deduplication (session-level) + pre-flight quota probe. DP-2 provenance never truncated.",
+    "Q-V1.0-5": "BFO Signatures: computed once per BFO version, cached alongside Disjointness Map. Rebuilt on VD-6.",
+    "Q-V1.0-6": "Phase 2 three-state evidence model deferred to D2.1. D1.6 retains existing mechanism with lexical demotion.",
+    "Q-V1.0-7": "owl:oneOf with heterogeneous/undecidable member types: dropped with provenance note. Modeling artifact, not alignable entity.",
+    "Q-V1.0-8": "Phase 2 weight vector: Lexical set to 0.0 (advisory only). Other weights unchanged. Full rebalancing deferred to D2.1.",
+    "D1.6-L25": "Taxonomic descent with provisional inheritance (NA-1.1) first-class commitment. Horizontally axiom-poor CAUs derive BFO placement via subsumption inheritance when available; reactive re-evaluation (NA-1.4) ensures self-correction. IndexedDB-backed DependencyGraph infrastructure. Converts FANDAWS from batch pipeline to reactive reasoning system.",
+    "NA-1.1": "Axiom-poor CAU with inheritable parent (Entailed/Plausible) inherits parent's disposition as provisional prior. Bypasses NotApplicable routing per D1.6-L13 v1.1.0 extension.",
+    "NA-1.2": "Only strong structural signals (disjointness, domain/range, OWL-DIRECT/CURATED-NC violations, Tau Prolog entailment failure) can trigger contradiction. Weak signals (lexical, synonyms, naming) inform Plausible annotations only. Hard contradictions \u2192 Inconsistent; soft contradictions \u2192 Plausible with conflictAnnotation.",
+    "NA-1.3": "Changes to parent placement cascade reconciliation to all descendants inheriting via NA-1.1. Transitive downward propagation updating reconciliationHistory on each reconciled descendant.",
+    "NA-1.4": "Reactive re-evaluation engine. Mutation events trigger localized re-evaluation of dependency neighborhood. Bounded scope, cycle deduplication, deterministic cycle resolution, convergence guarantee. IndexedDB-backed DependencyGraph per amendment \u00a76.1 resolution."
+  },
+  "scenarios": [
+    {
+      "id": "cau-sig-basic-extraction",
+      "band": 1,
+      "verifies": [
+        "D1.6-L1",
+        "Rule LS-1",
+        "Rule LS-2"
+      ],
+      "description": "Extract Signature from a CAU with property restrictions (domain + range), disjointness assertion, and equivalence claim. Verify all axiom-kind fields populated correctly.",
+      "setup": {
+        "candidateOntology": "@prefix ex: <http://example.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . ex:Activity a owl:Class ; rdfs:subClassOf [ a owl:Restriction ; owl:onProperty ex:hasParticipant ; owl:someValuesFrom ex:Agent ] ; owl:disjointWith ex:Entity ."
+      },
+      "trigger": {
+        "type": "computeSignature",
+        "forCAU": "ex:Activity"
+      },
+      "expect": {
+        "signature": {
+          "cauIRI": "ex:Activity",
+          "propertyRestrictionsAsDomain": [
+            {
+              "property": "ex:hasParticipant",
+              "restrictionKind": "someValuesFrom",
+              "target": "ex:Agent",
+              "diagnosticWeight": "Medium"
+            }
+          ],
+          "disjointnessAssertions": [
+            "ex:Entity"
+          ],
+          "equivalenceClaims": [],
+          "universalRestrictions": [],
+          "existentialRestrictions": [
+            {
+              "onProperty": "ex:hasParticipant",
+              "someValuesFrom": "ex:Agent"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cau-sig-subproperty-closure",
+      "band": 1,
+      "verifies": [
+        "D1.6-L2",
+        "Rule LS-3"
+      ],
+      "description": "Sub-property closure propagates restrictions up the rdfs:subPropertyOf hierarchy. Class with restriction on ex:specialRelation (subPropertyOf ex:generalRelation) produces Signature with restriction under both properties.",
+      "setup": {
+        "candidateOntology": "ex:specialRelation rdfs:subPropertyOf ex:generalRelation . ex:Thing rdfs:subClassOf [ owl:onProperty ex:specialRelation ; owl:someValuesFrom ex:Target ] ."
+      },
+      "trigger": {
+        "type": "computeSignature",
+        "forCAU": "ex:Thing"
+      },
+      "expect": {
+        "signature": {
+          "propertyRestrictionsAsDomain": [
+            {
+              "property": "ex:specialRelation",
+              "restrictionKind": "someValuesFrom",
+              "target": "ex:Target",
+              "directlyDeclared": true
+            },
+            {
+              "property": "ex:generalRelation",
+              "restrictionKind": "someValuesFrom",
+              "target": "ex:Target",
+              "inheritedViaSubPropertyOf": "ex:specialRelation"
+            }
+          ],
+          "subPropertyClosureUsed": {
+            "applied": true,
+            "maxDepthTraversed": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "cau-sig-cycle-detection",
+      "band": 1,
+      "verifies": [
+        "D1.6-L2",
+        "Rule LS-9"
+      ],
+      "description": "Sub-property closure with cyclic rdfs:subPropertyOf lattice (A subPropertyOf B subPropertyOf A) detects the cycle, skips the cycle-closing edge, and raises cycleDetectionTriggered flag. Signature still computes without hanging.",
+      "setup": {
+        "candidateOntology": "ex:propA rdfs:subPropertyOf ex:propB . ex:propB rdfs:subPropertyOf ex:propA . ex:Thing rdfs:subClassOf [ owl:onProperty ex:propA ; owl:someValuesFrom ex:X ] ."
+      },
+      "trigger": {
+        "type": "computeSignature",
+        "forCAU": "ex:Thing"
+      },
+      "expect": {
+        "signature": {
+          "cycleDetectionTriggered": true,
+          "propertyRestrictionsAsDomain": [
+            {
+              "property": "ex:propA",
+              "directlyDeclared": true
+            },
+            {
+              "property": "ex:propB",
+              "inheritedViaSubPropertyOf": "ex:propA"
+            }
+          ]
+        },
+        "provenance": {
+          "note": "Cycle detected at sub-property closure depth 2 (ex:propA \u2192 ex:propB \u2192 ex:propA). Cycle-closing edge skipped."
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no infinite loop",
+          "description": "Signature extraction MUST terminate in bounded time even with cyclic sub-property lattice."
+        }
+      ]
+    },
+    {
+      "id": "cau-sig-cardinality-diagnostic-weight",
+      "band": 1,
+      "verifies": [
+        "D1.6-L1",
+        "Rule LS-4"
+      ],
+      "description": "Cardinality restriction on an inherence-bearing property receives diagnosticWeight:High. Cardinality on a generic property receives diagnosticWeight:Low.",
+      "setup": {
+        "candidateOntology": "ex:Role rdfs:subClassOf [ owl:onProperty bfo:inheresIn ; owl:cardinality 1 ] . ex:Collection rdfs:subClassOf [ owl:onProperty ex:hasMember ; owl:minCardinality 2 ] ."
+      },
+      "trigger": {
+        "type": "computeSignatures",
+        "forCAUs": [
+          "ex:Role",
+          "ex:Collection"
+        ]
+      },
+      "expect": {
+        "signatures": [
+          {
+            "cauIRI": "ex:Role",
+            "cardinalityRestrictions": [
+              {
+                "onProperty": "bfo:inheresIn",
+                "cardinality": 1,
+                "diagnosticWeight": "High"
+              }
+            ]
+          },
+          {
+            "cauIRI": "ex:Collection",
+            "cardinalityRestrictions": [
+              {
+                "onProperty": "ex:hasMember",
+                "minCardinality": 2,
+                "diagnosticWeight": "Low"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cau-sig-owl-oneof-normalization",
+      "band": 1,
+      "verifies": [
+        "D1.6-L1",
+        "Rule LS-8",
+        "Q-V1.0-7"
+      ],
+      "description": "owl:oneOf with homogeneous member types is normalized to structural pattern. Heterogeneous owl:oneOf is dropped with provenance note per Q-V1.0-7.",
+      "setup": {
+        "candidateOntology": "ex:Day owl:equivalentClass [ owl:oneOf (ex:Monday ex:Tuesday ex:Wednesday) ] . ex:Monday a ex:DayType . ex:Tuesday a ex:DayType . ex:Wednesday a ex:DayType . ex:Mixed owl:equivalentClass [ owl:oneOf (ex:ThingA ex:ThingB ex:ThingC) ] . ex:ThingA a ex:TypeX . ex:ThingB a ex:TypeY . ex:ThingC a ex:TypeZ ."
+      },
+      "trigger": {
+        "type": "computeSignatures",
+        "forCAUs": [
+          "ex:Day",
+          "ex:Mixed"
+        ]
+      },
+      "expect": {
+        "signatures": [
+          {
+            "cauIRI": "ex:Day",
+            "normalizedEnumerations": [
+              {
+                "kind": "enumeration",
+                "cardinality": 3,
+                "memberType": "ex:DayType"
+              }
+            ]
+          },
+          {
+            "cauIRI": "ex:Mixed",
+            "normalizedEnumerations": [],
+            "provenance": {
+              "droppedAxioms": [
+                {
+                  "axiomType": "owl:oneOf",
+                  "reason": "heterogeneous or undecidable member types; treated as modeling artifact per Q-V1.0-7 resolution"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "cau-sig-deterministic-hashing",
+      "band": 1,
+      "verifies": [
+        "Rule LS-7",
+        "DP-2-R3",
+        "Q-V1.0-1"
+      ],
+      "description": "Identical CAU inputs produce identical Signature hashes. Re-running computation on the same ontology source yields byte-identical Signature records.",
+      "setup": {
+        "candidateOntology": "ex:Process rdfs:subClassOf [ owl:onProperty bfo:hasParticipant ; owl:someValuesFrom bfo:Continuant ] .",
+        "runCount": 3
+      },
+      "trigger": {
+        "type": "computeSignature",
+        "forCAU": "ex:Process",
+        "repeat": 3
+      },
+      "expect": {
+        "allHashesIdentical": true,
+        "hashAlgorithm": "SHA-256",
+        "signatureContentEqual": true
+      }
+    },
+    {
+      "id": "cau-sig-bfo-hybrid-source",
+      "band": 1,
+      "verifies": [
+        "D1.6-L3",
+        "Rule LS-5"
+      ],
+      "description": "BFO Signature computed from BFO-OWL extraction merged with curated additions. bfo:Process Signature contains both OWL-declared necessary conditions and curated additions for temporal commitments.",
+      "setup": {
+        "bfoOwlVersion": "2020-v1.0",
+        "curatedAdditionsVersion": "v1.0"
+      },
+      "trigger": {
+        "type": "computeBFOSignature",
+        "forBFOClass": "bfo:Process"
+      },
+      "expect": {
+        "signature": {
+          "bfoClass": "bfo:Process",
+          "necessaryConditionsFromOWL": {
+            "count": ">=3",
+            "source": "BFO 2020 OWL"
+          },
+          "curatedAdditions": {
+            "count": ">=1",
+            "source": "FANDAWS curated v1.0",
+            "includesTemporalCommitments": true
+          }
+        }
+      }
+    },
+    {
+      "id": "cau-sig-bfo-cached-not-recomputed",
+      "band": 1,
+      "verifies": [
+        "Q-V1.0-5",
+        "Rule VD-6"
+      ],
+      "description": "On session start, BFO Signatures loaded from cache, not recomputed. Cache timestamp matches last VD-6 event. No re-extraction from BFO-OWL.",
+      "setup": {
+        "bfoOwlVersion": "2020-v1.0",
+        "lastVD6Timestamp": "2026-04-15T00:00:00Z",
+        "cacheExists": true
+      },
+      "trigger": {
+        "type": "startSession",
+        "ontologyFile": "prov-o.owl"
+      },
+      "expect": {
+        "bfoSignaturesLoadedFromCache": true,
+        "cacheTimestamp": "2026-04-15T00:00:00Z",
+        "owlReparseCount": 0,
+        "disjointnessMapLoadedFromSameCache": true
+      }
+    },
+    {
+      "id": "version-change-bfo-triggers-reevaluation",
+      "band": 1,
+      "verifies": [
+        "Rule VD-6",
+        "Q-V1.0-2"
+      ],
+      "description": "BFO 2020 version update (v1.0 \u2192 v1.1) triggers VD-6 re-evaluation of prior canonical sessions. Session created under BFO v1.0 has its reproducibilityHash.finalHash invalidated; re-evaluation runs automatically on next analyst access.",
+      "setup": {
+        "priorSession": "completed session created under BFO 2020 v1.0, all CAUs finalized",
+        "versionBump": "BFO 2020 v1.0 \u2192 v1.1",
+        "priorFinalHash": "originalHashValue"
+      },
+      "trigger": {
+        "type": "triggerBFOVersionBump",
+        "newVersion": "BFO 2020 v1.1"
+      },
+      "expect": {
+        "vd6EventFired": true,
+        "priorSessionStatus": "requires re-evaluation",
+        "finalHashInvalidatedMarker": "staleBFOVersion",
+        "reEvaluationQueued": true,
+        "analystAccessBehavior": "prompted to re-run session under new BFO version"
+      }
+    },
+    {
+      "id": "version-change-curated-triggers-reevaluation",
+      "band": 1,
+      "verifies": [
+        "Q-V1.0-2"
+      ],
+      "description": "Curated BFO additions version update (v1.0 \u2192 v1.1) is VD-6-equivalent per Q-V1.0-2 resolution. Prior sessions using curated v1.0 are flagged for re-evaluation. Final Hash's inputsHashed includes curated-additions-version-identifier, so the hash correctly becomes stale.",
+      "setup": {
+        "priorSession": "session under BFO 2020 v1.0 + curated v1.0",
+        "versionBump": "curated v1.0 \u2192 v1.1 (e.g., SME refined Role/Function/Disposition based on PROV-O findings)",
+        "bfoOwlVersion": "unchanged at v1.0"
+      },
+      "trigger": {
+        "type": "triggerCuratedVersionBump",
+        "newVersion": "curated v1.1"
+      },
+      "expect": {
+        "vd6EquivalentEventFired": true,
+        "priorSessionFlaggedForReEvaluation": true,
+        "finalHashInvalidatedMarker": "staleCuratedVersion",
+        "reasonerCacheInvalidated": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "no silent continuation",
+          "description": "The system MUST NOT continue to use prior canonical records under the new curated version without re-evaluation. Doing so would silently apply the new semantics to old data."
+        }
+      ]
+    },
+    {
+      "id": "cache-invalidation-on-version-bump",
+      "band": 1,
+      "verifies": [
+        "Q-V1.0-5",
+        "Rule VD-6"
+      ],
+      "description": "On VD-6 event (either BFO version bump or curated additions bump), the BFO Signature cache AND the Disjointness Map cache both rebuild from scratch. Old cached artifacts discarded. Session startup after a VD-6 event loads the newly-rebuilt caches, not the old cached values.",
+      "setup": {
+        "preBumpCacheState": "BFO v1.0 Signatures cached, Disjointness Map cached",
+        "bumpEvent": "VD-6 (BFO v1.0 \u2192 v1.1)"
+      },
+      "trigger": {
+        "type": "sessionStartAfterVersionBump"
+      },
+      "expect": {
+        "cacheRebuildTriggered": true,
+        "oldBFOSignaturesDiscarded": true,
+        "oldDisjointnessMapDiscarded": true,
+        "newCachesLoadedAtSessionStart": true,
+        "sessionUsesNewBFOv1_1Signatures": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "no stale cache usage",
+          "description": "Session started after VD-6 event MUST NOT use pre-bump cached BFO Signatures or Disjointness Map. Cache invalidation is mandatory."
+        }
+      ]
+    },
+    {
+      "id": "reasoner-cap-fallback-query-granularity",
+      "band": 1,
+      "verifies": [
+        "D1.6-L4",
+        "Rule LS-10"
+      ],
+      "description": "Signature comparison between a CAU and a BFO category runs N necessary-condition queries. Of 5 queries, 2 exceed the 10,000-step Horn inference cap and fall back to structural correspondence matching. The remaining 3 queries complete via Tau Prolog normally. reasonerFallbackUsed flag is set per-query, not per-CAU. Overall disposition still valid; fallback is local, not wholesale.",
+      "setup": {
+        "cau": "ex:ComplexClass with 8 axioms",
+        "targetBFO": "bfo:Process with 5 necessary conditions",
+        "reasonerStepCap": 10000
+      },
+      "trigger": {
+        "type": "computeSignatureComparison"
+      },
+      "expect": {
+        "totalQueries": 5,
+        "queriesCompletedByTauProlog": 3,
+        "queriesFallenBackToStructural": 2,
+        "perQueryFallbackFlags": [
+          {
+            "query": "NC1",
+            "reasonerFallbackUsed": false,
+            "stepsConsumed": 240
+          },
+          {
+            "query": "NC2",
+            "reasonerFallbackUsed": false,
+            "stepsConsumed": 890
+          },
+          {
+            "query": "NC3",
+            "reasonerFallbackUsed": true,
+            "stepsConsumed": 10000,
+            "fallbackMode": "structural-correspondence"
+          },
+          {
+            "query": "NC4",
+            "reasonerFallbackUsed": true,
+            "stepsConsumed": 10000,
+            "fallbackMode": "structural-correspondence"
+          },
+          {
+            "query": "NC5",
+            "reasonerFallbackUsed": false,
+            "stepsConsumed": 3200
+          }
+        ],
+        "dispositionValidDespiteFallback": true,
+        "provenanceRecordsPerQueryDetail": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "no wholesale regression",
+          "description": "A CAU with some queries exceeding the cap MUST NOT fall back to structural correspondence for ALL its queries. Fallback is applied at query granularity per D1.6-L4 v0.2 tightening."
+        },
+        {
+          "condition": "axiom-graph isomorphism ruled out",
+          "description": "Even under fallback, the matcher MUST NOT attempt full axiom-graph isomorphism. Fallback is structural correspondence at the type-level query scope."
+        }
+      ]
+    },
+    {
+      "id": "cau-property-signature-artifact-separation",
+      "band": 1,
+      "verifies": [
+        "D1.6-L4",
+        "Rule LS-1",
+        "Rule PH2-1"
+      ],
+      "description": "Architectural separation test: when ex:Activity has rdfs:subClassOf restriction on ex:hasParticipant some ex:Agent, the resulting canonical data has TWO DISTINCT ARTIFACTS \u2014 (1) ex:Activity's CAU Signature record (class-side, containing the restriction in propertyRestrictionsAsDomain field) and (2) ex:hasParticipant's property record (property-side, produced by Phase 2). Verifies that CAU Signatures and property records are separate schemas, not blended. Prevents regression to D1-era class/property conflation.",
+      "setup": {
+        "candidateOntology": "ex:Activity rdfs:subClassOf [ owl:onProperty ex:hasParticipant ; owl:someValuesFrom ex:Agent ] ."
+      },
+      "trigger": {
+        "type": "runPhase1AndPhase2"
+      },
+      "expect": {
+        "cauSignatureRecord": {
+          "artifactType": "CAU Signature",
+          "cauIRI": "ex:Activity",
+          "propertyRestrictionsAsDomain": [
+            {
+              "property": "ex:hasParticipant",
+              "target": "ex:Agent"
+            }
+          ],
+          "schema": "CAU Signature schema per \u00a72.2"
+        },
+        "propertyRecord": {
+          "artifactType": "Property Record (Phase 2)",
+          "propertyIRI": "ex:hasParticipant",
+          "declaredDomain": "ex:Activity",
+          "declaredRange": "ex:Agent",
+          "schema": "Property record schema from D2 (preserved)",
+          "notACauSignature": true
+        },
+        "separationIntegrity": {
+          "querysForCAUSignatureReturnOnlyCAUSide": true,
+          "queryForPropertyRecordReturnOnlyPropertySide": true,
+          "sharedFieldsForbidden": true
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no artifact conflation",
+          "description": "The ex:hasParticipant property MUST NOT appear as a CAU Signature record (it is not a class). The ex:Activity class MUST NOT appear as a property record. Separation is architecturally load-bearing \u2014 blending would regress to D1-era confusion."
+        },
+        {
+          "condition": "schemas are distinct",
+          "description": "CAU Signature schema and property record schema have non-overlapping required fields. A record conforming to both schemas simultaneously is a schema bug."
+        }
+      ]
+    },
+    {
+      "id": "iteration-single-pass-success",
+      "band": 2,
+      "verifies": [
+        "D1.6-L5",
+        "Rule IT-1"
+      ],
+      "description": "Well-behaved ontology with clean cross-dependencies completes in single-pass. No contradiction, no ambiguity. Final placements match initial placements after property alignment applied.",
+      "setup": {
+        "candidateOntology": "<straightforward ontology with 5 classes and 3 properties, no disjointness conflicts>",
+        "expectedDispositions": "all Entailed"
+      },
+      "trigger": {
+        "type": "runPhase1"
+      },
+      "expect": {
+        "iterationRoundCount": 1,
+        "boundedFallbackTriggered": false,
+        "allCAUsEntailed": true,
+        "convergenceReason": "single-pass-success"
+      }
+    },
+    {
+      "id": "iteration-triggered-by-contradiction",
+      "band": 2,
+      "verifies": [
+        "D1.6-L5",
+        "Rule IT-4"
+      ],
+      "description": "Single-pass produces Step 5 placement that violates BFO disjointness given property evidence. Bounded fallback triggers. Round 1 reevaluation resolves to Inconsistent (the correct outcome for genuine contradiction).",
+      "setup": {
+        "candidateOntology": "<ontology with class whose Step 3 placement is Plausible as bfo:Process, but whose property evidence narrows to suggest bfo:IndependentContinuant which is disjoint>"
+      },
+      "trigger": {
+        "type": "runPhase1"
+      },
+      "expect": {
+        "iterationRoundCount": 2,
+        "boundedFallbackTriggered": true,
+        "triggerReason": "contradiction",
+        "affectedCAU": "ex:ContradictedClass",
+        "finalDisposition": "Inconsistent"
+      }
+    },
+    {
+      "id": "iteration-triggered-by-ambiguity",
+      "band": 2,
+      "verifies": [
+        "D1.6-L5",
+        "Rule IT-4"
+      ],
+      "description": "Single-pass produces ambiguous result (multiple Plausible candidates with no subsumption resolution). Bounded fallback triggers. Round 1 may resolve or may need Round 2/3.",
+      "setup": {
+        "candidateOntology": "<ontology with class having evidence for two sibling non-disjoint BFO categories>"
+      },
+      "trigger": {
+        "type": "runPhase1"
+      },
+      "expect": {
+        "iterationRoundCount": {
+          "min": 2,
+          "max": 3
+        },
+        "boundedFallbackTriggered": true,
+        "triggerReason": "ambiguity",
+        "finalDisposition": "Plausible"
+      }
+    },
+    {
+      "id": "iteration-cross-dependency-is-not-trigger",
+      "band": 2,
+      "verifies": [
+        "Rule IT-4"
+      ],
+      "description": "Cross-dependency between class placement and property alignment resolved in single-pass dependency order does NOT trigger iteration. Step 3 Plausible \u2192 Step 5 Entailed after property evidence is correct single-pass behavior, not iteration condition.",
+      "setup": {
+        "candidateOntology": "<ontology where initial Plausible placement becomes Entailed after property alignment provides additional context>"
+      },
+      "trigger": {
+        "type": "runPhase1"
+      },
+      "expect": {
+        "iterationRoundCount": 1,
+        "boundedFallbackTriggered": false,
+        "dispositionChangeBetweenSteps3and5": true,
+        "convergenceReason": "single-pass-success-after-dependency-resolution"
+      }
+    },
+    {
+      "id": "iteration-non-convergence-cau-specific",
+      "band": 2,
+      "verifies": [
+        "D1.6-L7",
+        "Rule IT-2"
+      ],
+      "description": "Bounded iteration hits round 3 cap with some CAUs stabilized and some oscillating. Stabilized CAUs receive their final disposition; oscillating CAUs routed to PendingHumanResolution with IterationNonConvergence flag.",
+      "setup": {
+        "candidateOntology": "<15 CAUs, 12 stabilize in round 1-2, 3 oscillate across rounds 1-3>"
+      },
+      "trigger": {
+        "type": "runPhase1"
+      },
+      "expect": {
+        "iterationRoundCount": 3,
+        "stabilizedCAUCount": 12,
+        "oscillatingCAUCount": 3,
+        "oscillatingCAUDispositions": "all PendingHumanResolution with IterationNonConvergence flag"
+      }
+    },
+    {
+      "id": "iteration-history-provenance",
+      "band": 2,
+      "verifies": [
+        "D1.6-L6",
+        "Rule IT-1",
+        "DP-2-R2"
+      ],
+      "description": "Iteration history recorded in every CAU's provenance. Each round's disposition, BFO category, reasoner step count, and timestamp captured. Final state flagged authoritative.",
+      "setup": {
+        "candidateOntology": "<ontology triggering 2 iteration rounds>"
+      },
+      "trigger": {
+        "type": "runPhase1"
+      },
+      "expect": {
+        "perCAUProvenance": {
+          "iterationHistory": "array with round 0 + round 1 entries",
+          "fieldsPerRound": [
+            "round",
+            "disposition",
+            "bfoCategory",
+            "reasonerStepsConsumed",
+            "timestamp"
+          ],
+          "finalStateMarker": "round 1 entry has authoritative: true"
+        }
+      }
+    },
+    {
+      "id": "iteration-phase3-as-validation-not-discovery",
+      "band": 2,
+      "verifies": [
+        "D1.6-L8",
+        "Rule IT-3",
+        "Rule IT-5"
+      ],
+      "description": "Phase 3 axioms extracted once at session start. No new constraints added during iteration or terminal Phase 3. Constraint set stable across session lifecycle \u2014 verified by comparing Phase 3 constraint set at round 0, round 2, and terminal.",
+      "setup": {
+        "candidateOntology": "<ontology triggering iteration>"
+      },
+      "trigger": {
+        "type": "runPhase1",
+        "captureConstraintSetAtRounds": [
+          0,
+          2,
+          "terminal"
+        ]
+      },
+      "expect": {
+        "constraintSetStableAcrossRounds": true,
+        "newConstraintsIntroducedDuringIteration": 0,
+        "phase3TerminalRole": "validation-only"
+      },
+      "negative_assertions": [
+        {
+          "condition": "no constraint discovery",
+          "description": "Phase 3 terminal run MUST NOT introduce constraints that were not present at session start. This would violate reproducibility."
+        }
+      ]
+    },
+    {
+      "id": "evidence-entailed-via-ncs",
+      "band": 3,
+      "verifies": [
+        "D1.6-L9",
+        "Rule EV-2"
+      ],
+      "description": "CAU with axioms satisfying all necessary conditions of bfo:Process (per curated reference) and no necessary condition of disjoint bfo:Continuant. Disposition: Entailed. Explanation lists satisfied conditions by IRI.",
+      "setup": {
+        "cau": "ex:BusinessActivity with temporal participation + process-boundary axioms",
+        "targetBFO": "bfo:Process"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:BusinessActivity"
+      },
+      "expect": {
+        "disposition": "Entailed",
+        "bfoCategory": "bfo:Process",
+        "explanation": {
+          "satisfiedConditionIRIs": [
+            "bfo:ProcessNC1",
+            "bfo:ProcessNC2",
+            "bfo:ProcessNC3"
+          ],
+          "unsatisfiedConditionIRIs": [],
+          "disjointViolations": []
+        }
+      }
+    },
+    {
+      "id": "evidence-plausible-structured-annotations",
+      "band": 3,
+      "verifies": [
+        "D1.6-L10",
+        "Rule EV-3"
+      ],
+      "description": "CAU satisfies 3 of 5 necessary conditions for bfo:Process and 2 of 3 for bfo:Occurrent (subsumer). Under \u00a74.6 subsumption resolution \u2192 Plausible with structured JSON annotations.",
+      "setup": {
+        "cau": "ex:PartialProcess"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:PartialProcess"
+      },
+      "expect": {
+        "disposition": "Plausible",
+        "evidenceAnnotations": {
+          "candidateBFOCategories": [
+            {
+              "category": "bfo:Process",
+              "conditionsSatisfied": 3,
+              "conditionsTotal": 5,
+              "satisfiedConditionIRIs": "array",
+              "axiomsContributing": "structured array"
+            },
+            {
+              "category": "bfo:Occurrent",
+              "conditionsSatisfied": 2,
+              "conditionsTotal": 3
+            }
+          ],
+          "structureIsJSON": true,
+          "textualProse": "absent"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no textual annotations",
+          "description": "evidenceAnnotations MUST NOT contain free-form prose. All evidence is structured JSON per \u00a74.3 schema."
+        }
+      ]
+    },
+    {
+      "id": "evidence-inconsistent-disjointness-firing",
+      "band": 3,
+      "verifies": [
+        "D1.6-L11",
+        "D1.6-L12",
+        "Rule EV-4"
+      ],
+      "description": "CAU with axioms satisfying necessary conditions of two disjoint BFO categories (bfo:Continuant AND bfo:Occurrent). Disposition: Inconsistent immediately. No evidence counting. Routed to PendingHumanResolution.",
+      "setup": {
+        "cau": "ex:ContradictoryClass with both continuant-style and occurrent-style axioms"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:ContradictoryClass"
+      },
+      "expect": {
+        "disposition": "Inconsistent",
+        "routedTo": "PendingHumanResolution",
+        "explanation": {
+          "disjointnessViolation": "bfo:Continuant owl:disjointWith bfo:Occurrent",
+          "conditionsSatisfiedContinuant": "some_count_not_zero",
+          "conditionsSatisfiedOccurrent": "some_count_not_zero",
+          "resolvedBy": "disjointness-immediate-inconsistent"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no evidence-count tiebreaker",
+          "description": "Disjoint categories with mixed evidence MUST produce Inconsistent, NOT most-evidence-wins."
+        }
+      ]
+    },
+    {
+      "id": "evidence-subsumption-wins",
+      "band": 3,
+      "verifies": [
+        "D1.6-L12",
+        "Rule EV-4"
+      ],
+      "description": "CAU satisfies necessary conditions for both bfo:Process (subclass) AND bfo:Occurrent (superclass). Subsumption resolution: bfo:Process wins as most specific subsumer. NOT by evidence count.",
+      "setup": {
+        "cau": "ex:HierarchicalCase"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:HierarchicalCase"
+      },
+      "expect": {
+        "disposition": "Entailed",
+        "bfoCategory": "bfo:Process",
+        "resolution": {
+          "strategy": "most-specific-subsumer",
+          "rationale": "bfo:Process rdfs:subClassOf bfo:Occurrent; most specific subsumer wins per D1.6-L12",
+          "evidenceCountBreakdown": "not_used_for_resolution"
+        }
+      }
+    },
+    {
+      "id": "evidence-sibling-ambiguity-plausible",
+      "band": 3,
+      "verifies": [
+        "D1.6-L12"
+      ],
+      "description": "CAU satisfies conditions for two sibling non-disjoint, non-subsuming BFO categories (e.g., bfo:Role and bfo:Disposition \u2014 both under SDC, not disjoint, not subsuming). Disposition: Plausible with both candidates in annotations.",
+      "setup": {
+        "cau": "ex:AmbiguousSDC"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:AmbiguousSDC"
+      },
+      "expect": {
+        "disposition": "Plausible",
+        "evidenceAnnotations": {
+          "candidateBFOCategories": [
+            {
+              "category": "bfo:Role"
+            },
+            {
+              "category": "bfo:Disposition"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "evidence-ncs-from-curated-only",
+      "band": 3,
+      "verifies": [
+        "D1.6-L9"
+      ],
+      "description": "Necessary conditions consulted from curated BFO Signature reference, NOT heuristically inferred. If curated reference is missing, Entailed disposition is unreachable (falls back to Plausible with warning).",
+      "setup": {
+        "cau": "ex:TestClass",
+        "curatedReferenceState": "missing_for_Role_distinction"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:TestClass"
+      },
+      "expect": {
+        "disposition": "Plausible",
+        "warning": "CuratedReferenceIncomplete",
+        "explanation": {
+          "blockedEntailment": "curated reference lacks necessary conditions for target category"
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no heuristic NC inference",
+          "description": "Implementer MUST NOT infer necessary conditions from BFO-OWL or textbook reading without curated reference. This would violate D1.6-L9."
+        }
+      ]
+    },
+    {
+      "id": "evidence-inconsistent-override-path",
+      "band": 3,
+      "verifies": [
+        "Rule EV-1",
+        "Q-V1.0-3"
+      ],
+      "description": "Analyst overrides an Inconsistent CAU to place it at bfo:Process manually. Per-CAU flagging only: the CAU's provenance records analystOverride:true. Session-level compatibilityDegraded does NOT fire.",
+      "setup": {
+        "session": "single CAU at Inconsistent, under threshold for DP-1 session-level fire"
+      },
+      "trigger": {
+        "type": "analystOverrideCAU",
+        "cauIRI": "ex:InconsistentClass",
+        "placement": "bfo:Process"
+      },
+      "expect": {
+        "cauFinalDisposition": "Entailed",
+        "cauProvenance": {
+          "analystOverride": true,
+          "originalDisposition": "Inconsistent"
+        },
+        "sessionLevelCompatibilityDegradedFlag": false
+      }
+    },
+    {
+      "id": "bfo-levels-13-categories-available",
+      "band": 4,
+      "verifies": [
+        "D1.6-L14"
+      ],
+      "description": "Verify all 13 target BFO categories are represented in the curated Signature reference and available as placement targets for CAU evaluation. Count corrected from v1 (which said '12' omitting Quality) per critique review.",
+      "setup": {
+        "bfoReferenceVersion": "v1.0"
+      },
+      "trigger": {
+        "type": "enumerateBFOTargetCategories"
+      },
+      "expect": {
+        "categoryCount": 13,
+        "categories": [
+          "IndependentContinuant",
+          "MaterialEntity",
+          "ImmaterialEntity",
+          "GenericallyDependentContinuant",
+          "SpecificallyDependentContinuant",
+          "Process",
+          "ProcessBoundary",
+          "TemporalRegion",
+          "Site",
+          "Role",
+          "Disposition",
+          "Function",
+          "Quality"
+        ],
+        "qualityExplicitlyIncluded": true,
+        "previousCountCorrection": "v1 said 12 categories omitting Quality; corrected to 13 for BFO 2020 fidelity"
+      }
+    },
+    {
+      "id": "bfo-levels-role-vs-function-disambiguation",
+      "band": 4,
+      "verifies": [
+        "D1.6-L15",
+        "Rule CR-1"
+      ],
+      "description": "CAU with explicit teleological commitment (design purpose) matches Function's curated necessary conditions. CAU with social-context realization matches Role. Both produce Entailed with distinct categories.",
+      "setup": {
+        "caus": [
+          {
+            "iri": "ex:EngineFunction",
+            "teleology": true,
+            "socialContext": false
+          },
+          {
+            "iri": "ex:EmployeeRole",
+            "teleology": false,
+            "socialContext": true
+          }
+        ]
+      },
+      "trigger": {
+        "type": "evaluateCAUs"
+      },
+      "expect": {
+        "ex:EngineFunction": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:Function"
+        },
+        "ex:EmployeeRole": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:Role"
+        }
+      }
+    },
+    {
+      "id": "bfo-levels-role-function-disposition-ambiguous",
+      "band": 4,
+      "verifies": [
+        "D1.6-L15",
+        "Rule CR-1"
+      ],
+      "description": "CAU without teleology commitment and without social-context axioms, but with realization commitments. Ambiguous between Role/Function/Disposition. Disposition: Plausible with all three candidates annotated.",
+      "setup": {
+        "cau": "ex:GenericRealizable"
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:GenericRealizable"
+      },
+      "expect": {
+        "disposition": "Plausible",
+        "evidenceAnnotations": {
+          "candidateBFOCategories": [
+            {
+              "category": "bfo:Role"
+            },
+            {
+              "category": "bfo:Function"
+            },
+            {
+              "category": "bfo:Disposition"
+            }
+          ],
+          "analystNoteRequired": "Role/Function/Disposition distinction requires context analyst must supply"
+        }
+      }
+    },
+    {
+      "id": "bfo-levels-material-vs-immaterial",
+      "band": 4,
+      "verifies": [
+        "D1.6-L14",
+        "Rule CR-1"
+      ],
+      "description": "CAU with spatial-region-occupation-through-matter axioms matches MaterialEntity. CAU with site-without-matter axioms matches ImmaterialEntity (Site). Both produce Entailed.",
+      "setup": {
+        "caus": [
+          {
+            "iri": "ex:PhysicalObject",
+            "material": true
+          },
+          {
+            "iri": "ex:Location",
+            "material": false,
+            "occupiesSite": true
+          }
+        ]
+      },
+      "trigger": {
+        "type": "evaluateCAUs"
+      },
+      "expect": {
+        "ex:PhysicalObject": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:MaterialEntity"
+        },
+        "ex:Location": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:Site"
+        }
+      }
+    },
+    {
+      "id": "bfo-levels-gdc-vs-sdc",
+      "band": 4,
+      "verifies": [
+        "D1.6-L14",
+        "Rule CR-1"
+      ],
+      "description": "CAU with concretizes-in-information-bearing-entity axioms matches GDC. CAU with inheres-in-specific-bearer axioms matches SDC. Distinction derived from curated reference.",
+      "setup": {
+        "caus": [
+          {
+            "iri": "ex:InformationContent",
+            "concretizes": true
+          },
+          {
+            "iri": "ex:SpecificQuality",
+            "inheres": true
+          }
+        ]
+      },
+      "trigger": {
+        "type": "evaluateCAUs"
+      },
+      "expect": {
+        "ex:InformationContent": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:GenericallyDependentContinuant"
+        },
+        "ex:SpecificQuality": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:SpecificallyDependentContinuant"
+        }
+      }
+    },
+    {
+      "id": "bfo-levels-curated-reference-required",
+      "band": 4,
+      "verifies": [
+        "Rule CR-1"
+      ],
+      "description": "Session attempted with BFO Signature reference missing Role/Function/Disposition curated additions. Session startup SHALL fail with clear error message \u2014 implementation is non-conformant until curated reference is complete.",
+      "setup": {
+        "bfoReferenceState": "missing_Role_Function_Disposition_curation"
+      },
+      "trigger": {
+        "type": "startSession"
+      },
+      "expect": {
+        "sessionStart": "blocked",
+        "error": "BFO Signature reference non-conformant: missing mandatory Role/Function/Disposition curated necessary conditions per D1.6 Rule CR-1. Block session until reference is complete."
+      }
+    },
+    {
+      "id": "notapplicable-skos-automatic",
+      "band": 5,
+      "verifies": [
+        "D1.6-L13",
+        "Rule NA-1"
+      ],
+      "description": "CAU declared as skos:Concept routes to NotApplicable automatically. No analyst prompt. Explanation records automatic routing mechanism.",
+      "setup": {
+        "candidateOntology": "ex:CategoryA a skos:Concept . ex:CategoryA skos:prefLabel \"Category A\" ."
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:CategoryA"
+      },
+      "expect": {
+        "disposition": "NotApplicable",
+        "routingMechanism": "automatic",
+        "analystConfirmationRequired": false,
+        "explanation": {
+          "reason": "skos:Concept declaration; outside BFO scope"
+        }
+      }
+    },
+    {
+      "id": "notapplicable-axiom-poor-default",
+      "band": 5,
+      "verifies": [
+        "D1.6-L13",
+        "Rule NA-1",
+        "Rule NA-1.1"
+      ],
+      "description": "Axiom-poor CAU routing depends on inheritance path availability per NA-1.1 precedence (v1.1.0 extension of D1.6-L13). Two sub-cases verified: (a) axiom-poor CAU with inheritable parent inherits via NA-1.1; (b) axiom-poor CAU without inheritable parent routes to NotApplicable per existing D1.6-L13 default.",
+      "setup": {
+        "subCaseA": {
+          "candidateOntology": "ex:ChildClass rdfs:subClassOf ex:ParentClass . ex:ParentClass placement: Entailed bfo:MaterialEntity (rich axioms from prior session).",
+          "expectation": "inherit"
+        },
+        "subCaseB": {
+          "candidateOntology": "ex:OrphanClass a owl:Class ; rdfs:label 'Orphan Class' .  (no parent, no axioms)",
+          "expectation": "notApplicable"
+        }
+      },
+      "trigger": {
+        "type": "evaluateCAUs",
+        "cauIRIs": [
+          "ex:ChildClass",
+          "ex:OrphanClass"
+        ]
+      },
+      "expect": {
+        "ex:ChildClass": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:MaterialEntity",
+          "routingMechanism": "na_1_1_inheritance",
+          "validationState": "provisional",
+          "dispositionReason": "Provisionally inherited via taxonomic descent from parent ex:ParentClass"
+        },
+        "ex:OrphanClass": {
+          "disposition": "NotApplicable",
+          "routingMechanism": "default_axiom_poor_no_inheritance_path",
+          "signatureAxiomCount": "<2",
+          "inheritancePathAvailable": false
+        }
+      },
+      "v1_to_v3_revision_note": "v1 asserted all axiom-poor CAUs default to NotApplicable. v3 corrects per NA-1.1: only CAUs without inheritance path default to NotApplicable; CAUs with inheritable parent inherit via NA-1.1."
+    },
+    {
+      "id": "notapplicable-analyst-override-out",
+      "band": 5,
+      "verifies": [
+        "D1.6-L13",
+        "Rule NA-1"
+      ],
+      "description": "Analyst overrides an axiom-poor CAU out of default NotApplicable to force BFO placement consideration. CAU re-enters the three-state evaluation pipeline.",
+      "setup": {
+        "cau": "ex:BareClass currently in default_axiom_poor NotApplicable state"
+      },
+      "trigger": {
+        "type": "analystOverrideOut",
+        "cauIRI": "ex:BareClass",
+        "forceBFOConsideration": true
+      },
+      "expect": {
+        "previousDisposition": "NotApplicable",
+        "newEvaluationTriggered": true,
+        "likelyNewDisposition": "Plausible or Inconsistent (based on weak evidence)",
+        "provenance": {
+          "analystOverride": true,
+          "originalRouting": "default_axiom_poor"
+        }
+      }
+    },
+    {
+      "id": "notapplicable-terminal-no-phase2",
+      "band": 5,
+      "verifies": [
+        "D1.6-L16",
+        "Rule NA-2"
+      ],
+      "description": "NotApplicable CAUs are terminal. Their properties are excluded from Phase 2 property disambiguation. Phase 2 consumes only non-NotApplicable CAU Signatures.",
+      "setup": {
+        "session": "5 CAUs, 2 NotApplicable, 3 Entailed",
+        "properties": "10 properties, 4 declared on NotApplicable CAUs, 6 on Entailed CAUs"
+      },
+      "trigger": {
+        "type": "runPhase2"
+      },
+      "expect": {
+        "propertiesProcessedByPhase2": 6,
+        "propertiesExcluded": 4,
+        "exclusionReason": "declared on NotApplicable CAU"
+      }
+    },
+    {
+      "id": "notapplicable-provenance-fields",
+      "band": 5,
+      "verifies": [
+        "DP-2-R1",
+        "DP-2-R2",
+        "DP-2-R3"
+      ],
+      "description": "NotApplicable CAUs STILL carry all DP-2 mandatory fields (explanation, provenance, reproducibilityHash). NotApplicable is a disposition, not an absence of record.",
+      "setup": {
+        "cau": "NotApplicable CAU produced automatically from skos:Concept"
+      },
+      "trigger": {
+        "type": "retrieveCanonicalRecord",
+        "cauIRI": "ex:CategoryA"
+      },
+      "expect": {
+        "record": {
+          "disposition": "NotApplicable",
+          "explanation": "present (routing mechanism documented)",
+          "provenance": "present (sessionId, timestamp, routingMechanism)",
+          "reproducibilityHash": "present (Final Hash computed)"
+        }
+      }
+    },
+    {
+      "id": "notapplicable-terminal-no-phase3-no-canonical",
+      "band": 5,
+      "verifies": [
+        "D1.6-L16",
+        "Rule NA-2"
+      ],
+      "description": "NotApplicable CAU's terminal nature extends beyond Phase 2 exclusion to Phase 3 and canonical graph. Phase 3 Tau Prolog evaluation input does NOT include NotApplicable CAUs or their properties. Final exported canonical graph OMITS NotApplicable CAUs entirely. Verify through two inspection points: Phase 3 input set and canonical graph export.",
+      "setup": {
+        "session": "session with 10 CAUs: 3 NotApplicable, 5 Entailed, 2 Plausible",
+        "propertiesTotal": 15,
+        "propertiesOnNotApplicableCAUs": 4
+      },
+      "trigger": {
+        "type": "completePhase3AndExport"
+      },
+      "expect": {
+        "phase3Input": {
+          "cauCount": 7,
+          "excludedNotApplicableCAUs": 3,
+          "propertiesEvaluated": 11,
+          "excludedPropertiesOnNotApplicable": 4
+        },
+        "canonicalGraphExport": {
+          "classEntriesCount": 7,
+          "notApplicableCAUsOmitted": true,
+          "propertyEntriesCount": 11,
+          "sessionMetadataPreservesNotApplicableCounts": true
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "no stealth inclusion",
+          "description": "NotApplicable CAUs MUST NOT appear in Phase 3 input or in the exported canonical graph, even as a side effect of property evaluation or transitive reference. Terminal means terminal."
+        },
+        {
+          "condition": "session metadata preserves aggregate",
+          "description": "Although NotApplicable CAUs are excluded from canonical graph, the session metadata (for DP-1 diagnostic aggregation) MUST preserve their counts."
+        }
+      ]
+    },
+    {
+      "id": "taxonomic-descent-provisional-inheritance",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.1",
+        "D1.6-L25"
+      ],
+      "description": "Core NA-1.1 behavior: horizontally axiom-poor CAU with rdfs:subClassOf parent having stabilized Entailed disposition inherits parent's BFO placement as provisional prior. Does NOT route to NotApplicable. Inheritance bypass is the intended architectural behavior addressing OBO-scale ingestion failure.",
+      "setup": {
+        "candidateOntology": "ex:Parent a owl:Class ; [rich axioms producing Entailed bfo:MaterialEntity] . ex:Child rdfs:subClassOf ex:Parent . (Child has zero horizontal axioms.)",
+        "parentPriorPlacement": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:MaterialEntity"
+        }
+      },
+      "trigger": {
+        "type": "evaluateCAU",
+        "cauIRI": "ex:Child"
+      },
+      "expect": {
+        "disposition": "Entailed",
+        "bfoCategory": "bfo:MaterialEntity",
+        "routingMechanism": "na_1_1_inheritance",
+        "explanation": {
+          "dispositionReason": "Provisionally inherited via taxonomic descent from parent ex:Parent",
+          "validationState": "provisional",
+          "conflictAnnotation": null,
+          "reconciliationHistory": []
+        },
+        "notRoutedToNotApplicable": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "inheritance bypasses NotApplicable routing",
+          "description": "Axiom-poor CAU with inheritable parent MUST NOT route to NotApplicable under v1.1.0. The D1.6-L13 default-hard-toward-NotApplicable behavior applies ONLY when no inheritance path is available."
+        }
+      ]
+    },
+    {
+      "id": "taxonomic-descent-signal-discipline",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.2",
+        "D1.6-L25"
+      ],
+      "description": "NA-1.2 signal discipline: strong structural signals CAN trigger contradiction of inherited placement; weak signals CANNOT. Verified with two sub-cases showing divergent behavior for strong vs weak signals contradicting inherited placement.",
+      "setup": {
+        "subCaseStrong": {
+          "description": "Child inherits Entailed bfo:MaterialEntity from parent but has local OWL-DIRECT violation (e.g., disjointness assertion with bfo:IndependentContinuant)",
+          "expectedBehavior": "inheritance overridden; CAU re-evaluated independently"
+        },
+        "subCaseWeak": {
+          "description": "Child inherits Entailed bfo:MaterialEntity from parent but has rdfs:label 'Process' (lexical mismatch)",
+          "expectedBehavior": "inheritance preserved; lexical conflict noted in annotation only"
+        }
+      },
+      "trigger": {
+        "type": "evaluateCAUs",
+        "subCases": [
+          "strong",
+          "weak"
+        ]
+      },
+      "expect": {
+        "subCaseStrong": {
+          "disposition": "Inconsistent",
+          "dispositionReason": "Inherited placement overridden by strong signal per NA-1.2; CAU re-evaluated independently",
+          "validationState": "hard_conflict_detected",
+          "conflictAnnotation": {
+            "signalType": "disjointness",
+            "severity": "hard"
+          }
+        },
+        "subCaseWeak": {
+          "disposition": "Entailed",
+          "bfoCategory": "bfo:MaterialEntity",
+          "validationState": "validated_no_conflict",
+          "lexicalConflictAnnotated": true,
+          "placementUnchanged": true
+        }
+      },
+      "negative_assertions": [
+        {
+          "condition": "lexical signals MUST NOT override inherited placement",
+          "description": "Weak signals (lexical labels, synonyms, naming patterns) are forbidden from triggering contradiction of NA-1.1 inherited placements. They contribute to Plausible evidence annotations only. This restriction derives from the same principle as Q-V1.0-8's Phase 2 lexical demotion."
+        }
+      ]
+    },
+    {
+      "id": "taxonomic-descent-soft-vs-hard-contradiction",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.2",
+        "D1.6-L25"
+      ],
+      "description": "NA-1.2 contradiction severity tiering: hard contradictions (disjointness violations) route to Inconsistent; soft contradictions (domain/range tensions without full entailment failure) route to Plausible with conflictAnnotation. Both cases preserve the warning signal without producing identical outcomes.",
+      "setup": {
+        "subCaseHard": {
+          "description": "Child inherits Plausible bfo:Process from parent but has axiom forcing bfo:IndependentContinuant placement. Disjointness between Occurrent and Continuant branches.",
+          "expectedSeverity": "hard"
+        },
+        "subCaseSoft": {
+          "description": "Child inherits Entailed bfo:MaterialEntity from parent but has property restriction with range that's slightly inconsistent with MaterialEntity constraints (e.g., domain-range tension without full NC failure)",
+          "expectedSeverity": "soft"
+        }
+      },
+      "trigger": {
+        "type": "evaluateCAUs",
+        "subCases": [
+          "hard",
+          "soft"
+        ]
+      },
+      "expect": {
+        "subCaseHard": {
+          "disposition": "Inconsistent",
+          "routedTo": "PendingHumanResolution",
+          "validationState": "hard_conflict_detected",
+          "conflictAnnotation": {
+            "signalType": "disjointness",
+            "severity": "hard"
+          }
+        },
+        "subCaseSoft": {
+          "disposition": "Plausible",
+          "bfoCategoryHint": "bfo:MaterialEntity",
+          "validationState": "soft_conflict_detected",
+          "conflictAnnotation": {
+            "signalType": "domain_range",
+            "severity": "soft",
+            "description": "domain/range tension detected; partial structural conflict with inherited placement"
+          }
+        }
+      }
+    },
+    {
+      "id": "taxonomic-descent-reconciliation-cascade",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.3",
+        "D1.6-L25"
+      ],
+      "description": "NA-1.3 cascade propagation: when a CAU's placement changes (via analyst override), all descendants that inherited placement via NA-1.1 are flagged for re-evaluation, reconciled, and have reconciliationHistory populated. 5-level taxonomic chain with 4 descendants inheriting from root.",
+      "setup": {
+        "taxonomicChain": {
+          "root": {
+            "iri": "ex:L1_Parent",
+            "placement": "Entailed bfo:MaterialEntity (initial)"
+          },
+          "L2": {
+            "iri": "ex:L2_Child",
+            "inherited_from": "ex:L1_Parent"
+          },
+          "L3": {
+            "iri": "ex:L3_Child",
+            "inherited_from": "ex:L2_Child"
+          },
+          "L4": {
+            "iri": "ex:L4_Child",
+            "inherited_from": "ex:L3_Child"
+          },
+          "L5": {
+            "iri": "ex:L5_Leaf",
+            "inherited_from": "ex:L4_Child"
+          }
+        }
+      },
+      "trigger": {
+        "type": "analystOverride",
+        "cauIRI": "ex:L1_Parent",
+        "newPlacement": "Entailed bfo:ImmaterialEntity"
+      },
+      "expect": {
+        "cascadeTriggered": true,
+        "affectedDescendants": [
+          "ex:L2_Child",
+          "ex:L3_Child",
+          "ex:L4_Child",
+          "ex:L5_Leaf"
+        ],
+        "reconciledCount": 4,
+        "perDescendantBehavior": {
+          "allReceiveNewInheritance": true,
+          "allUpdatedBfoCategory": "bfo:ImmaterialEntity",
+          "allHaveReconciliationHistoryEntry": true,
+          "reconciliationHistoryStructure": {
+            "priorPlacement": {
+              "disposition": "Entailed",
+              "bfoCategory": "bfo:MaterialEntity"
+            },
+            "triggeringEvent": "parent_reconciliation",
+            "updatedPlacement": {
+              "disposition": "Entailed",
+              "bfoCategory": "bfo:ImmaterialEntity"
+            },
+            "timestampPresent": true
+          }
+        },
+        "cascadeTerminates": true,
+        "provenanceComplete": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "cascade must terminate",
+          "description": "Transitive descent cascade MUST reach terminal nodes (no further descendants) in finite time. Infinite cascade is a failure mode."
+        },
+        {
+          "condition": "richly-axiomatized descendants not inherited-from-parent MUST NOT be cascade-reconciled",
+          "description": "If a descendant has its own rich axiomatization and was placed directly (not via NA-1.1), NA-1.3 does NOT cascade to it. Cascade applies only to NA-1.1-inherited descendants."
+        }
+      ]
+    },
+    {
+      "id": "reactive-re-evaluation-trigger",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.4",
+        "D1.6-L25"
+      ],
+      "description": "NA-1.4 mutation event triggers localized re-evaluation. Stable session with 10 CAUs; ingesting a new property whose domain is an existing CAU triggers re-evaluation of the dependency neighborhood. CAUs outside the neighborhood are untouched. Demonstrates bounded scope: not global re-evaluation.",
+      "setup": {
+        "initialState": "stable session, 10 CAUs finalized, all dispositions known",
+        "dependencyStructure": "ex:CAU_A has 3 ancestors + 2 descendants + 1 property-linked neighbor. Other 4 CAUs unrelated to CAU_A.",
+        "mutationEvent": "ingest new property ex:newProp with rdfs:domain ex:CAU_A"
+      },
+      "trigger": {
+        "type": "mutationEvent",
+        "eventType": "property_ingestion",
+        "affectedCAU": "ex:CAU_A"
+      },
+      "expect": {
+        "reEvaluationTriggered": true,
+        "reEvaluationScope": {
+          "cauA": true,
+          "ancestorsOfCauA": {
+            "count": 3,
+            "reEvaluated": true
+          },
+          "descendantsOfCauA": {
+            "count": 2,
+            "reEvaluated": true
+          },
+          "propertyLinkedNeighbors": {
+            "count": 1,
+            "reEvaluated": true
+          },
+          "unrelatedCAUs": {
+            "count": 4,
+            "reEvaluated": false
+          }
+        },
+        "boundedScopeEnforced": true,
+        "globalReEvaluationAvoided": true,
+        "dependencyGraphConsulted": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "mutation must not trigger global re-evaluation",
+          "description": "Under NA-1.4, mutation events trigger re-evaluation only within the dependency neighborhood. Global re-evaluation would violate the bounded-scope constraint and cause performance collapse at OBO scale."
+        },
+        {
+          "condition": "unrelated CAUs must not be touched",
+          "description": "CAUs with no dependency path to the mutated CAU MUST NOT be re-evaluated. This is the core performance-safety guarantee."
+        }
+      ]
+    },
+    {
+      "id": "reactive-cycle-deduplication",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.4",
+        "D1.6-L25"
+      ],
+      "description": "NA-1.4 execution constraint: within a single mutation cycle, each CAU is reprocessed at most once. Even when a mutation would trigger re-evaluation of CAU X via multiple paths (via ancestor cascade AND via property neighbor), CAU X is reprocessed exactly once.",
+      "setup": {
+        "dependencyTopology": "CAU_X has dependency path both via ex:Parent (ancestor) AND via ex:RelatedProperty (property neighbor). Both paths lead to CAU_X within one mutation cycle.",
+        "mutationEvent": "change in placement of CAU_Y which is ex:Parent's parent AND ex:RelatedProperty's range"
+      },
+      "trigger": {
+        "type": "mutationEvent",
+        "eventType": "placement_change",
+        "affectedCAU": "ex:CAU_Y"
+      },
+      "expect": {
+        "cauX_reProcessCount": 1,
+        "pathsDiscovered": 2,
+        "duplicatesDeduped": 1,
+        "provenanceRecordsReProcessEvents": 1,
+        "performanceSafetyMaintained": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "no double-processing in cycle",
+          "description": "Within a single mutation cycle, a CAU MUST NOT be reprocessed multiple times. Multiple paths to the same CAU are collapsed via deduplication. Without this constraint, performance degrades exponentially on complex dependency graphs."
+        }
+      ]
+    },
+    {
+      "id": "reactive-convergence",
+      "band": 5,
+      "verifies": [
+        "Rule NA-1.4",
+        "D1.6-L25"
+      ],
+      "description": "NA-1.4 stability guarantee: after a sequence of mutations, system converges to a stable fixed point in finite rounds. Sequence of 3 mutations on interconnected CAUs; measure rounds to stable fixed point; verify no pending re-evaluations queued at termination.",
+      "setup": {
+        "initialState": "stable session, 20 CAUs in known dispositions",
+        "mutationSequence": [
+          {
+            "step": 1,
+            "event": "analyst override of CAU_A placement"
+          },
+          {
+            "step": 2,
+            "event": "property ingestion linking CAU_B to CAU_C"
+          },
+          {
+            "step": 3,
+            "event": "resolution of previously Plausible CAU_D"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "applyMutationSequence"
+      },
+      "expect": {
+        "convergenceReached": true,
+        "roundsToStability": {
+          "bound": "<= 20 (finite, bounded by total CAU count)",
+          "actual": "<= 8 expected for this topology"
+        },
+        "finalStateInvariants": {
+          "allCAUsInTerminalDispositionSet": true,
+          "dispositionSet": [
+            "Entailed",
+            "Plausible",
+            "Inconsistent",
+            "NotApplicable"
+          ],
+          "noPendingReEvaluations": true,
+          "noOscillation": true,
+          "dependencyGraphConsistent": true
+        },
+        "convergenceArgumentValidated": "References the Week-1 convergence argument document per D1.6-L25 amendment resolution"
+      },
+      "negative_assertions": [
+        {
+          "condition": "no oscillation",
+          "description": "System MUST NOT oscillate between two states without convergence. Finite termination is mandatory per the convergence argument."
+        },
+        {
+          "condition": "no infinite cycle",
+          "description": "Even with cyclic rdfs:subClassOf in source ontology (modeling error), the reactive engine MUST terminate. Cycle resolution per the convergence argument document's cycle-breaking heuristic."
+        }
+      ]
+    },
+    {
+      "id": "dp2-explanation-mandatory-entailed",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "DP-2-R1"
+      ],
+      "description": "Every Entailed canonical record carries non-empty explanation field with structured axiom evidence. Explanation lists satisfied conditions by IRI, unsatisfied by IRI, and axioms contributing.",
+      "setup": {
+        "session": "session with 5 Entailed CAUs"
+      },
+      "trigger": {
+        "type": "verifyDP2Conformance",
+        "disposition": "Entailed"
+      },
+      "expect": {
+        "allRecordsHaveExplanation": true,
+        "explanationStructure": {
+          "satisfiedConditionIRIs": "non-empty array",
+          "axiomsContributing": "non-empty array",
+          "candidateBFOCategory": "required"
+        }
+      }
+    },
+    {
+      "id": "dp2-explanation-mandatory-plausible",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "DP-2-R1"
+      ],
+      "description": "Plausible records carry explanation with structured evidence for each candidate BFO category. Evidence is machine-readable JSON, not prose.",
+      "setup": {
+        "session": "session with 3 Plausible CAUs"
+      },
+      "trigger": {
+        "type": "verifyDP2Conformance",
+        "disposition": "Plausible"
+      },
+      "expect": {
+        "allRecordsHaveExplanation": true,
+        "allExplanationsStructured": true,
+        "textualProseFieldsInExplanation": 0
+      },
+      "negative_assertions": [
+        {
+          "condition": "no prose explanations",
+          "description": "Plausible explanation MUST NOT contain free-form descriptive prose. Only structured JSON per \u00a74.3 schema."
+        }
+      ]
+    },
+    {
+      "id": "dp2-explanation-mandatory-inconsistent",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "DP-2-R1"
+      ],
+      "description": "Inconsistent records carry explanation naming the specific disjointness axiom or contradiction that produced inconsistency. Structured, not prose.",
+      "setup": {
+        "session": "session with 2 Inconsistent CAUs"
+      },
+      "trigger": {
+        "type": "verifyDP2Conformance",
+        "disposition": "Inconsistent"
+      },
+      "expect": {
+        "allRecordsHaveExplanation": true,
+        "explanationStructure": {
+          "disjointnessViolation": "explicit axiom IRI",
+          "conflictingCategories": "array of BFO category IRIs"
+        }
+      }
+    },
+    {
+      "id": "dp2-explanation-mandatory-notapplicable",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "DP-2-R1"
+      ],
+      "description": "NotApplicable records carry explanation with routing mechanism (automatic/default_axiom_poor/manual) and evidence supporting the routing. Per \u00a77.5 Content Validation, axiom evidence may be single-element for NotApplicable trigger case.",
+      "setup": {
+        "session": "session with 4 NotApplicable CAUs across routing mechanisms"
+      },
+      "trigger": {
+        "type": "verifyDP2Conformance",
+        "disposition": "NotApplicable"
+      },
+      "expect": {
+        "allRecordsHaveExplanation": true,
+        "routingMechanismsCovered": [
+          "automatic",
+          "default_axiom_poor",
+          "manual"
+        ],
+        "allRoutingsTraceableToRule": true
+      }
+    },
+    {
+      "id": "dp2-provenance-iteration-history",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "DP-2-R2"
+      ],
+      "description": "Every canonical record's provenance contains at least one iterationHistory entry. Round 0 present even for single-pass sessions. Round N present for bounded-fallback sessions with N iterations.",
+      "setup": {
+        "sessions": [
+          "single-pass session",
+          "2-round fallback session",
+          "3-round fallback session"
+        ]
+      },
+      "trigger": {
+        "type": "verifyIterationHistory"
+      },
+      "expect": {
+        "singlePassRecords": "iterationHistory length == 1 (round 0)",
+        "twoRoundFallback": "iterationHistory length == 2",
+        "threeRoundFallback": "iterationHistory length == 3",
+        "allHistoryEntriesComplete": [
+          "round",
+          "disposition",
+          "bfoCategory",
+          "reasonerStepsConsumed",
+          "timestamp"
+        ]
+      }
+    },
+    {
+      "id": "dp2-reproducibility-hash-per-round-and-final",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "DP-2-R3",
+        "Q-V1.0-1"
+      ],
+      "description": "reproducibilityHash contains perRoundHashes array (diagnostic) and finalHash object (authoritative). Per-round hashes match number of iteration rounds. FinalHash carries authoritative:true flag.",
+      "setup": {
+        "session": "2-round fallback session"
+      },
+      "trigger": {
+        "type": "retrieveReproducibilityHash",
+        "cauIRI": "ex:TestCAU"
+      },
+      "expect": {
+        "perRoundHashes": "array of length 2",
+        "finalHash": {
+          "hash": "64-char hex",
+          "authoritative": true,
+          "inputsHashed": [
+            "CAU IRI",
+            "Final Signature hash",
+            "BFO version identifier",
+            "Curated BFO additions version identifier",
+            "session configuration hash",
+            "final iteration round number"
+          ]
+        }
+      }
+    },
+    {
+      "id": "dp2-reproducibility-cross-session",
+      "band": 6,
+      "verifies": [
+        "DP-2-R3",
+        "Q-V1.0-1"
+      ],
+      "description": "Two sessions run on identical inputs (same ontology file, same BFO version, same curated additions version, same config) produce identical Final Hashes for each CAU. Cross-session reproducibility verified.",
+      "setup": {
+        "sessionA": "full PROV-O run",
+        "sessionB": "identical PROV-O run",
+        "sharedInputs": [
+          "prov-o.owl",
+          "BFO 2020 v1.0",
+          "curated v1.0",
+          "default config"
+        ]
+      },
+      "trigger": {
+        "type": "compareFinalHashes",
+        "acrossSessions": [
+          "sessionA",
+          "sessionB"
+        ]
+      },
+      "expect": {
+        "allFinalHashesIdentical": true,
+        "hashAlgorithm": "SHA-256",
+        "mismatchCount": 0
+      }
+    },
+    {
+      "id": "dp2-schema-validation-rejects-missing-explanation",
+      "band": 6,
+      "verifies": [
+        "DP-2",
+        "Rule DP-2-R4"
+      ],
+      "description": "Canonical record write-path schema validation rejects records attempting to omit explanation field. Test: construct a record without explanation and attempt write \u2192 write fails with schema error.",
+      "setup": {
+        "testRecord": "{disposition: Entailed, bfoCategory: bfo:Process, provenance: {...}, reproducibilityHash: {...}}"
+      },
+      "trigger": {
+        "type": "attemptCanonicalWrite",
+        "record": "testRecord"
+      },
+      "expect": {
+        "writeRejected": true,
+        "errorMessage": "DP-2 non-conformant: explanation field missing. Rule DP-2-R1 enforces mandatory explanation on all canonical records.",
+        "recordNotPersisted": true
+      }
+    },
+    {
+      "id": "dp2-schema-validation-rejects-empty-axiom-evidence",
+      "band": 6,
+      "verifies": [
+        "DP-2-R1",
+        "\u00a77.5 Content Validation"
+      ],
+      "description": "Record with explanation present but axiom evidence list empty (for Entailed/Plausible/Inconsistent) rejected at content validation. NotApplicable disposition allowed single-element evidence naming routing trigger.",
+      "setup": {
+        "testRecords": [
+          {
+            "disposition": "Entailed",
+            "evidenceCount": 0,
+            "expectedOutcome": "rejected"
+          },
+          {
+            "disposition": "NotApplicable",
+            "evidenceCount": 1,
+            "expectedOutcome": "accepted"
+          }
+        ]
+      },
+      "trigger": {
+        "type": "attemptCanonicalWrites"
+      },
+      "expect": {
+        "Entailed_with_empty_evidence": "rejected",
+        "NotApplicable_with_single_evidence": "accepted",
+        "contentValidationDiscriminatesCorrectly": true
+      }
+    },
+    {
+      "id": "dp2-axiom-dictionary-deduplication",
+      "band": 6,
+      "verifies": [
+        "DP-2-R5",
+        "Q-V1.0-4"
+      ],
+      "description": "Session-level axiomDictionary deduplicates common axioms. Individual records reference axioms by ID, not inline. Verify: record R1 and R2 both reference axiom 'hasParticipant some Continuant' via same dictionary ID.",
+      "setup": {
+        "session": "session with 10 CAUs all sharing the hasParticipant-Continuant axiom"
+      },
+      "trigger": {
+        "type": "inspectProvenanceStorage"
+      },
+      "expect": {
+        "axiomDictionaryExists": true,
+        "axiomDictionarySize": "small (shared axioms appear once)",
+        "recordReferencesViaIDsNotInline": true,
+        "totalStorageFootprintCompactedVsInlined": "meaningful reduction"
+      },
+      "negative_assertions": [
+        {
+          "condition": "no axiom text inlining",
+          "description": "Records MUST NOT inline full axiom text. Only dictionary references. DP-2 preserved, storage efficient per Q-V1.0-4."
+        }
+      ]
+    },
+    {
+      "id": "dp1-threshold-not-applicable-40pct",
+      "band": 7,
+      "verifies": [
+        "DP-1",
+        "DQ-1",
+        "Rule DP-1-R1"
+      ],
+      "description": "Session with >40% of CAUs in NotApplicable disposition triggers OntologyLikelyNonRealistCompatible. Verify DP-1 soft gate: compatibilityDegraded flag set, session continues, requires exploratoryMode acknowledgement.",
+      "setup": {
+        "session": "session with 20 CAUs, 9 NotApplicable (45%), 8 Entailed, 3 Plausible"
+      },
+      "trigger": {
+        "type": "completePhase1"
+      },
+      "expect": {
+        "sessionDiagnosticFired": true,
+        "triggerReason": "NotApplicable_exceeds_40pct",
+        "notApplicablePct": 45,
+        "inconsistentPct": 0,
+        "sessionHalted": false,
+        "exploratoryModeRequired": true,
+        "compatibilityDegradedFlag": true
+      }
+    },
+    {
+      "id": "dp1-threshold-inconsistent-30pct",
+      "band": 7,
+      "verifies": [
+        "DP-1",
+        "DQ-1"
+      ],
+      "description": "Session with >30% of CAUs Inconsistent triggers OntologyLikelyNonRealistCompatible. Separate threshold condition from NotApplicable (disjunctive OR).",
+      "setup": {
+        "session": "session with 20 CAUs, 7 Inconsistent (35%), 10 Entailed, 3 Plausible, 0 NotApplicable"
+      },
+      "trigger": {
+        "type": "completePhase1"
+      },
+      "expect": {
+        "sessionDiagnosticFired": true,
+        "triggerReason": "Inconsistent_exceeds_30pct",
+        "inconsistentPct": 35,
+        "notApplicablePct": 0,
+        "compatibilityDegradedFlag": true
+      }
+    },
+    {
+      "id": "dp1-threshold-both-triggers",
+      "band": 7,
+      "verifies": [
+        "DQ-1"
+      ],
+      "description": "Session with both thresholds crossed (>40% NotApplicable AND >30% Inconsistent) triggers with 'both' reason, not one or the other.",
+      "setup": {
+        "session": "session with 20 CAUs, 9 NotApplicable (45%), 7 Inconsistent (35%), 4 Entailed"
+      },
+      "trigger": {
+        "type": "completePhase1"
+      },
+      "expect": {
+        "sessionDiagnosticFired": true,
+        "triggerReason": "both",
+        "compatibilityDegradedFlag": true
+      }
+    },
+    {
+      "id": "dp1-exploratory-mode-continuation",
+      "band": 7,
+      "verifies": [
+        "DP-1",
+        "Rule DP-1-R2"
+      ],
+      "description": "Analyst activates exploratoryMode:true after DP-1 fires. Session continues to Phase 2 and Phase 3. Downstream outputs carry compatibilityDegraded:true in every provenance record.",
+      "setup": {
+        "session": "DP-1 fired; analyst chooses continuation"
+      },
+      "trigger": {
+        "type": "setExploratoryMode",
+        "value": true
+      },
+      "expect": {
+        "phase2RunsNormally": true,
+        "phase3RunsNormally": true,
+        "compatibilityDegradedInAllOutputProvenance": true,
+        "exploratoryModeFlagUnchangeable": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "exploratoryMode cannot be unset",
+          "description": "Once exploratoryMode is set for a session, it cannot be cleared. Persists through all downstream outputs."
+        }
+      ]
+    },
+    {
+      "id": "dp1-below-threshold-no-fire",
+      "band": 7,
+      "verifies": [
+        "DQ-1"
+      ],
+      "description": "Session with below-threshold outcomes (e.g., 20% NotApplicable, 10% Inconsistent) does NOT fire DP-1. Downstream outputs have compatibilityDegraded:false.",
+      "setup": {
+        "session": "session with 20 CAUs, 4 NotApplicable (20%), 2 Inconsistent (10%), 14 Entailed"
+      },
+      "trigger": {
+        "type": "completePhase1"
+      },
+      "expect": {
+        "sessionDiagnosticFired": false,
+        "compatibilityDegradedFlag": false,
+        "exploratoryModeNotRequired": true
+      }
+    },
+    {
+      "id": "dp1-configurable-thresholds",
+      "band": 7,
+      "verifies": [
+        "DQ-1"
+      ],
+      "description": "Session-level thresholds configurable via session config. Analyst sets stricter thresholds (e.g., 20% NotApplicable, 15% Inconsistent); DP-1 fires at the configured thresholds, not defaults.",
+      "setup": {
+        "session": "session with 20 CAUs, 5 NotApplicable (25%), 3 Inconsistent (15%)",
+        "sessionConfig": {
+          "notApplicableThreshold": 20,
+          "inconsistentThreshold": 15
+        }
+      },
+      "trigger": {
+        "type": "completePhase1"
+      },
+      "expect": {
+        "sessionDiagnosticFired": true,
+        "firedAtConfiguredThresholds": true,
+        "wouldNotFireAtDefaults": true
+      }
+    },
+    {
+      "id": "phase2-consumes-cau-signatures",
+      "band": 8,
+      "verifies": [
+        "D1.6-L21",
+        "Rule PH2-1"
+      ],
+      "description": "Phase 2 property disambiguation receives CAU Logical Signatures as primary input (not pre-computed Domain/Range BFO types). Verify input shape change: Phase 2 input now includes signatures array.",
+      "setup": {
+        "phase1Complete": true,
+        "cauSignaturesComputed": 10
+      },
+      "trigger": {
+        "type": "runPhase2"
+      },
+      "expect": {
+        "phase2InputShape": {
+          "cauSignatures": "array of 10",
+          "preComputedDomainRangeBFOTypes": "absent (replaced by signatures)"
+        }
+      }
+    },
+    {
+      "id": "phase2-lexical-dimension-zero-weight",
+      "band": 8,
+      "verifies": [
+        "D1.6-L21",
+        "Rule PH2-2",
+        "Q-V1.0-8"
+      ],
+      "description": "Phase 2 fingerprint matcher: Lexical weight clamped to 0.0. Other five dimensions (Domain BFO, Range BFO, BFO subcategory, Characteristics, allowsInheresIn) retain their D2 baseline weights UNCHANGED. No silent rebalancing \u2014 Lexical's 'vacated' weight does NOT redistribute across the remaining five dimensions. Lexical similarity computed and surfaced as advisory evidence but does NOT contribute to disambiguation decisions.",
+      "setup": {
+        "weightVector": "default D2 weights with Lexical clamped to 0.0"
+      },
+      "trigger": {
+        "type": "runPhase2Disambiguation"
+      },
+      "expect": {
+        "lexicalWeightInScoring": 0.0,
+        "lexicalEvidenceVisibleInUI": true,
+        "lexicalEvidenceTaggedAdvisory": true,
+        "domainBFOWeightUnchanged": true,
+        "rangeBFOWeightUnchanged": true,
+        "bfoSubcategoryWeightUnchanged": true,
+        "characteristicsWeightUnchanged": true,
+        "allowsInheresInWeightUnchanged": true,
+        "sumOfNonLexicalWeightsUnchanged": true,
+        "silentRebalancingDetected": false
+      },
+      "negative_assertions": [
+        {
+          "condition": "lexical does not drive decisions",
+          "description": "Two candidate disambiguations tied on all non-lexical dimensions MUST NOT be decided by lexical similarity. Analyst breaks tie via Plausible."
+        },
+        {
+          "condition": "no silent rebalancing",
+          "description": "The weight 'vacated' by Lexical going to 0.0 MUST NOT be redistributed across the remaining five dimensions. Other weights retain their D2 baseline values exactly. Full weight rebalancing is deferred to D2.1 per Q-V1.0-8."
+        }
+      ]
+    },
+    {
+      "id": "phase2-provisional-during-iteration",
+      "band": 8,
+      "verifies": [
+        "D1.6-L21",
+        "Rule PH2-1"
+      ],
+      "description": "During bounded-fallback iteration, Phase 2 outputs marked provisional:true. After Phase 1 stabilizes, Phase 2 outputs finalize with provisional:false.",
+      "setup": {
+        "session": "triggering bounded-fallback iteration"
+      },
+      "trigger": {
+        "type": "runPhase2DuringIteration",
+        "iterationRound": 1
+      },
+      "expect": {
+        "phase2Outputs": {
+          "provisional": true,
+          "usedForPhase1RevisedPlacement": true
+        },
+        "afterPhase1Stabilizes": {
+          "phase2Rerun": true,
+          "finalOutputsProvisional": false
+        }
+      }
+    },
+    {
+      "id": "d2-regression-phase2-internal-logic",
+      "band": 8,
+      "verifies": [
+        "D1.6-L18",
+        "D2 regression"
+      ],
+      "description": "Regression: D2 scenarios testing internal Phase 2 logic (fingerprint matching, six-dimension scoring, PD-1 through PD-10 rules) still pass under D1.6. Verify no regressions in core Phase 2 behavior.",
+      "setup": {
+        "d2RegressionScenarios": "array of 30 preserved D2 AVC scenarios"
+      },
+      "trigger": {
+        "type": "runD2RegressionSuite"
+      },
+      "expect": {
+        "scenariosPassed": 30,
+        "scenariosFailed": 0,
+        "regressionClean": true
+      }
+    },
+    {
+      "id": "d2-regression-phase3-unchanged",
+      "band": 8,
+      "verifies": [
+        "D2 regression",
+        "Rule IT-5"
+      ],
+      "description": "Regression: D2 Phase 3 consistency sandbox behavior unchanged. Axioms extracted once at session start; Phase 3 terminal validation matches pre-D1.6 output byte-for-byte on identical inputs.",
+      "setup": {
+        "d2Phase3Scenarios": "array of 12 preserved D2 Phase 3 AVC scenarios"
+      },
+      "trigger": {
+        "type": "runPhase3RegressionSuite"
+      },
+      "expect": {
+        "scenariosPassed": 12,
+        "prologTraceOutputIdenticalToPreD16Baseline": true
+      }
+    },
+    {
+      "id": "provo-end-to-end-acceptance",
+      "band": 8,
+      "verifies": [
+        "D1.6-L24",
+        "acceptance gate"
+      ],
+      "description": "PROV-O end-to-end run under D1.6 pipeline. 30 CAUs evaluated. Three-state disposition distribution captured. Session completes successfully whether DP-1 fires or not. All DP-2 fields present on all records.",
+      "setup": {
+        "ontologyFile": "prov-o.owl",
+        "bfoVersion": "2020 v1.0",
+        "curatedVersion": "v1.0",
+        "sessionConfig": "default"
+      },
+      "trigger": {
+        "type": "runFullPhase1Through3",
+        "ontology": "PROV-O"
+      },
+      "expect": {
+        "phase1Completed": true,
+        "phase2Completed": true,
+        "phase3Completed": true,
+        "cauCountProcessed": 30,
+        "allRecordsDP2Conformant": true,
+        "finalHashStable": true,
+        "sessionBundle": "complete JSON with axiomDictionary, iteration history, DP-1 diagnostic, per-CAU records"
+      }
+    }
+  ],
+  "total_scenarios": 68,
+  "band_breakdown": {
+    "Band 1 \u2014 CAU Signature Extraction": 13,
+    "Band 2 \u2014 Iteration Mechanics": 7,
+    "Band 3 \u2014 Three-State Evidence Transitions": 7,
+    "Band 4 \u2014 BFO Level Distinction": 6,
+    "Band 5 \u2014 NotApplicable and Inheritance Handling": 13,
+    "Band 6 \u2014 DP-2 Invariant Enforcement (densest)": 10,
+    "Band 7 \u2014 DP-1 Session-Level Diagnostic": 6,
+    "Band 8 \u2014 Phase 2 Light Correction + Regression + PROV-O Acceptance": 6
+  },
+  "acceptance_gate": "provo-end-to-end-acceptance (Band 8, scenario #55). PROV-O session completes full pipeline, all DP-2 fields conformant, DP-1 diagnostic either fires correctly or stays silent based on real PROV-O outcomes.",
+  "revision_history": [
+    {
+      "version": 1,
+      "date": "2026-04-18",
+      "note": "Initial bundle authored from D1.6 v1.0 spec"
+    },
+    {
+      "version": 2,
+      "date": "2026-04-18",
+      "note": "Critique fixes applied: BFO 12\u219213 count correction (include Quality); version-change re-evaluation scenarios; reasoner-cap fallback at query granularity; cache invalidation on VD-6; NotApplicable exclusion from Phase 3/canonical graph; Phase 2 lexical demotion completeness (other weights unchanged); class/property artifact separation."
+    },
+    {
+      "version": 3,
+      "date": "2026-04-18",
+      "note": "D1.6-AMEND-01 (Taxonomic Descent + Reactive Engine) integrated. 7 new Band 5 scenarios for NA-1.1 through NA-1.4; 1 revised scenario (notapplicable-axiom-poor-default with NA-1.1 precedence); Band 5 renamed to 'NotApplicable and Inheritance Handling'. Bundle grows from 61 to 68 scenarios."
+    }
+  ]
+}

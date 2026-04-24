@@ -278,18 +278,11 @@ function evaluateOwlDirect({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatu
       return;
 
     case 'P3':
+      evaluateP3PropertyRestrictionPresence({ nc, cauSignature, state });
+      return;
+
     case 'P4':
-      // Deferred to Commit 2. Per §3.3 acceptance posture, OWL-DIRECT
-      // matchers must not return `undetermined` for OWL-DIRECT NCs —
-      // but this is a scope-out (the matcher doesn't exist yet), not a
-      // coverage gap within a scoped matcher. The trichotomy-undetermined
-      // here is a pre-Commit-2 marker; Commit 2 replaces with deterministic
-      // satisfied/unsatisfied.
-      state.undetermined.add(ncId);
-      state.evidence.set(ncId, {
-        deferredReason: `${pattern}-deferred-to-commit-2`,
-        note: `Pattern ${pattern} (${pattern === 'P3' ? 'property-restriction-presence' : 'consistency/absence-of-pattern'}) matcher scheduled for SME-D16-X4 Commit 2.`,
-      });
+      evaluateP4ConsistencyOrAbsence({ nc, cauSignature, ancestorChain, state });
       return;
 
     default:
@@ -451,6 +444,343 @@ function evaluateP5RootDeclaration({ nc, cauSignature, state }) {
     },
   });
 }
+
+// ── P3 — Property-restriction-presence (5 NCs) ───────────────────
+//
+// Each P3 NC asserts presence of a specific BFO property restriction in
+// the CAU's signature. "Structurally equivalent" wording in NC
+// descriptions is operationalized here as: the signature contains an
+// existential restriction whose `onProperty` matches the target BFO
+// property IRI exactly (or via cau-signature.js's subproperty closure,
+// which is already applied at extraction time).
+//
+// Strict reading per SME clarification §2: present → satisfied; absent
+// → unsatisfied. P3 NCs are deterministic two-way; undetermined is not
+// produced (per §3.3 acceptance posture — coverage gaps surface as
+// defects, not undetermined).
+//
+// Per-NC operationalization:
+//   SDCNC2: onProperty === 'bfo:inheresIn'
+//   GDCNC2: onProperty === 'bfo:concretizes'
+//   ProcessNC2: onProperty === 'bfo:hasParticipant' AND target === 'bfo:Continuant' or descendant
+//   OccurrentNC1: onProperty === 'bfo:occupiesTemporalRegion'
+//   ProcessBoundaryNC2: onProperty === 'bfo:occupiesTemporalRegion' AND target === 'bfo:ZeroDimensionalTemporalRegion'
+
+const P3_PROPERTY_PATTERNS = Object.freeze({
+  SDCNC2: {
+    property: 'bfo:inheresIn',
+    target: null, // any target
+  },
+  GDCNC2: {
+    property: 'bfo:concretizes',
+    target: null,
+  },
+  ProcessNC2: {
+    property: 'bfo:hasParticipant',
+    target: 'bfo:Continuant',
+  },
+  OccurrentNC1: {
+    property: 'bfo:occupiesTemporalRegion',
+    target: null, // TemporalRegion filler preferred but not strict-required per description
+  },
+  ProcessBoundaryNC2: {
+    property: 'bfo:occupiesTemporalRegion',
+    target: 'bfo:ZeroDimensionalTemporalRegion',
+  },
+});
+
+function evaluateP3PropertyRestrictionPresence({ nc, cauSignature, state }) {
+  const ncId = nc.shortIRI;
+  const pattern = P3_PROPERTY_PATTERNS[nc.id];
+
+  if (!pattern) {
+    state.undetermined.add(ncId);
+    state.evidence.set(ncId, {
+      deferredReason: 'p3-pattern-undefined',
+      note: `P3 NC ${nc.id} has no entry in P3_PROPERTY_PATTERNS table. Pattern-shape coverage gap.`,
+    });
+    return;
+  }
+
+  const existentials = cauSignature.existentialRestrictions || [];
+  const propertyRestrictions = cauSignature.propertyRestrictionsAsDomain || [];
+
+  let match = null;
+
+  // Check existentialRestrictions (the most direct path).
+  for (const ex of existentials) {
+    if (ex.onProperty === pattern.property) {
+      if (pattern.target == null || ex.someValuesFrom === pattern.target) {
+        match = { source: 'existentialRestrictions', entry: ex };
+        break;
+      }
+    }
+  }
+
+  // Fallback: propertyRestrictionsAsDomain (handles cardinality + hasValue
+  // variants that express the property requirement via a different shape).
+  if (!match) {
+    for (const pr of propertyRestrictions) {
+      if (pr.property === pattern.property) {
+        if (pattern.target == null || pr.target === pattern.target) {
+          match = { source: 'propertyRestrictionsAsDomain', entry: pr };
+          break;
+        }
+      }
+    }
+  }
+
+  state[match ? 'satisfied' : 'unsatisfied'].add(ncId);
+  state.evidence.set(ncId, {
+    matcherTrace: {
+      pattern: 'P3',
+      expectedProperty: pattern.property,
+      expectedTarget: pattern.target,
+      matched: !!match,
+      matchSource: match ? match.source : null,
+      matchEntry: match ? match.entry : null,
+    },
+  });
+}
+
+// ── P4 — Consistency / absence-of-pattern (4 NCs) ────────────────
+//
+// Per SME clarification §2 + consolidated review substrate: P4 uses
+// STRICT reading — axiom actively asserts the consistency relationship →
+// satisfied; axiom actively contradicts → unsatisfied; signature silent
+// on the matter → undetermined. Prefer undetermined over confident-wrong.
+//
+// Per §3.3 acceptance posture, undetermined here is the LEGITIMATE
+// classification when signature is genuinely silent (not a coverage gap).
+// The matcher is deterministic three-way; each NC has explicit
+// affirmation / contradiction / silence patterns defined below.
+//
+// The two fuzziest NCs (ContinuantNC2 and SiteNC2) are operationalized
+// with explicit commentary below for SME consolidated review at Commit 3.
+
+function evaluateP4ConsistencyOrAbsence({ nc, cauSignature, ancestorChain, state }) {
+  const ncId = nc.shortIRI;
+
+  switch (nc.id) {
+    case 'ContinuantNC1':
+      return evaluateContinuantNC1({ ncId, cauSignature, ancestorChain, state });
+    case 'ContinuantNC2':
+      return evaluateContinuantNC2({ ncId, cauSignature, ancestorChain, state });
+    case 'SiteNC2':
+      return evaluateSiteNC2({ ncId, cauSignature, ancestorChain, state });
+    case 'TemporalRegionNC2':
+      return evaluateTemporalRegionNC2({ ncId, cauSignature, ancestorChain, state });
+    default:
+      state.undetermined.add(ncId);
+      state.evidence.set(ncId, {
+        deferredReason: 'p4-dispatcher-unknown-nc',
+        note: `P4 NC ${nc.id} has no dedicated evaluator. Pattern-shape coverage gap.`,
+      });
+  }
+}
+
+// ContinuantNC1: "CAU does NOT require temporal participation. Signature
+// does not contain property restriction requiring bfo:occupiesTemporalRegion
+// or equivalent."
+//
+// Operationalization (strict reading):
+//   AFFIRMATION (satisfied): ancestorChain contains bfo:Continuant OR
+//     bfo:IndependentContinuant OR bfo:SpecificallyDependentContinuant OR
+//     bfo:GenericallyDependentContinuant (any Continuant-subtree ancestor
+//     affirms non-temporal-participation structurally). OR
+//     disjointnessAssertions contains bfo:Occurrent (explicit disjointness
+//     with Occurrent affirms Continuant-side).
+//   CONTRADICTION (unsatisfied): existentialRestrictions contains
+//     bfo:occupiesTemporalRegion (actively asserts temporal participation).
+//     OR ancestorChain contains bfo:Occurrent / bfo:Process / any Occurrent-
+//     subtree class.
+//   SILENCE (undetermined): neither affirmation nor contradiction present.
+//     Signature doesn't commit either way — classical absence-not-evidence.
+function evaluateContinuantNC1({ ncId, cauSignature, ancestorChain, state }) {
+  const continuantAncestors = ['bfo:Continuant', 'bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant', 'bfo:GenericallyDependentContinuant', 'bfo:MaterialEntity', 'bfo:ImmaterialEntity', 'bfo:Site', 'bfo:Role', 'bfo:Disposition', 'bfo:Function', 'bfo:Quality'];
+  const occurrentAncestors = ['bfo:Occurrent', 'bfo:Process', 'bfo:ProcessBoundary', 'bfo:TemporalRegion'];
+
+  const hasContinuantAncestor = (ancestorChain || []).some((a) => continuantAncestors.includes(a));
+  const hasOccurrentAncestor = (ancestorChain || []).some((a) => occurrentAncestors.includes(a));
+  const disjointWithOccurrent = (cauSignature.disjointnessAssertions || []).includes('bfo:Occurrent');
+  const hasOccupiesTemporalRegion = (cauSignature.existentialRestrictions || []).some((e) => e.onProperty === 'bfo:occupiesTemporalRegion');
+
+  const affirmed = hasContinuantAncestor || disjointWithOccurrent;
+  const contradicted = hasOccurrentAncestor || hasOccupiesTemporalRegion;
+
+  let disposition;
+  if (contradicted) disposition = 'unsatisfied';
+  else if (affirmed) disposition = 'satisfied';
+  else disposition = 'undetermined';
+
+  state[disposition].add(ncId);
+  state.evidence.set(ncId, {
+    matcherTrace: {
+      pattern: 'P4',
+      ncId: 'ContinuantNC1',
+      strictReading: 'axiom actively asserts non-temporal-participation OR contradicts; silence → undetermined',
+      affirmationSignals: {
+        continuantAncestorPresent: hasContinuantAncestor,
+        disjointWithOccurrent,
+      },
+      contradictionSignals: {
+        occurrentAncestorPresent: hasOccurrentAncestor,
+        occupiesTemporalRegionRestriction: hasOccupiesTemporalRegion,
+      },
+      disposition,
+    },
+  });
+}
+
+// ContinuantNC2: "Signature admits instances locatable at a temporal region
+// without being that region or existing at it."
+//
+// Flagged by developer at Commit 1 as one of two fuzziest P4 NCs; SME
+// consolidated review should scrutinize this operationalization.
+//
+// Operationalization (strict reading):
+//   The NC distinguishes Continuants (which EXIST AT temporal regions —
+//   distinct from Occurrents that OCCUPY them, or TemporalRegions that ARE
+//   them). Structural evidence of "locatable at TR without being/existing
+//   at it" is: membership in a Continuant-sub-hierarchy that is NOT
+//   TemporalRegion itself.
+//
+//   AFFIRMATION (satisfied): ancestorChain contains any Continuant-subtree
+//     ancestor AND does NOT contain bfo:TemporalRegion.
+//   CONTRADICTION (unsatisfied): ancestorChain contains bfo:TemporalRegion
+//     (CAU IS a TR, cannot be locatable at TR as distinct) OR
+//     ancestorChain contains bfo:Occurrent (Occurrents OCCUPY TRs, not
+//     "locate at without being").
+//   SILENCE (undetermined): signature commits to neither hierarchy
+//     structurally.
+//
+// Commentary for consolidated review:
+//   This reading interprets "locatable at TR without being/existing at it"
+//   as a structural hallmark of the Continuant hierarchy (distinct from
+//   Occurrent + TemporalRegion). Alternative readings might look for
+//   bfo:existsAt restrictions or absence of bfo:occursIn. The Continuant-
+//   ancestor reading is the strictest affirmation path (directly aligned
+//   with BFO 2020's Continuant semantics).
+function evaluateContinuantNC2({ ncId, cauSignature, ancestorChain, state }) {
+  const continuantAncestors = ['bfo:Continuant', 'bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant', 'bfo:GenericallyDependentContinuant', 'bfo:MaterialEntity', 'bfo:ImmaterialEntity', 'bfo:Site', 'bfo:Role', 'bfo:Disposition', 'bfo:Function', 'bfo:Quality'];
+  const contraindicated = ['bfo:TemporalRegion', 'bfo:Occurrent', 'bfo:Process', 'bfo:ProcessBoundary'];
+
+  const hasContinuantAncestor = (ancestorChain || []).some((a) => continuantAncestors.includes(a));
+  const hasContraindicatedAncestor = (ancestorChain || []).some((a) => contraindicated.includes(a));
+
+  let disposition;
+  if (hasContraindicatedAncestor) disposition = 'unsatisfied';
+  else if (hasContinuantAncestor) disposition = 'satisfied';
+  else disposition = 'undetermined';
+
+  state[disposition].add(ncId);
+  state.evidence.set(ncId, {
+    matcherTrace: {
+      pattern: 'P4',
+      ncId: 'ContinuantNC2',
+      strictReading: 'Continuant-subtree ancestor AFFIRMS; TemporalRegion or Occurrent ancestor CONTRADICTS; silence → undetermined',
+      operationalizationNote: 'Flagged fuzziest NC; reading interprets "locatable at TR without being/existing at it" as structural hallmark of Continuant hierarchy vs TR/Occurrent. SME review welcome on alternative readings (existsAt restrictions, etc).',
+      affirmationSignal: { continuantAncestorPresent: hasContinuantAncestor },
+      contradictionSignal: { tempRegionOrOccurrentAncestorPresent: hasContraindicatedAncestor },
+      disposition,
+    },
+  });
+}
+
+// SiteNC2: "Signature is consistent with three-dimensional spatial occupation."
+//
+// Flagged by developer at Commit 1 as second of two fuzziest P4 NCs.
+//
+// Operationalization (strict reading):
+//   Sites in BFO 2020 are Immaterial Entities that occupy 3D spatial
+//   regions. Structural affirmation is membership in bfo:Site or
+//   bfo:ImmaterialEntity hierarchy.
+//
+//   AFFIRMATION (satisfied): ancestorChain contains bfo:Site OR
+//     bfo:ImmaterialEntity.
+//   CONTRADICTION (unsatisfied): ancestorChain contains bfo:TemporalRegion
+//     (temporal regions are NOT 3D spatial) OR bfo:Occurrent-subtree
+//     (occurrents don't occupy 3D space in the Site sense).
+//   SILENCE (undetermined): signature doesn't commit to either hierarchy.
+//
+// Commentary for consolidated review:
+//   Alternative reading: look for explicit spatial-dimension properties
+//   (bfo:locatedIn, bfo:threeDimensionalSpatialRegion). Those are more
+//   specific but may produce unsatisfied for Sites that don't explicitly
+//   declare spatial-dimension restrictions (common in under-axiomatized
+//   ontologies). The ancestorChain reading is the most permissive
+//   affirmation path; narrower alternatives risk confident-wrong outcomes.
+function evaluateSiteNC2({ ncId, cauSignature, ancestorChain, state }) {
+  const siteAncestors = ['bfo:Site', 'bfo:ImmaterialEntity'];
+  const contraindicated = ['bfo:TemporalRegion', 'bfo:Occurrent', 'bfo:Process', 'bfo:ProcessBoundary'];
+
+  const hasSiteAncestor = (ancestorChain || []).some((a) => siteAncestors.includes(a));
+  const hasContraindicatedAncestor = (ancestorChain || []).some((a) => contraindicated.includes(a));
+
+  let disposition;
+  if (hasContraindicatedAncestor) disposition = 'unsatisfied';
+  else if (hasSiteAncestor) disposition = 'satisfied';
+  else disposition = 'undetermined';
+
+  state[disposition].add(ncId);
+  state.evidence.set(ncId, {
+    matcherTrace: {
+      pattern: 'P4',
+      ncId: 'SiteNC2',
+      strictReading: 'Site/ImmaterialEntity ancestor AFFIRMS 3D spatial occupation; TemporalRegion or Occurrent CONTRADICTS; silence → undetermined',
+      operationalizationNote: 'Flagged fuzziest NC; reading prefers ancestor-hierarchy affirmation over explicit spatial-dimension property check. SME review welcome on alternatives.',
+      affirmationSignal: { siteAncestorPresent: hasSiteAncestor },
+      contradictionSignal: { tempRegionOrOccurrentAncestorPresent: hasContraindicatedAncestor },
+      disposition,
+    },
+  });
+}
+
+// TemporalRegionNC2: "Signature is consistent with self-occupation
+// (TemporalRegions occupy themselves)."
+//
+// Operationalization (strict reading):
+//   Only TemporalRegions structurally self-occupy. Affirmation = ancestor-
+//   chain membership in TemporalRegion. Contradiction = any non-Temporal-
+//   Region ancestor AND presence of bfo:occupiesTemporalRegion restriction
+//   pointing to a distinct class.
+//
+//   AFFIRMATION (satisfied): ancestorChain contains bfo:TemporalRegion.
+//   CONTRADICTION (unsatisfied): existentialRestrictions contains
+//     bfo:occupiesTemporalRegion AND CAU's ancestorChain does NOT contain
+//     bfo:TemporalRegion (CAU occupies a DIFFERENT TR — not self-
+//     occupying). OR ancestorChain contains a non-TemporalRegion BFO
+//     category explicitly.
+//   SILENCE (undetermined): signature doesn't commit.
+function evaluateTemporalRegionNC2({ ncId, cauSignature, ancestorChain, state }) {
+  const isTempRegion = (ancestorChain || []).includes('bfo:TemporalRegion');
+  const hasOccupiesTR = (cauSignature.existentialRestrictions || []).some((e) => e.onProperty === 'bfo:occupiesTemporalRegion');
+  const nonTRBfoAncestors = ['bfo:Continuant', 'bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant', 'bfo:GenericallyDependentContinuant', 'bfo:MaterialEntity', 'bfo:ImmaterialEntity', 'bfo:Site', 'bfo:Role', 'bfo:Disposition', 'bfo:Function', 'bfo:Quality', 'bfo:Occurrent', 'bfo:Process', 'bfo:ProcessBoundary'];
+  const hasNonTRBfoAncestor = (ancestorChain || []).some((a) => nonTRBfoAncestors.includes(a));
+
+  let disposition;
+  if (isTempRegion) {
+    disposition = 'satisfied';
+  } else if (hasNonTRBfoAncestor || hasOccupiesTR) {
+    disposition = 'unsatisfied';
+  } else {
+    disposition = 'undetermined';
+  }
+
+  state[disposition].add(ncId);
+  state.evidence.set(ncId, {
+    matcherTrace: {
+      pattern: 'P4',
+      ncId: 'TemporalRegionNC2',
+      strictReading: 'bfo:TemporalRegion in ancestorChain AFFIRMS self-occupation; non-TR BFO ancestor or occupiesTR to distinct class CONTRADICTS; silence → undetermined',
+      affirmationSignal: { isTempRegion },
+      contradictionSignals: { hasNonTRBfoAncestor, hasOccupiesTRRestriction: hasOccupiesTR },
+      disposition,
+    },
+  });
+}
+
+// ── End P4 ───────────────────────────────────────────────────────
 
 function signatureHasBfoRelevantAxiom(sig) {
   const lists = [

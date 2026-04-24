@@ -234,12 +234,17 @@ describe('P1 — Ancestor-satisfaction recursion', () => {
   });
 
   it('cascading P1 disposition: when an ancestor NC is undetermined, descendant P1 NCs are also undetermined', () => {
-    // bfo:Process's P1 NC (ProcessNC1) depends on Occurrent NCs;
-    // Occurrent has CURATED-NC OccurrentNC3 (cau_unfolds_through_time)
-    // which has no helper → undetermined → ProcessNC1 → undetermined.
+    // bfo:Process's P1 NC (ProcessNC1) cascades through Occurrent NCs.
+    // To exercise undetermined-cascade, arrange a signature that:
+    //   - satisfies Occurrent's OWL-DIRECT NCs (P3 OccurrentNC1 → needs
+    //     bfo:occupiesTemporalRegion restriction)
+    //   - still carries at least one Bucket-B-deferred ancestor NC
+    //     (OccurrentNC3 has no helper → always undetermined).
+    const sig = bfoRelevantSignature();
+    sig.existentialRestrictions.push({ onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:TemporalRegion' });
     const { undetermined, evidence } = evaluateNCSatisfaction({
       cauIRI: 'ex:P',
-      cauSignature: bfoRelevantSignature(),
+      cauSignature: sig,
       targetBFOCategory: 'bfo:Process',
       bfoSignatureReference: BFO_REF,
       ancestorChain: [],
@@ -325,33 +330,249 @@ describe('P5 — Root declaration (EntityNC1)', () => {
   });
 });
 
-// ── P3 / P4 deferred to Commit 2 ──────────────────────────────────
+// ── P3 — Property-restriction-presence ────────────────────────────
 
-describe('P3 / P4 — deferred to Commit 2', () => {
-  it('P3 NCs route to undetermined with deferredReason naming Commit 2', () => {
-    const { undetermined, evidence } = evaluateNCSatisfaction({
-      cauIRI: 'ex:X',
-      cauSignature: bfoRelevantSignature(),
+describe('P3 — Property-restriction-presence (Commit 2 matchers)', () => {
+  function sigWithInheresIn() {
+    const s = bfoRelevantSignature();
+    s.existentialRestrictions.push({ onProperty: 'bfo:inheresIn', someValuesFrom: 'ex:Bearer' });
+    return s;
+  }
+  function sigWithConcretizes() {
+    const s = bfoRelevantSignature();
+    s.existentialRestrictions.push({ onProperty: 'bfo:concretizes', someValuesFrom: 'ex:Artifact' });
+    return s;
+  }
+  function sigWithHasParticipantContinuant() {
+    const s = bfoRelevantSignature();
+    s.existentialRestrictions.push({ onProperty: 'bfo:hasParticipant', someValuesFrom: 'bfo:Continuant' });
+    return s;
+  }
+  function sigWithOccupiesTemporalRegion() {
+    const s = bfoRelevantSignature();
+    s.existentialRestrictions.push({ onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:TemporalRegion' });
+    return s;
+  }
+  function sigWithOccupiesZeroDimTR() {
+    const s = bfoRelevantSignature();
+    s.existentialRestrictions.push({ onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:ZeroDimensionalTemporalRegion' });
+    return s;
+  }
+
+  it('SDCNC2: satisfied when inheresIn restriction present', () => {
+    const { satisfied, evidence } = evaluateNCSatisfaction({
+      cauIRI: 'ex:SDC', cauSignature: sigWithInheresIn(),
       targetBFOCategory: 'bfo:SpecificallyDependentContinuant',
-      bfoSignatureReference: BFO_REF,
-      ancestorChain: [],
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
     });
-    expect(undetermined.has('bfo:SDCNC2')).toBe(true);
-    const ev = evidence.get('bfo:SDCNC2');
-    expect(ev.deferredReason).toMatch(/P3-deferred-to-commit-2/);
+    expect(satisfied.has('bfo:SDCNC2')).toBe(true);
+    expect(evidence.get('bfo:SDCNC2').matcherTrace.pattern).toBe('P3');
+    expect(evidence.get('bfo:SDCNC2').matcherTrace.matched).toBe(true);
   });
 
-  it('P4 NCs route to undetermined with deferredReason naming Commit 2', () => {
-    const { undetermined, evidence } = evaluateNCSatisfaction({
-      cauIRI: 'ex:X',
-      cauSignature: bfoRelevantSignature(),
+  it('SDCNC2: unsatisfied when inheresIn restriction absent', () => {
+    const { unsatisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:NotSDC', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:SpecificallyDependentContinuant',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(unsatisfied.has('bfo:SDCNC2')).toBe(true);
+  });
+
+  it('GDCNC2: satisfied when concretizes restriction present', () => {
+    const { satisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:GDC', cauSignature: sigWithConcretizes(),
+      targetBFOCategory: 'bfo:GenericallyDependentContinuant',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(satisfied.has('bfo:GDCNC2')).toBe(true);
+  });
+
+  it('ProcessNC2: satisfied when hasParticipant some bfo:Continuant', () => {
+    const { satisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:Proc', cauSignature: sigWithHasParticipantContinuant(),
+      targetBFOCategory: 'bfo:Process',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(satisfied.has('bfo:ProcessNC2')).toBe(true);
+  });
+
+  it('ProcessNC2: unsatisfied when hasParticipant target is not Continuant', () => {
+    // Clear BOTH existentialRestrictions AND propertyRestrictionsAsDomain
+    // from the default fixture — the default bfoRelevantSignature sets
+    // BOTH (matching extractCAUSignature's dual read-path), and the P3
+    // matcher checks both.
+    const sig = bfoRelevantSignature();
+    sig.existentialRestrictions.length = 0;
+    sig.propertyRestrictionsAsDomain.length = 0;
+    sig.existentialRestrictions.push({ onProperty: 'bfo:hasParticipant', someValuesFrom: 'ex:Widget' });
+    const { unsatisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:Proc', cauSignature: sig,
+      targetBFOCategory: 'bfo:Process',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(unsatisfied.has('bfo:ProcessNC2')).toBe(true);
+  });
+
+  it('OccurrentNC1: satisfied when occupiesTemporalRegion restriction present', () => {
+    const { satisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:Occ', cauSignature: sigWithOccupiesTemporalRegion(),
+      targetBFOCategory: 'bfo:Occurrent',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(satisfied.has('bfo:OccurrentNC1')).toBe(true);
+  });
+
+  it('ProcessBoundaryNC2: satisfied only when target is ZeroDimensionalTemporalRegion', () => {
+    const { satisfied: sat1 } = evaluateNCSatisfaction({
+      cauIRI: 'ex:PB1', cauSignature: sigWithOccupiesZeroDimTR(),
+      targetBFOCategory: 'bfo:ProcessBoundary',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(sat1.has('bfo:ProcessBoundaryNC2')).toBe(true);
+
+    const { unsatisfied: uns2 } = evaluateNCSatisfaction({
+      cauIRI: 'ex:PB2', cauSignature: sigWithOccupiesTemporalRegion(), // target is generic TR, not 0-dim
+      targetBFOCategory: 'bfo:ProcessBoundary',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(uns2.has('bfo:ProcessBoundaryNC2')).toBe(true);
+  });
+
+  it('P3 deterministic two-way: never routes undetermined (§3.3 acceptance)', () => {
+    // Any P3 NC on a blank signature → unsatisfied, not undetermined.
+    const { undetermined } = evaluateNCSatisfaction({
+      cauIRI: 'ex:X', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:SpecificallyDependentContinuant',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(undetermined.has('bfo:SDCNC2')).toBe(false);
+  });
+});
+
+// ── P4 — Consistency / absence-of-pattern ─────────────────────────
+
+describe('P4 — Consistency (strict reading + undetermined-on-silence)', () => {
+  it('ContinuantNC1: satisfied when ancestorChain has Continuant-subtree', () => {
+    const { satisfied, evidence } = evaluateNCSatisfaction({
+      cauIRI: 'ex:C', cauSignature: bfoRelevantSignature(),
       targetBFOCategory: 'bfo:Continuant',
       bfoSignatureReference: BFO_REF,
-      ancestorChain: [],
+      ancestorChain: ['bfo:IndependentContinuant', 'bfo:Continuant'],
+    });
+    expect(satisfied.has('bfo:ContinuantNC1')).toBe(true);
+    const trace = evidence.get('bfo:ContinuantNC1').matcherTrace;
+    expect(trace.pattern).toBe('P4');
+    expect(trace.affirmationSignals.continuantAncestorPresent).toBe(true);
+  });
+
+  it('ContinuantNC1: unsatisfied when occupiesTemporalRegion restriction present (contradicts)', () => {
+    const sig = bfoRelevantSignature();
+    sig.existentialRestrictions.push({ onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:TemporalRegion' });
+    const { unsatisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:C', cauSignature: sig,
+      targetBFOCategory: 'bfo:Continuant',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(unsatisfied.has('bfo:ContinuantNC1')).toBe(true);
+  });
+
+  it('ContinuantNC1: undetermined on silence (no Continuant ancestor, no contradiction)', () => {
+    const { undetermined } = evaluateNCSatisfaction({
+      cauIRI: 'ex:Unknown', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Continuant',
+      bfoSignatureReference: BFO_REF, ancestorChain: [], // signature silent
     });
     expect(undetermined.has('bfo:ContinuantNC1')).toBe(true);
-    const ev = evidence.get('bfo:ContinuantNC1');
-    expect(ev.deferredReason).toMatch(/P4-deferred-to-commit-2/);
+  });
+
+  it('ContinuantNC2: satisfied when Continuant-subtree ancestor, no TR/Occurrent contradiction', () => {
+    const { satisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:C', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Continuant',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:MaterialEntity', 'bfo:IndependentContinuant'],
+    });
+    expect(satisfied.has('bfo:ContinuantNC2')).toBe(true);
+  });
+
+  it('ContinuantNC2: unsatisfied when ancestorChain contains bfo:TemporalRegion', () => {
+    const { unsatisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:TR', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Continuant',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:TemporalRegion'],
+    });
+    expect(unsatisfied.has('bfo:ContinuantNC2')).toBe(true);
+  });
+
+  it('SiteNC2: satisfied when ancestorChain contains bfo:Site or bfo:ImmaterialEntity', () => {
+    const { satisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:S', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Site',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:Site', 'bfo:ImmaterialEntity'],
+    });
+    expect(satisfied.has('bfo:SiteNC2')).toBe(true);
+    expect(satisfied.has('bfo:SiteNC2')).toBe(true);
+  });
+
+  it('SiteNC2: unsatisfied when ancestorChain contains bfo:TemporalRegion', () => {
+    const { unsatisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:NotSite', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Site',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:TemporalRegion'],
+    });
+    expect(unsatisfied.has('bfo:SiteNC2')).toBe(true);
+  });
+
+  it('SiteNC2: undetermined on silence', () => {
+    const { undetermined, evidence } = evaluateNCSatisfaction({
+      cauIRI: 'ex:S', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Site',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(undetermined.has('bfo:SiteNC2')).toBe(true);
+    expect(evidence.get('bfo:SiteNC2').matcherTrace.operationalizationNote).toBeDefined();
+  });
+
+  it('TemporalRegionNC2: satisfied when CAU IS a TemporalRegion', () => {
+    const { satisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:TR', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:TemporalRegion',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:TemporalRegion'],
+    });
+    expect(satisfied.has('bfo:TemporalRegionNC2')).toBe(true);
+  });
+
+  it('TemporalRegionNC2: unsatisfied when non-TR BFO ancestor present', () => {
+    const { unsatisfied } = evaluateNCSatisfaction({
+      cauIRI: 'ex:NotTR', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:TemporalRegion',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:Continuant'],
+    });
+    expect(unsatisfied.has('bfo:TemporalRegionNC2')).toBe(true);
+  });
+
+  it('TemporalRegionNC2: undetermined on silence', () => {
+    const { undetermined } = evaluateNCSatisfaction({
+      cauIRI: 'ex:Any', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:TemporalRegion',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(undetermined.has('bfo:TemporalRegionNC2')).toBe(true);
+  });
+
+  it('P4 evidence carries operationalizationNote for fuzziest NCs (ContinuantNC2, SiteNC2)', () => {
+    const { evidence } = evaluateNCSatisfaction({
+      cauIRI: 'ex:X', cauSignature: bfoRelevantSignature(),
+      targetBFOCategory: 'bfo:Continuant',
+      bfoSignatureReference: BFO_REF, ancestorChain: [],
+    });
+    expect(evidence.get('bfo:ContinuantNC2').matcherTrace.operationalizationNote).toContain('fuzziest');
   });
 });
 

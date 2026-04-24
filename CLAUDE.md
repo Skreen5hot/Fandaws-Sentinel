@@ -6,8 +6,8 @@ Fandaws (Fact and Answer Web Service) is an edge-canonical conversational knowle
 
 ## Current Status
 
-- **Phase:** 0–13 + Phase B + C1 + C2 + D1 + D2 Complete (FANDAWS v2.1 Roadmap Complete)
-- **Test Suite:** 103 suites, 2,212 tests passing (11 skipped for unimplemented features)
+- **Phase:** 0–13 + Phase B + C1 + C2 + D1 + D2 Complete (FANDAWS v2.1 Roadmap Complete). **D1.6 Phase 1 complete 2026-04-24** — see `specs/d16/d16-phase1-closeout.md`.
+- **Test Suite:** 115 suites, 2,538 tests passing (11 skipped for unimplemented features)
 - **Build:** 325.5 KB bundled (esbuild)
 - **Blockers:** None
 - **Completed Tracks:**

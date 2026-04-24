@@ -2336,13 +2336,13 @@
     {
       "version": 4,
       "date": "2026-04-24",
-      "note": "Assertion tightening for five scenarios: concrete exact-match values replacing placeholder patterns (e.g., '>=3' -> 3) against bfo-signatures-v1.0.json state; data-structure refinement for iteration history and finalStateMarker shape; bfoCategory trigger field added to bfo-signature cached-reuse scenario for handler API alignment. Total scenarios unchanged (68). Bump performed during DP-2.1 landing without explicit SME authorization; backfilled retrospectively in v5 memo \u00a73.3 for bookkeeping completeness.",
+      "note": "Assertion tightening for five scenarios: concrete exact-match values replacing placeholder patterns (e.g., '>=3' -> 3) against bfo-signatures-v1.0.json state; data-structure refinement for iteration history and finalStateMarker shape; bfoCategory trigger field added to bfo-signature cached-reuse scenario for handler API alignment. Scenario count delta: one scenario drifted in between v3 landing (61) and v4 bump (authoritative post-v4 count = 69 per scenarios array) without being counted in total_scenarios meta-field; the drift was caught in the v5 audit cycle (see v5 entry for the correction). Bump performed during DP-2.1 landing without explicit SME authorization; backfilled retrospectively in v5 memo \u00a73.3 for bookkeeping completeness.",
       "sme_authorization": "backfilled via specs/d16/bundle-v5-authorization-memo.md"
     },
     {
       "version": 5,
       "date": "2026-04-24",
-      "note": "Band 6 grows from 10 to 11 scenarios. Adds dp2-writepath-chokepoint-exclusivity, the F4 belt-and-suspenders audit for write-path chokepoint exclusivity. Audit verifies call-site discipline (static) + record shape validity (runtime) per 2026-04-24 F4 reframing for pure-function writer. Total scenarios 68 -> 69.",
+      "note": "Band 6 grows from 10 to 11 scenarios. Adds dp2-writepath-chokepoint-exclusivity, the F4 belt-and-suspenders audit for write-path chokepoint exclusivity. Audit verifies call-site discipline (static) + record shape validity (runtime) per 2026-04-24 F4 reframing for pure-function writer. Authoritative scenario count: 69 (v4 reality per scenarios array) -> 70 (v5). The v5 memo draft said '68 -> 69' based on the stale total_scenarios meta-field in v4; actual transitions are 69 -> 70, corrected in the same commit that landed v5.",
       "sme_authorization": "specs/d16/bundle-v5-authorization-memo.md"
     }
   ]

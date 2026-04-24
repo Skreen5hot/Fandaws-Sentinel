@@ -1,6 +1,6 @@
 {
   "bundle_id": "fandaws-sentinel-d16",
-  "bundle_version": 4,
+  "bundle_version": 5,
   "spec_version": "D1.6 v1.1.0",
   "spec_locked_date": "2026-04-18",
   "description": "D1.6 architectural correction: Candidate Alignment Units with Normalized Logical Signatures, iterative pipeline, three-state evidence model, DP-1 soft-gate diagnostic, DP-2 hard-invariant epistemic-system commitments. Supersedes D1 per-class heuristic placement.",
@@ -1952,6 +1952,70 @@
       ]
     },
     {
+      "id": "dp2-writepath-chokepoint-exclusivity",
+      "band": 6,
+      "verifies": [
+        "DP-2-I1",
+        "DP-2-I2a",
+        "\u00a77.1 Write-Path Chokepoint",
+        "SME-DP2-F4"
+      ],
+      "description": "Exhaustive write-path chokepoint audit. Verifies every code path that reaches canonical-record persistence has a writeCanonicalRecord(record, context) validation predecessor in the same lexical scope, AND every canonical record extant in adapter state passes I2a shape-level validation. Belt-and-suspenders regression insurance against chokepoint bypass. Per 2026-04-24 F4 audit reframing: writer is pure-function (validates and returns; does not persist \u2014 CLAUDE.md core-module discipline), so audit verifies call-site discipline at source level PLUS shape-validity at runtime.",
+      "setup": {
+        "staticAuditTarget": "src/**/*.js excluding canonical-record-writer.js itself and its direct test file",
+        "runtimeAuditTarget": "all canonical records in StateAdapter state at audit time",
+        "chokepointApiPattern": "writeCanonicalRecord(record, { phase: 'scaffold'|'production' })",
+        "adapterPersistPatterns": [
+          "<adapter>.persistCanonicalRecord(...)",
+          "<adapter>.saveCanonicalRecord(...)",
+          "<adapter>.putCanonical(...)",
+          "equivalent StateAdapter canonical-record write calls as identified at audit time"
+        ]
+      },
+      "trigger": {
+        "type": "auditWritePathChokepoint",
+        "mode": "static-plus-runtime",
+        "runAgainst": "current working tree + current session adapter state"
+      },
+      "expect": {
+        "staticAudit": {
+          "adapterPersistCallSitesFound": ">= 1",
+          "callSitesWithChokepointPredecessorInSameScope": "equals adapterPersistCallSitesFound",
+          "bypassCallSites": 0,
+          "bypassList": []
+        },
+        "runtimeAudit": {
+          "canonicalRecordsScanned": ">= 0",
+          "recordsFailingI2aValidation": 0,
+          "failingRecordIds": []
+        },
+        "auditPassedBoth": true
+      },
+      "negative_assertions": [
+        {
+          "condition": "no canonical record persistence bypasses writeCanonicalRecord",
+          "description": "A call site that persists a canonical record without a preceding writeCanonicalRecord validation in the same lexical scope is a DP-2-I1 defect."
+        },
+        {
+          "condition": "no writeCanonicalRecord result is discarded",
+          "description": "Callers MUST consume the { ok, record, phase } return value and proceed to persist the returned record. Discarding the return and persisting an unvalidated record bypasses the chokepoint even with the validator call present."
+        },
+        {
+          "condition": "no catch-and-discard of DP2NonConformanceError",
+          "description": "Wrapping writeCanonicalRecord in try/catch that swallows DP2NonConformanceError and persists anyway defeats the chokepoint. Audit flags any such pattern as bypass."
+        },
+        {
+          "condition": "no absence-based phase routing",
+          "description": "Per SME-DP2-P1, context.phase MUST be 'scaffold' | 'production' explicitly. Callers that invoke writeCanonicalRecord without a phase value are defects (the writer already throws TypeError on missing phase, but the audit verifies no caller relies on that throw as runtime behavior)."
+        }
+      ],
+      "notes": {
+        "sme_authorization": "specs/d16/bundle-v5-authorization-memo.md (v1.0 2026-04-24)",
+        "audit_reframing_origin": "post-DP-2.1 landing; writer landed pure-function per CLAUDE.md core-module discipline",
+        "expected_call_site_count_hint": "As of DP-2.1 landing, persistence is caller-side and sites are enumerated in canonical-record-writer.js design \u00a73.2 (three-state-evaluator terminals; inheritance-cascade NA-1.1/NA-1.3 paths; reactive-engine NA-1.4 path; NotApplicable routing; analyst override). Audit discovers actual sites; hint is for developer orientation only."
+      }
+    },
+    {
       "id": "dp1-threshold-not-applicable-40pct",
       "band": 7,
       "verifies": [
@@ -2241,14 +2305,14 @@
       }
     }
   ],
-  "total_scenarios": 68,
+  "total_scenarios": 70,
   "band_breakdown": {
     "Band 1 \u2014 CAU Signature Extraction": 13,
     "Band 2 \u2014 Iteration Mechanics": 7,
     "Band 3 \u2014 Three-State Evidence Transitions": 7,
     "Band 4 \u2014 BFO Level Distinction": 6,
     "Band 5 \u2014 NotApplicable and Inheritance Handling": 13,
-    "Band 6 \u2014 DP-2 Invariant Enforcement (densest)": 10,
+    "Band 6 \u2014 DP-2 Invariant Enforcement (densest)": 11,
     "Band 7 \u2014 DP-1 Session-Level Diagnostic": 6,
     "Band 8 \u2014 Phase 2 Light Correction + Regression + PROV-O Acceptance": 6
   },
@@ -2268,6 +2332,18 @@
       "version": 3,
       "date": "2026-04-18",
       "note": "D1.6-AMEND-01 (Taxonomic Descent + Reactive Engine) integrated. 7 new Band 5 scenarios for NA-1.1 through NA-1.4; 1 revised scenario (notapplicable-axiom-poor-default with NA-1.1 precedence); Band 5 renamed to 'NotApplicable and Inheritance Handling'. Bundle grows from 61 to 68 scenarios."
+    },
+    {
+      "version": 4,
+      "date": "2026-04-24",
+      "note": "Assertion tightening for five scenarios: concrete exact-match values replacing placeholder patterns (e.g., '>=3' -> 3) against bfo-signatures-v1.0.json state; data-structure refinement for iteration history and finalStateMarker shape; bfoCategory trigger field added to bfo-signature cached-reuse scenario for handler API alignment. Total scenarios unchanged (68). Bump performed during DP-2.1 landing without explicit SME authorization; backfilled retrospectively in v5 memo \u00a73.3 for bookkeeping completeness.",
+      "sme_authorization": "backfilled via specs/d16/bundle-v5-authorization-memo.md"
+    },
+    {
+      "version": 5,
+      "date": "2026-04-24",
+      "note": "Band 6 grows from 10 to 11 scenarios. Adds dp2-writepath-chokepoint-exclusivity, the F4 belt-and-suspenders audit for write-path chokepoint exclusivity. Audit verifies call-site discipline (static) + record shape validity (runtime) per 2026-04-24 F4 reframing for pure-function writer. Total scenarios 68 -> 69.",
+      "sme_authorization": "specs/d16/bundle-v5-authorization-memo.md"
     }
   ]
 }

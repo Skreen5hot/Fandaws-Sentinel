@@ -30,6 +30,8 @@
 import { canonicalize } from './canonical-serialization.js';
 import { sha256 } from './crypto-shim.js';
 import { lookupSessionSignature } from './bfo-signature-cache.js';
+import { assembleConfigInputs } from './session-config-snapshot.js';
+import { getHashes as getIngestionHashes } from './ingestion-byte-registry.js';
 
 /**
  * Compute a per-round hash for a CAU at a specific iteration round.
@@ -118,12 +120,14 @@ function resolveReasonerStateKey(sessionId, cauIRI, signatureHash) {
 }
 
 /**
- * Build a full reproducibilityHash object with N per-round hashes + scaffold
- * Final Hash placeholder (I2b bypass sentinel remains until DP-2.3.2).
+ * Build a reproducibilityHash object with N per-round hashes. Final Hash
+ * remains scaffold placeholder until `finalizeCanonicalRecord` runs at
+ * session finalization time (§7.4 semantics: per-round is diagnostic
+ * during iteration, Final Hash is authoritative at session end).
  *
- * Used by iteration-mechanics and the production record builder when
- * producing multi-round provenance. Single-pass sessions pass `rounds` with
- * one entry.
+ * The `_scaffold: true` sentinel signals to the I2a validator that the
+ * Final Hash is not yet computed (I2b bypass). `finalizeCanonicalRecord`
+ * removes the sentinel once the real Final Hash is assembled.
  *
  * @param {object} input
  * @param {string} input.cauIRI
@@ -149,23 +153,145 @@ export async function buildProductionReproducibilityHash(input) {
     perRoundHashes.push(perRound);
   }
 
-  // Final Hash is DP-2.3.2 scope. Until that lands, return the scaffold
-  // placeholder tagged with `_scaffold: true` sentinel (I2b bypass).
   return {
     algorithm: 'SHA-256',
     perRoundHashes,
     finalHash: {
       hash: '0'.repeat(64),
       authoritative: true,
-      inputsHashed: [
-        'CAU IRI',
-        'Final Signature hash',
-        'BFO version identifier',
-        'Curated BFO additions version identifier',
-        'session configuration hash',
-        'final iteration round number',
-      ],
+      inputsHashed: FINAL_HASH_INPUT_LABELS.slice(),
     },
-    _scaffold: true, // I2b bypass until DP-2.3.2 lands
+    _scaffold: true, // Removed at finalization time
   };
+}
+
+const FINAL_HASH_INPUT_LABELS = [
+  'CAU IRI',
+  'Final Signature hash',
+  'BFO version identifier',
+  'Curated BFO additions version identifier',
+  'session configuration hash',
+  'final iteration round number',
+];
+
+/**
+ * Compute the authoritative Final Hash for a CAU at session finalization.
+ *
+ * Inputs per §7.4 canonical list:
+ *   1. CAU IRI
+ *   2. Final Signature hash (passed by caller; the signature active at
+ *      final iteration round)
+ *   3. BFO version identifier — file-content SHA-256 from DP-2.3.0
+ *      ingestion-byte-registry per D3.D2 (raw bytes, not owl:versionIRI)
+ *   4. Curated BFO additions version identifier — same pattern for curated
+ *   5. Session configuration hash — SHA-256 of JCS-canonicalized X2
+ *      allow-list object per X2 §2.1
+ *   6. Final iteration round number
+ *
+ * All five inputs beyond CAU IRI are required; missing any raises a hard
+ * error. This is I2b's activation rule: a production Final Hash must reflect
+ * the full §7.4 input set, not placeholders.
+ *
+ * @param {object} input
+ * @param {string} input.cauIRI
+ * @param {string} input.sessionId
+ * @param {string} input.finalSignatureHash
+ * @param {number} input.finalIterationRoundNumber
+ * @returns {Promise<{hash: string, authoritative: boolean, inputsHashed: Array<string>}>}
+ */
+export async function computeFinalHash({
+  cauIRI, sessionId, finalSignatureHash, finalIterationRoundNumber,
+}) {
+  if (typeof cauIRI !== 'string' || cauIRI.length === 0) {
+    throw new TypeError('computeFinalHash: cauIRI is required.');
+  }
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    throw new TypeError('computeFinalHash: sessionId is required.');
+  }
+  if (typeof finalSignatureHash !== 'string' || finalSignatureHash.length === 0) {
+    throw new TypeError('computeFinalHash: finalSignatureHash is required.');
+  }
+  if (!Number.isInteger(finalIterationRoundNumber) || finalIterationRoundNumber < 0) {
+    throw new TypeError('computeFinalHash: finalIterationRoundNumber must be a non-negative integer.');
+  }
+
+  const byteHashes = getIngestionHashes(sessionId);
+  if (!byteHashes || !byteHashes.bfoContentHash) {
+    throw new Error(
+      `computeFinalHash: session ${sessionId} missing bfoContentHash. ` +
+      `DP-2.3.0 byte-capture via captureBFOBytes is required before Final Hash emission (D3.D2 lock).`,
+    );
+  }
+  if (!byteHashes.curatedContentHash) {
+    throw new Error(
+      `computeFinalHash: session ${sessionId} missing curatedContentHash. ` +
+      `DP-2.3.0 byte-capture via captureCuratedBytes is required before Final Hash emission (D3.D2 lock).`,
+    );
+  }
+
+  const configInputs = assembleConfigInputs(sessionId);
+  const configHash = await sha256(canonicalize(configInputs));
+
+  // §7.4 canonical input list, serialized as a JCS object for hashing.
+  // Key names are semantic; JCS sorts them deterministically.
+  const hashInput = {
+    cauIRI,
+    finalSignatureHash,
+    bfoVersionIdentifier: byteHashes.bfoContentHash,
+    curatedAdditionsVersionIdentifier: byteHashes.curatedContentHash,
+    sessionConfigurationHash: configHash,
+    finalIterationRoundNumber,
+  };
+
+  const hash = await sha256(canonicalize(hashInput));
+
+  return {
+    hash,
+    authoritative: true,
+    inputsHashed: FINAL_HASH_INPUT_LABELS.slice(),
+  };
+}
+
+/**
+ * Replace a record's scaffold reproducibility hash with a computed Final
+ * Hash at session finalization. Removes the `_scaffold: true` sentinel —
+ * this is the I2b activation switch per the design sketch §1.4.
+ *
+ * Sweep discipline: at session end, every canonical record MUST be
+ * finalized. Test harnesses assert zero persisted records retain the
+ * sentinel post-finalize.
+ *
+ * Mutates the passed record's `reproducibilityHash` field in place.
+ *
+ * @param {object} input
+ * @param {object} input.record - canonical record to finalize
+ * @param {string} input.finalSignatureHash
+ * @param {number} input.finalIterationRoundNumber
+ * @returns {Promise<object>} the finalized record (same reference as input.record)
+ */
+export async function finalizeCanonicalRecord(input) {
+  const { record, finalSignatureHash, finalIterationRoundNumber } = input;
+  if (!record || typeof record !== 'object') {
+    throw new TypeError('finalizeCanonicalRecord: record is required.');
+  }
+  const { cauIRI, provenance } = record;
+  if (!cauIRI || !provenance || !provenance.sessionId) {
+    throw new TypeError('finalizeCanonicalRecord: record must carry cauIRI and provenance.sessionId.');
+  }
+
+  const finalHash = await computeFinalHash({
+    cauIRI,
+    sessionId: provenance.sessionId,
+    finalSignatureHash,
+    finalIterationRoundNumber,
+  });
+
+  record.reproducibilityHash = {
+    algorithm: 'SHA-256',
+    perRoundHashes: (record.reproducibilityHash && record.reproducibilityHash.perRoundHashes) || [],
+    finalHash,
+    // _scaffold sentinel removed — I2b now active on this record.
+  };
+
+  return record;
 }

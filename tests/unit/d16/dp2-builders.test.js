@@ -248,9 +248,46 @@ describe('buildReconciliationEntry (D2.3 + F1)', () => {
       priorPlacement: { disposition: 'Plausible', bfoCategory: null },
       triggeringEvent: 'na14_mutation',
       updatedPlacement: { disposition: 'Plausible', bfoCategory: null },
-      causedBy: 0, // references prior entry at index 0 (parent_reconciliation cascade source)
+      causedBy: 0, // single prior entry case — causedBy is the immediate predecessor
     });
     expect(entry.causedBy).toBe(0);
+  });
+
+  it('F1 immediate-predecessor semantic: multi-step cascade preserves chain-walk', () => {
+    // NA-1.3 cascade root: parent reconciliation (causedBy:null)
+    const rootEntry = buildReconciliationEntry({
+      priorPlacement: { disposition: 'Plausible', bfoCategory: null },
+      triggeringEvent: 'parent_reconciliation',
+      updatedPlacement: { disposition: 'Entailed', bfoCategory: 'bfo:Process' },
+      causedBy: null,
+    });
+    // Descendant reconciles in response — immediate predecessor is the root at index 0
+    const descendantEntry = buildReconciliationEntry({
+      priorPlacement: { disposition: 'Plausible', bfoCategory: null },
+      triggeringEvent: 'parent_reconciliation',
+      updatedPlacement: { disposition: 'Entailed', bfoCategory: 'bfo:Process' },
+      causedBy: 0,
+    });
+    // NA-1.4 mutation cascade fires from the descendant — causedBy is descendant (index 1),
+    // NOT the root (index 0). This is the load-bearing semantic.
+    const reactiveEntry = buildReconciliationEntry({
+      priorPlacement: { disposition: 'Entailed', bfoCategory: 'bfo:Process' },
+      triggeringEvent: 'na14_mutation',
+      updatedPlacement: { disposition: 'Entailed', bfoCategory: 'bfo:Process' },
+      causedBy: 1,
+    });
+
+    const chain = [rootEntry, descendantEntry, reactiveEntry];
+
+    // Walk backward from reactiveEntry via causedBy — must reach root at null.
+    const walked = [];
+    let idx = chain.length - 1;
+    while (idx !== null && idx !== undefined) {
+      walked.push(idx);
+      idx = chain[idx].causedBy;
+    }
+    expect(walked).toEqual([2, 1, 0]); // full chain walkable
+    expect(chain[walked[walked.length - 1]].causedBy).toBeNull(); // root reached
   });
 
   it('rejects invalid triggeringEvent', () => {

@@ -39,17 +39,38 @@ const ANNOTATION_PROPERTY_IRIS = new Set([
   'http://purl.obolibrary.org/obo/IAO_0000115', // BFO/OBO definition
 ]);
 
+/**
+ * OERS precondition violation error (per X1 §4.9).
+ *
+ * Per V5 enhancement 2026-04-24: accumulates ALL un-canonicalized pairs
+ * detected in one pass rather than throwing on the first. The §4.9
+ * reserved-door decision (fail-fast vs graph-collapse under operational
+ * load) requires full visibility into the violation extent — seeing only
+ * the first pair provides insufficient information to triage "fix OERS"
+ * vs "accept collapse-recovery."
+ *
+ * Fields:
+ *   - pairs:    Array<{classA, classB, axiomIRI, sourceOntology}> — all detected
+ *               un-canonicalized equivalences, in declaration order.
+ *   - equivalentPair: [classA, classB] — first pair (backward-compat).
+ *   - axiomIRI: string | null — first pair's axiom IRI (backward-compat).
+ */
 export class OERSPreconditionError extends Error {
-  constructor(equivalentPair, axiomIRI) {
+  constructor(pairs) {
+    const first = pairs[0] || { classA: '', classB: '', axiomIRI: null };
+    const summary = pairs.length === 1
+      ? `${first.classA} ≡ ${first.classB}`
+      : `${pairs.length} un-canonicalized pairs (first: ${first.classA} ≡ ${first.classB})`;
     super(
-      `DependencyGraph OERS precondition violated (§4.9 memo): equivalent classes ` +
-      `${equivalentPair[0]} ≡ ${equivalentPair[1]} present as distinct nodes in CAU set. ` +
+      `DependencyGraph OERS precondition violated (§4.9 memo): ${summary} present as distinct nodes in CAU set. ` +
       `Upstream OERS canonicalization must resolve before DependencyGraph construction. ` +
-      `Axiom: ${axiomIRI || '(unnamed)'}.`
+      `First pair axiom: ${first.axiomIRI || '(unnamed)'}. ` +
+      `See error.pairs for full list + per-pair source ontology.`
     );
     this.name = 'OERSPreconditionError';
-    this.equivalentPair = equivalentPair;
-    this.axiomIRI = axiomIRI;
+    this.pairs = pairs.slice();
+    this.equivalentPair = [first.classA, first.classB];
+    this.axiomIRI = first.axiomIRI;
   }
 }
 
@@ -176,26 +197,40 @@ export class DependencyGraph {
 // ── Internals ──────────────────────────────────────────────────────
 
 function detectUncanonicalizedEquivalences(cauSet, equivalenceAxioms, recovery) {
-  const collapseMap = new Map(); // non-canonical → canonical
+  if (recovery !== 'fail-fast' && recovery !== 'collapse') {
+    throw new TypeError(
+      `buildDependencyGraph: unknown onUncanonicalizedEquivalence strategy ${JSON.stringify(recovery)}. ` +
+      `Expected 'fail-fast' or 'collapse'.`
+    );
+  }
+
+  const collapseMap = new Map();       // non-canonical → canonical
+  const violatingPairs = [];           // accumulated for fail-fast single-throw
+
   for (const eq of equivalenceAxioms) {
-    const { classA, classB, sourceAxiomIRI } = eq;
+    const { classA, classB, sourceAxiomIRI, sourceOntology } = eq;
     if (!cauSet.has(classA) || !cauSet.has(classB)) continue;
     if (classA === classB) continue;
 
     if (recovery === 'fail-fast') {
-      throw new OERSPreconditionError([classA, classB], sourceAxiomIRI);
-    }
-    if (recovery === 'collapse') {
-      // Pick the lexicographically-lower IRI as canonical. Deterministic.
+      // Accumulate; do not throw yet. V5 enhancement: full pair list
+      // before throw supports §4.9 reserved-door decision routing.
+      violatingPairs.push({
+        classA, classB,
+        axiomIRI: sourceAxiomIRI || null,
+        sourceOntology: sourceOntology || null,
+      });
+    } else {
+      // 'collapse': lex-lower IRI is canonical. Deterministic.
       const [canon, alias] = classA < classB ? [classA, classB] : [classB, classA];
       collapseMap.set(alias, canon);
-    } else {
-      throw new TypeError(
-        `buildDependencyGraph: unknown onUncanonicalizedEquivalence strategy ${JSON.stringify(recovery)}. ` +
-        `Expected 'fail-fast' or 'collapse'.`
-      );
     }
   }
+
+  if (violatingPairs.length > 0) {
+    throw new OERSPreconditionError(violatingPairs);
+  }
+
   return collapseMap;
 }
 

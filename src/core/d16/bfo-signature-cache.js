@@ -130,6 +130,98 @@ async function captureBytesAsync(sessionId, bfoBytes, curatedBytes) {
   }
 }
 
+// ── Session-hash registry (Forward-Flag Item 2 from handoff memo) ──
+//
+// Per Week 9-11 backlog item 3 + SME routing 2026-04-24: session-scoped
+// registry of (cauIRI, signatureHash) → {bfoVersion, curatedVersion, timestamp}.
+// Provenance consumers look up the registered signature state at build time
+// rather than reading from the live cache — this prevents provenance
+// attestations from citing stale signatures post-cache-mutation (e.g., when
+// VD-6 triggers a rebuild mid-session).
+//
+// Registry is session-scoped and in-memory; cleared via clearSessionRegistry.
+// DP-2.3.2 Final Hash pipeline reads the registered bfoVersion/curatedVersion
+// at finalization time for each record.
+
+// sessionId → Map<`${cauIRI}::${signatureHash}`, {bfoVersion, curatedVersion, timestamp}>
+const sessionSignatureRegistry = new Map();
+
+function registryKey(cauIRI, signatureHash) {
+  return `${cauIRI}::${signatureHash}`;
+}
+
+/**
+ * Register a signature state for later provenance lookup. Called at signature-
+ * extraction time before the signature is consumed by downstream evaluation.
+ */
+export function registerSessionSignature({ sessionId, cauIRI, signatureHash, bfoVersion, curatedVersion, timestamp }) {
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    throw new TypeError('registerSessionSignature: sessionId must be a non-empty string.');
+  }
+  if (typeof cauIRI !== 'string' || cauIRI.length === 0) {
+    throw new TypeError('registerSessionSignature: cauIRI must be a non-empty string.');
+  }
+  if (typeof signatureHash !== 'string' || signatureHash.length === 0) {
+    throw new TypeError('registerSessionSignature: signatureHash must be a non-empty string.');
+  }
+  if (!sessionSignatureRegistry.has(sessionId)) {
+    sessionSignatureRegistry.set(sessionId, new Map());
+  }
+  const reg = sessionSignatureRegistry.get(sessionId);
+  reg.set(registryKey(cauIRI, signatureHash), {
+    bfoVersion: bfoVersion || null,
+    curatedVersion: curatedVersion || null,
+    timestamp: timestamp || new Date().toISOString(),
+  });
+}
+
+/**
+ * Look up a previously-registered signature state. Returns null if the
+ * (sessionId, cauIRI, signatureHash) triple was never registered — a provenance
+ * builder that sees null should flag this as a defect (signature consumed
+ * without prior registration).
+ */
+export function lookupSessionSignature({ sessionId, cauIRI, signatureHash }) {
+  const reg = sessionSignatureRegistry.get(sessionId);
+  if (!reg) return null;
+  const entry = reg.get(registryKey(cauIRI, signatureHash));
+  return entry ? { ...entry } : null;
+}
+
+/**
+ * Snapshot the registry for a session. Returns an array of
+ * `{cauIRI, signatureHash, bfoVersion, curatedVersion, timestamp}` entries.
+ * Useful for session-summary export and diagnostic inspection.
+ */
+export function snapshotSessionRegistry(sessionId) {
+  const reg = sessionSignatureRegistry.get(sessionId);
+  if (!reg) return [];
+  const out = [];
+  for (const [key, entry] of reg.entries()) {
+    const sepIdx = key.indexOf('::');
+    out.push({
+      cauIRI: key.slice(0, sepIdx),
+      signatureHash: key.slice(sepIdx + 2),
+      ...entry,
+    });
+  }
+  return out;
+}
+
+/**
+ * Clear a session's registry. Called on session end. Idempotent.
+ */
+export function clearSessionRegistry(sessionId) {
+  sessionSignatureRegistry.delete(sessionId);
+}
+
+/**
+ * Test-only: reset entire registry.
+ */
+export function resetSessionRegistryForTests() {
+  sessionSignatureRegistry.clear();
+}
+
 /**
  * VD-6 BFO version bump. Per D1.6-L2 / Rule VD-6: invalidates Signature cache,
  * invalidates Disjointness Map cache, marks prior Final Hashes stale, queues

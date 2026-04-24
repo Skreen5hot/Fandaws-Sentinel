@@ -245,12 +245,85 @@ export function runDeduplicatedCascade(input) {
  * @param {Array<{step: number, event: string}>} input.mutationSequence
  * @param {number} [input.actualRoundsToStability]
  */
-export function applyMutationSequence(input) {
-  const { totalCAUs, mutationSequence, actualRoundsToStability = Math.min(8, totalCAUs) } = input;
-  const sequenceSummary = mutationSequence.map(m => ({ step: m.step, event: m.event, processed: true }));
+// Terminal disposition set per SME scoping 2026-04-24 (V4 routing):
+// IterationNonConvergence IS terminal (stabilized per D1.6-L5 → PendingHumanResolution).
+// `provisional` is NOT terminal.
+const TERMINAL_DISPOSITION_SET = new Set([
+  'Entailed', 'Plausible', 'Inconsistent', 'NotApplicable', 'IterationNonConvergence',
+]);
+
+/**
+ * Compute must-compute fields from post-cascade state per V4 SME scoping.
+ *
+ * - convergenceReached: event queue empty AND no CAU carries pendingReEvaluation.
+ * - allCAUsInTerminalDispositionSet: every CAU.disposition ∈ terminal set.
+ * - noPendingReEvaluations: queue-empty (defense-in-depth; overlaps convergenceReached).
+ * - noOscillation: per-CAU visitedDispositions sequence monotonic within same cascade
+ *   (same-disposition revisit = oscillation).
+ * - dependencyGraphConsistent: OERS precondition still holds post-cascade + neighbor-set
+ *   lookups returned for every queried CAU.
+ *
+ * `postCascadeState` shape (caller-provided when real iteration state is available):
+ *   { caus: Array<{iri, disposition, pendingReEvaluation, visitedDispositions: Array<string>}>,
+ *     eventQueue: Array,
+ *     neighborQueryLog: Array<{cau, neighborsReturned: boolean}>,
+ *     oersPostCascadeClean: boolean }
+ *
+ * Absent postCascadeState (legacy callers), returns `true` for all fields — that is
+ * explicit "not-measured" scaffold behavior, documented here so downstream consumers
+ * can distinguish "not run" from "run and passed."
+ */
+function computeInvariants(postCascadeState) {
+  if (!postCascadeState) {
+    return {
+      measured: false,
+      convergenceReached: true,
+      allCAUsInTerminalDispositionSet: true,
+      noPendingReEvaluations: true,
+      noOscillation: true,
+      dependencyGraphConsistent: true,
+    };
+  }
+
+  const caus = Array.isArray(postCascadeState.caus) ? postCascadeState.caus : [];
+  const eventQueue = Array.isArray(postCascadeState.eventQueue) ? postCascadeState.eventQueue : [];
+  const neighborQueryLog = Array.isArray(postCascadeState.neighborQueryLog) ? postCascadeState.neighborQueryLog : [];
+  const oersPostCascadeClean = postCascadeState.oersPostCascadeClean !== false;
+
+  const queueEmpty = eventQueue.length === 0;
+  const noPending = caus.every((c) => c.pendingReEvaluation !== true);
+  const convergenceReached = queueEmpty && noPending;
+
+  const allTerminal = caus.every((c) => TERMINAL_DISPOSITION_SET.has(c.disposition));
+
+  // Oscillation: within a single cascade's visitedDispositions sequence, no same-
+  // disposition revisit. Sequence length equals Set size when monotonic.
+  const noOscillation = caus.every((c) => {
+    const seq = Array.isArray(c.visitedDispositions) ? c.visitedDispositions : [];
+    return new Set(seq).size === seq.length;
+  });
+
+  const neighborsAllReturned = neighborQueryLog.every((q) => q.neighborsReturned !== false);
+  const dependencyGraphConsistent = oersPostCascadeClean && neighborsAllReturned;
 
   return {
-    convergenceReached: true,                           // MUST-COMPUTE: V_active=∅ + queue-empty; see header TEST
+    measured: true,
+    convergenceReached,
+    allCAUsInTerminalDispositionSet: allTerminal,
+    noPendingReEvaluations: queueEmpty, // defense-in-depth: queue-only check vs convergenceReached's conjunction
+    noOscillation,
+    dependencyGraphConsistent,
+  };
+}
+
+export function applyMutationSequence(input) {
+  const { totalCAUs, mutationSequence, actualRoundsToStability = Math.min(8, totalCAUs), postCascadeState } = input;
+  const sequenceSummary = mutationSequence.map(m => ({ step: m.step, event: m.event, processed: true }));
+
+  const inv = computeInvariants(postCascadeState);
+
+  return {
+    convergenceReached: inv.convergenceReached,
     roundsToStability: {
       bound: `<= ${totalCAUs} (finite, bounded by total CAU count)`,
       actual: `<= ${actualRoundsToStability} expected for this topology`,
@@ -258,13 +331,26 @@ export function applyMutationSequence(input) {
       boundNumber: totalCAUs,
     },
     finalStateInvariants: {
-      allCAUsInTerminalDispositionSet: true,            // MUST-COMPUTE: per-CAU disposition ∈ terminal set; see header TEST
+      allCAUsInTerminalDispositionSet: inv.allCAUsInTerminalDispositionSet,
+      // Per D1.6 JSDoc §181-190 distinction: `dispositionSet` is the
+      // primary four-element set (analyst-visible output for successful
+      // placement). The full terminal set used by the invariant check
+      // (includes IterationNonConvergence) is internal — see
+      // TERMINAL_DISPOSITION_SET constant.
       dispositionSet: ['Entailed', 'Plausible', 'Inconsistent', 'NotApplicable'],
-      noPendingReEvaluations: true,                     // MUST-COMPUTE: queue-empty + no reEvaluationPending flags; see header TEST
-      noOscillation: true,                              // MUST-COMPUTE: |state-history(C)| ≤ |D| for non-flagged CAUs; see header TEST
-      dependencyGraphConsistent: true,                  // MUST-COMPUTE: visited-set cleared + edge-state invariants; see header TEST
+      terminalDispositionSet: ['Entailed', 'Plausible', 'Inconsistent', 'NotApplicable', 'IterationNonConvergence'],
+      noPendingReEvaluations: inv.noPendingReEvaluations,
+      noOscillation: inv.noOscillation,
+      dependencyGraphConsistent: inv.dependencyGraphConsistent,
+      // Transparency: when caller supplies no postCascadeState, invariants return
+      // scaffold `true`. Downstream audit can check this flag to distinguish
+      // measured vs not-measured outcomes.
+      measured: inv.measured,
     },
     convergenceArgumentValidated: 'References the Week-1 convergence argument document per D1.6-L25 amendment resolution',
     sequenceSummary,
   };
 }
+
+// Exported for unit tests.
+export { computeInvariants as _computeInvariantsForTests, TERMINAL_DISPOSITION_SET as _TERMINAL_DISPOSITION_SET };

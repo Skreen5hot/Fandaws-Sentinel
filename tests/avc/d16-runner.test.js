@@ -36,6 +36,13 @@ import {
   snapshotDictionary,
   dictionarySize,
 } from '../../src/core/d16/axiom-dictionary.js';
+import {
+  buildProductionReproducibilityHash,
+} from '../../src/core/d16/reproducibility-hash.js';
+import {
+  registerSessionSignature,
+  resetSessionRegistryForTests,
+} from '../../src/core/d16/bfo-signature-cache.js';
 import bfoSignaturesJson from '../../specs/d16/bfo-signatures-v1.0.json' with { type: 'json' };
 
 // ── Trigger handler registry ──
@@ -671,6 +678,49 @@ async function handleAnalystOverrideCAU(scenario) {
       originalDisposition: overridden.provenance.analystOverride.originalDisposition,
     },
     sessionLevelCompatibilityDegradedFlag: overridden.provenance.compatibilityDegraded,
+  };
+}
+
+// Band 6 DP-2.3.1 — retrieveReproducibilityHash: per-round hashes for a
+// 2-round fallback session. Final Hash remains scaffold-shape until DP-2.3.2.
+async function handleRetrieveReproducibilityHash(scenario) {
+  resetSessionRegistryForTests();
+  const cauIRI = scenario.trigger.cauIRI || 'ex:TestCAU';
+  const sessionId = 'dp2-3-1-repro-session';
+
+  // Register two signature states for the 2 rounds (Forward-Flag Item 2:
+  // provenance lookups read from registry, not live cache).
+  registerSessionSignature({
+    sessionId, cauIRI, signatureHash: 'sig-round0',
+    bfoVersion: 'BFO-2020', curatedVersion: 'v1.0',
+    timestamp: '2026-04-24T00:00:00Z',
+  });
+  registerSessionSignature({
+    sessionId, cauIRI, signatureHash: 'sig-round1',
+    bfoVersion: 'BFO-2020', curatedVersion: 'v1.0',
+    timestamp: '2026-04-24T00:01:00Z',
+  });
+
+  const repro = await buildProductionReproducibilityHash({
+    cauIRI, sessionId,
+    rounds: [
+      { round: 0, signatureHash: 'sig-round0', crossCAUInfluencesConsumed: [] },
+      { round: 1, signatureHash: 'sig-round1', crossCAUInfluencesConsumed: [] },
+    ],
+  });
+
+  const allPerRoundAreHex = repro.perRoundHashes.every((h) => /^[0-9a-f]{64}$/.test(h.hash));
+  const finalIs64Hex = /^[0-9a-f]{64}$/.test(repro.finalHash.hash);
+
+  return {
+    perRoundHashes: repro.perRoundHashes.length === 2 && allPerRoundAreHex
+      ? 'array of length 2'
+      : `array of length ${repro.perRoundHashes.length}`,
+    finalHash: {
+      hash: finalIs64Hex ? '64-char hex' : 'invalid',
+      authoritative: repro.finalHash.authoritative,
+      inputsHashed: repro.finalHash.inputsHashed,
+    },
   };
 }
 
@@ -1423,7 +1473,7 @@ const TRIGGER_HANDLERS = {
 
   // Band 6 — DP-2 Invariant Enforcement
   retrieveCanonicalRecord: handleRetrieveCanonicalRecord,
-  retrieveReproducibilityHash: null,
+  retrieveReproducibilityHash: handleRetrieveReproducibilityHash,
   compareFinalHashes: null,
   attemptCanonicalWrite: handleAttemptCanonicalWrite,
   attemptCanonicalWrites: handleAttemptCanonicalWrites,

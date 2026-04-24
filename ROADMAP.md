@@ -1917,7 +1917,7 @@ The consistency sandbox uses **Tau Prolog** (a Prolog interpreter written in Jav
 ## Phase D1.6: Architectural Correction — CAUs, Logical Signatures, Epistemic Commitment
 
 **Goal:** Replace D1's per-class heuristic placement with Candidate Alignment Unit (CAU) reasoning over Normalized Logical Signatures. Introduces a three-state evidence model (Entailed / Plausible / Inconsistent / NotApplicable), iterative cross-phase reasoning, Taxonomic Descent with Provisional Inheritance, a Reactive Re-evaluation Engine, and first-class epistemic-system commitments (DP-1 soft-gate diagnostic, DP-2 mandatory explanation/provenance/reproducibilityHash on every canonical record).
-**Status:** In Progress — Wave 2 closed 2026-04-22; DP-2.1 landed 2026-04-23; DP-2.2 + DP-2.3.0 landed 2026-04-24; **66 of 69 AVC scenarios passing (96%)**, zero regressions across 113 test suites / 2,484 tests. Remaining 3: DP-2.3.1/.2 reproducibility-hash scenarios + Band 8 PROV-O acceptance gate.
+**Status:** In Progress — Wave 2 closed 2026-04-22; DP-2.1 landed 2026-04-23; DP-2.2, DP-2.3.0, DP-2.3.1 landed 2026-04-24; **67 of 69 AVC scenarios passing (97%)**, zero regressions across 114 test suites / 2,514 tests. Remaining 2: DP-2.3.2 Final Hash cross-session scenario + Band 8 PROV-O end-to-end acceptance gate.
 **Priority:** Critical (blocks PROV-O Pass 2 calibration)
 **Effort:** Very High (14–16 weeks to PROV-O re-run; 11 SME-LOCKED items; 8 bands)
 **Depends on:** Phase D2 (preserved with light correction per D1.6-L21), Workbench v0.2 (adaptation at Phase 1/Phase 2 Review panels per §9.3), IndexedDB-backed DependencyGraph infrastructure (new in v1.1.0)

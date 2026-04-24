@@ -199,6 +199,45 @@ describe('OERS precondition (§4.9)', () => {
     }
   });
 
+  // V5 enhancement: accumulate all pairs before throwing
+  it('V5: accumulates all un-canonicalized pairs in one throw (§4.9 reserved-door visibility)', () => {
+    try {
+      buildDependencyGraph({
+        cauSet: [':ex:Person', ':foaf:Person', ':ex:Place', ':wgs:Place', ':ex:Event', ':schema:Event'],
+        objectProperties: [],
+        restrictions: [],
+        equivalenceAxioms: [
+          { classA: ':ex:Person', classB: ':foaf:Person', sourceAxiomIRI: 'ax1', sourceOntology: 'foaf' },
+          { classA: ':ex:Place', classB: ':wgs:Place', sourceAxiomIRI: 'ax2', sourceOntology: 'wgs84' },
+          { classA: ':ex:Event', classB: ':schema:Event', sourceAxiomIRI: 'ax3', sourceOntology: 'schema.org' },
+        ],
+      });
+      throw new Error('should have thrown OERSPreconditionError');
+    } catch (e) {
+      expect(e).toBeInstanceOf(OERSPreconditionError);
+      expect(e.pairs).toHaveLength(3);
+      expect(e.pairs[0]).toEqual({ classA: ':ex:Person', classB: ':foaf:Person', axiomIRI: 'ax1', sourceOntology: 'foaf' });
+      expect(e.pairs[1].sourceOntology).toBe('wgs84');
+      expect(e.pairs[2].sourceOntology).toBe('schema.org');
+      expect(e.message).toContain('3 un-canonicalized pairs');
+    }
+  });
+
+  it('V5: single-pair preserves backward-compat fields', () => {
+    try {
+      buildDependencyGraph({
+        cauSet: [':A', ':B'],
+        objectProperties: [],
+        restrictions: [],
+        equivalenceAxioms: [{ classA: ':A', classB: ':B', sourceAxiomIRI: 'ax' }],
+      });
+    } catch (e) {
+      expect(e.pairs).toHaveLength(1);
+      expect(e.equivalentPair).toEqual([':A', ':B']);
+      expect(e.axiomIRI).toBe('ax');
+    }
+  });
+
   it('collapse strategy canonicalizes equivalent classes into a single node', () => {
     const g = buildDependencyGraph({
       cauSet: [':A', ':B', ':C'],

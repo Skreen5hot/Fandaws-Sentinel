@@ -110,11 +110,24 @@ function resolveOverrideField(overrideInfo) {
  * coalescing. F1 causal linkage: `causedBy` references a prior entry's
  * index when the writer knows causality at write time.
  *
+ * **F1 semantic (SME-confirmed 2026-04-24): `causedBy` is the IMMEDIATE
+ * PREDECESSOR entry's index, not the cascade's root trigger.** An audit
+ * tool reconstructing the causal chain walks backward by repeatedly
+ * following `causedBy` references until reaching a `causedBy: null` entry
+ * (the cascade root). Root-pointer semantic would collapse the chain and
+ * lose intermediate causality; immediate-predecessor preserves the full
+ * walkable chain.
+ *
+ * Example: NA-1.3 cascade triggers at entry index 0 (causedBy:null). A
+ * descendant reconciles at index 1 with causedBy:0. NA-1.4 fires in
+ * response at index 2 with causedBy:1 — NOT causedBy:0, even though 0
+ * is the cascade root.
+ *
  * @param {object} input
  * @param {object} input.priorPlacement  — {disposition, bfoCategory}
  * @param {string} input.triggeringEvent — 'parent_reconciliation' | 'property_ingestion' | 'analyst_override' | 'na14_mutation'
  * @param {object} input.updatedPlacement — {disposition, bfoCategory}
- * @param {number | null} [input.causedBy] — index of prior entry this was caused by (F1)
+ * @param {number | null} [input.causedBy] — immediate-predecessor entry's index; null for cascade roots (F1)
  * @param {string} [input.timestamp]
  * @returns {object} reconciliationHistory entry
  */

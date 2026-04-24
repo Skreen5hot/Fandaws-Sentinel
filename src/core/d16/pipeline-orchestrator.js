@@ -34,13 +34,14 @@
  * Design: specs/d16/sme-d16-x3-pipeline-orchestrator-memo-v2.md
  */
 
-import { evaluateCAU } from './three-state-evaluator.js';
+import { evaluateCAU, disjointWith } from './three-state-evaluator.js';
 import {
   applyProvisionalInheritance,
   reconcileSignal,
 } from './inheritance-cascade.js';
 import { buildProductionCanonicalRecord } from './canonical-record-writer.js';
 import { persistCanonicalRecordViaChokepoint } from './record-persistence.js';
+import { evaluateNCSatisfaction } from './nc-dispatcher.js';
 
 // ── Adapter injection rationale (SME-D16-X3 v2 §3.9.1 developer ACK) ──
 //
@@ -101,8 +102,14 @@ export async function orchestrateThreeStateTerminal(cauIRI, inputs, context, ada
   assertContext(context);
   const { evaluatorInput, explanationInput, iterationState, sessionState } = inputs;
 
-  // Step 1: call three-state evaluator (pure)
-  const evalResult = evaluateCAU(evaluatorInput);
+  // Step 1: call three-state evaluator (pure). If the caller provides
+  // dispatcher-facing inputs (cauSignature + bfoSignatureReference +
+  // targetCategory), the orchestrator runs the dispatcher for target +
+  // disjoint categories before invoking evaluateCAU. Otherwise (legacy
+  // path used by SYNTHETIC_NC_SATISFACTION allowlist tests and by direct-
+  // synthetic-allowlist test harnesses), evaluateCAU is called with the
+  // legacy satisfiedNCs Set as before.
+  const evalResult = await runEvaluationWithOptionalDispatcher(evaluatorInput);
 
   // Step 2: branch on disposition — NotApplicable delegates to its orchestrator
   if (evalResult.disposition === 'NotApplicable') {
@@ -385,6 +392,58 @@ export async function orchestrateAnalystOverride(cauIRI, inputs, context, adapte
     },
     adapter,
   );
+}
+
+// ── Dispatcher integration seam (SME-D16-X4 Commit 3) ─────────────
+//
+// If caller supplies dispatcher-facing inputs, run the NC dispatcher for
+// target category + each disjoint category, combine satisfied sets across
+// categories for Inconsistent-via-disjoint-full-satisfaction detection,
+// and pass trichotomy + combined satisfied to evaluateCAU.
+//
+// Caller signals dispatcher path by including cauSignature +
+// bfoSignatureReference in evaluatorInput. Absent those, legacy path fires
+// (evaluateCAU receives the caller's satisfiedNCs Set directly).
+function runEvaluationWithOptionalDispatcher(evaluatorInput) {
+  if (!evaluatorInput.cauSignature || !evaluatorInput.bfoSignatureReference) {
+    // Legacy path — unchanged behavior.
+    return evaluateCAU(evaluatorInput);
+  }
+
+  const {
+    cauIRI, cauSignature, targetCategory, bfoSignatureReference,
+    ancestorChain = [], axiomPoor,
+  } = evaluatorInput;
+
+  const targetTrichotomy = evaluateNCSatisfaction({
+    cauIRI, cauSignature, targetBFOCategory: targetCategory,
+    bfoSignatureReference, ancestorChain,
+  });
+
+  // Cross-category disjointness: call dispatcher for each disjoint
+  // category and union their satisfied sets into a combined Set.
+  // evaluateCAU's disjointness-full-satisfaction check operates on this
+  // combined set to detect Inconsistent.
+  const combinedSatisfied = new Set(targetTrichotomy.satisfied);
+  const disjointCategories = disjointWith(targetCategory);
+  for (const dc of disjointCategories) {
+    const dcTrichotomy = evaluateNCSatisfaction({
+      cauIRI, cauSignature, targetBFOCategory: dc,
+      bfoSignatureReference, ancestorChain,
+    });
+    for (const s of dcTrichotomy.satisfied) combinedSatisfied.add(s);
+  }
+
+  return evaluateCAU({
+    cauIRI,
+    targetCategory,
+    axiomPoor,
+    // Trichotomy for target category (drives coverage-gap routing)
+    ncEvaluation: targetTrichotomy,
+    // Combined satisfied across target + disjoint categories (drives
+    // Inconsistent-via-disjoint-full-satisfaction detection)
+    satisfiedNCs: [...combinedSatisfied],
+  });
 }
 
 // ── Internals ─────────────────────────────────────────────────────

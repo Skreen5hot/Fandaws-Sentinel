@@ -636,7 +636,7 @@ function evaluateContinuantNC1({ ncId, cauSignature, ancestorChain, state }) {
 // without being that region or existing at it."
 //
 // Flagged by developer at Commit 1 as one of two fuzziest P4 NCs; SME
-// consolidated review should scrutinize this operationalization.
+// consolidated review at Commit 3 APPROVED this operationalization.
 //
 // Operationalization (strict reading):
 //   The NC distinguishes Continuants (which EXIST AT temporal regions —
@@ -661,6 +661,17 @@ function evaluateContinuantNC1({ ncId, cauSignature, ancestorChain, state }) {
 //   bfo:existsAt restrictions or absence of bfo:occursIn. The Continuant-
 //   ancestor reading is the strictest affirmation path (directly aligned
 //   with BFO 2020's Continuant semantics).
+//
+// Multi-inheritance precedence note (SME Commit 3 lint refinement):
+//   When a CAU's ancestorChain spans BOTH Continuant-subtree AND
+//   Occurrent-subtree ancestors (a BFO-2020-anomaly: user-ontology
+//   modeling error, since BFO is single-inheritance), CONTRADICTION wins
+//   over AFFIRMATION: the NC routes unsatisfied rather than satisfied.
+//   Rationale: if two mutually-disjoint ancestors are both declared, the
+//   user ontology itself has a contradiction; surfacing this as
+//   unsatisfied (not silently favoring one subtree) is proof-discipline
+//   aligned with absence-not-evidence. Downstream three-state-evaluator
+//   routes such CAUs through disjointness-violation paths independently.
 function evaluateContinuantNC2({ ncId, cauSignature, ancestorChain, state }) {
   const continuantAncestors = ['bfo:Continuant', 'bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant', 'bfo:GenericallyDependentContinuant', 'bfo:MaterialEntity', 'bfo:ImmaterialEntity', 'bfo:Site', 'bfo:Role', 'bfo:Disposition', 'bfo:Function', 'bfo:Quality'];
   const contraindicated = ['bfo:TemporalRegion', 'bfo:Occurrent', 'bfo:Process', 'bfo:ProcessBoundary'];
@@ -690,6 +701,7 @@ function evaluateContinuantNC2({ ncId, cauSignature, ancestorChain, state }) {
 // SiteNC2: "Signature is consistent with three-dimensional spatial occupation."
 //
 // Flagged by developer at Commit 1 as second of two fuzziest P4 NCs.
+// SME consolidated review at Commit 3 APPROVED this operationalization.
 //
 // Operationalization (strict reading):
 //   Sites in BFO 2020 are Immaterial Entities that occupy 3D spatial
@@ -710,6 +722,19 @@ function evaluateContinuantNC2({ ncId, cauSignature, ancestorChain, state }) {
 //   declare spatial-dimension restrictions (common in under-axiomatized
 //   ontologies). The ancestorChain reading is the most permissive
 //   affirmation path; narrower alternatives risk confident-wrong outcomes.
+//
+// Scope boundary (SME Commit 3 lint refinement):
+//   SiteNC2 is Site-SPECIFIC (immaterial 3D occupation), NOT general 3D
+//   occupation. MaterialEntity CAUs (which also occupy 3D spatially)
+//   route to UNDETERMINED here, not satisfied — they are 3D-spatial in a
+//   different sense (material occupation vs immaterial region membership).
+//   If downstream users need "any 3D-spatial CAU" detection, that requires
+//   a separate NC (not SiteNC2). The ancestor-filter explicitly excludes
+//   bfo:MaterialEntity for this reason; if an ontology declares both
+//   ImmaterialEntity AND MaterialEntity (modeling anomaly), the SiteNC2
+//   CONTRADICTION precedence does not fire for MaterialEntity alone —
+//   but the Continuant-side affirmation via ImmaterialEntity still wins
+//   per the standard AFFIRMATION pattern above.
 function evaluateSiteNC2({ ncId, cauSignature, ancestorChain, state }) {
   const siteAncestors = ['bfo:Site', 'bfo:ImmaterialEntity'];
   const contraindicated = ['bfo:TemporalRegion', 'bfo:Occurrent', 'bfo:Process', 'bfo:ProcessBoundary'];
@@ -752,6 +777,19 @@ function evaluateSiteNC2({ ncId, cauSignature, ancestorChain, state }) {
 //     occupying). OR ancestorChain contains a non-TemporalRegion BFO
 //     category explicitly.
 //   SILENCE (undetermined): signature doesn't commit.
+//
+// Precedence edge case (SME Commit 3 lint refinement):
+//   When a CAU has BOTH isTempRegion=true AND occupiesTemporalRegion
+//   restriction pointing to a DISTINCT TR class (e.g., a one-dimensional
+//   TR occupies a zero-dimensional TR boundary — legitimate BFO 2020
+//   pattern), current logic routes SATISFIED (isTempRegion wins). This
+//   is defensible for self-occupation semantics (the CAU IS a TR regardless
+//   of additional occupies-restrictions). However, it does NOT distinguish
+//   the distinct-target edge case from pure self-occupation at the trace
+//   level. If downstream audit tooling needs to surface "TR with distinct-
+//   target occupation" as a separate signal, extend matcherTrace with a
+//   hasDistinctTargetOccupation flag; current Commit 3 scope keeps this
+//   latent and surfaces only the isTempRegion result.
 function evaluateTemporalRegionNC2({ ncId, cauSignature, ancestorChain, state }) {
   const isTempRegion = (ancestorChain || []).includes('bfo:TemporalRegion');
   const hasOccupiesTR = (cauSignature.existentialRestrictions || []).some((e) => e.onProperty === 'bfo:occupiesTemporalRegion');

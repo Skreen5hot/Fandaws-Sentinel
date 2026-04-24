@@ -38,7 +38,36 @@ import bfoSignatures from '../../../specs/d16/bfo-signatures-v1.0.json' with { t
  * @returns {object} evidence record
  */
 export function evaluateCAU(input) {
-  const satisfied = new Set(input.satisfiedNCs || []);
+  // SME-D16-X4 Commit 3: trichotomy integration.
+  //
+  // API accepts one of two input modes:
+  //   (a) Legacy: input.satisfiedNCs — Set or Array of NC short-IRIs. No
+  //       undetermined information; every non-satisfied NC is treated as
+  //       implicitly unsatisfied. Preserves SYNTHETIC_NC_SATISFACTION
+  //       allowlist tests + any caller pre-computing satisfied directly.
+  //   (b) Trichotomy: input.ncEvaluation — { satisfied, unsatisfied,
+  //       undetermined, evidence } from nc-dispatcher. Carries
+  //       coverage-gap information via undetermined Set for Plausible
+  //       routing per §4.1 branch #3.
+  //
+  // Mode detection: if ncEvaluation is provided, use it; else legacy.
+  //
+  // Cross-category disjointness check (Inconsistent routing): evaluateCAU
+  // inspects input.satisfiedNCs for NCs of disjoint categories. Under
+  // trichotomy mode, the orchestrator is responsible for combining
+  // satisfied sets across target + disjoint categories into a unified
+  // satisfiedNCs set. If only ncEvaluation is provided (no cross-category
+  // satisfied), Inconsistent can still fire via signature-level direct
+  // disjointness axioms (consumed in future commits); the pure-NC-
+  // satisfaction path to Inconsistent requires the orchestrator to supply
+  // cross-category coverage.
+  const usingTrichotomy = !!input.ncEvaluation;
+  const satisfied = usingTrichotomy
+    ? new Set([...input.ncEvaluation.satisfied, ...(input.satisfiedNCs || [])])
+    : new Set(input.satisfiedNCs || []);
+  const undetermined = usingTrichotomy
+    ? new Set(input.ncEvaluation.undetermined)
+    : new Set();
 
   if (input.axiomPoor) {
     return {
@@ -77,7 +106,12 @@ export function evaluateCAU(input) {
   }
 
   const satisfiedForTarget = requiredNCsForTarget.filter(nc => satisfied.has(nc.shortIRI));
-  const unsatisfiedForTarget = requiredNCsForTarget.filter(nc => !satisfied.has(nc.shortIRI));
+  const undeterminedForTarget = requiredNCsForTarget.filter(nc => undetermined.has(nc.shortIRI));
+  // Under trichotomy: unsatisfied = required - satisfied - undetermined.
+  // Under legacy: unsatisfied = required - satisfied (undetermined is empty).
+  const unsatisfiedForTarget = requiredNCsForTarget.filter(
+    nc => !satisfied.has(nc.shortIRI) && !undetermined.has(nc.shortIRI)
+  );
 
   const disjointCategories = disjointWith(targetCategory);
   const disjointViolations = [];
@@ -99,12 +133,17 @@ export function evaluateCAU(input) {
       explanation: {
         satisfiedConditionIRIs: satisfiedForTarget.map(n => n.shortIRI),
         unsatisfiedConditionIRIs: unsatisfiedForTarget.map(n => n.shortIRI),
+        undeterminedConditionIRIs: undeterminedForTarget.map(n => n.shortIRI),
         disjointViolations,
       },
     };
   }
 
-  const allRequiredSatisfied = unsatisfiedForTarget.length === 0 && requiredNCsForTarget.length > 0;
+  // §4.1 Rule 1: satisfied.size === required.size implies no coverage gap.
+  // Per SME clarification §3 note on Rule 1 redundancy (SME approved
+  // simplification), the single conjunct suffices under partition invariant.
+  // Invariant: unsatisfied + undetermined = ∅ by partition.
+  const allRequiredSatisfied = satisfiedForTarget.length === requiredNCsForTarget.length;
   if (allRequiredSatisfied) {
     return {
       disposition: 'Entailed',
@@ -112,10 +151,24 @@ export function evaluateCAU(input) {
       explanation: {
         satisfiedConditionIRIs: satisfiedForTarget.map(n => n.shortIRI),
         unsatisfiedConditionIRIs: [],
+        undeterminedConditionIRIs: [],
         disjointViolations: [],
       },
     };
   }
+
+  // Plausible routing — distinguish coverage-gap (undetermined NCs present)
+  // from partial-match (unsatisfied NCs present, no undetermined) per §4.1
+  // routing branches #3, #4, #5.
+  const hasUndetermined = undeterminedForTarget.length > 0;
+  const hasUnsatisfied = unsatisfiedForTarget.length > 0;
+  const allUndetermined = hasUndetermined && satisfiedForTarget.length === 0 && !hasUnsatisfied;
+
+  const plausibleAnnotation = allUndetermined
+    ? 'all-required-undetermined'
+    : hasUndetermined
+      ? 'partial-coverage-with-undetermined'
+      : 'partial-match';
 
   return {
     disposition: 'Plausible',
@@ -123,12 +176,35 @@ export function evaluateCAU(input) {
     explanation: {
       satisfiedConditionIRIs: satisfiedForTarget.map(n => n.shortIRI),
       unsatisfiedConditionIRIs: unsatisfiedForTarget.map(n => n.shortIRI),
+      undeterminedConditionIRIs: undeterminedForTarget.map(n => n.shortIRI),
       disjointViolations: [],
       partialMatchRatio: requiredNCsForTarget.length > 0
         ? satisfiedForTarget.length / requiredNCsForTarget.length
         : 0,
+      plausibleAnnotation,
+      coverageGap: hasUndetermined
+        ? {
+          undeterminedCount: undeterminedForTarget.length,
+          requiredCount: requiredNCsForTarget.length,
+          deferredReasons: usingTrichotomy
+            ? collectDeferredReasonsForTarget(undeterminedForTarget, input.ncEvaluation.evidence)
+            : [],
+        }
+        : null,
     },
   };
+}
+
+function collectDeferredReasonsForTarget(undeterminedNCs, evidence) {
+  if (!evidence) return [];
+  const reasons = [];
+  for (const nc of undeterminedNCs) {
+    const ev = evidence.get(nc.shortIRI);
+    if (ev && ev.deferredReason) {
+      reasons.push({ nc: nc.shortIRI, reason: ev.deferredReason });
+    }
+  }
+  return reasons;
 }
 
 /**

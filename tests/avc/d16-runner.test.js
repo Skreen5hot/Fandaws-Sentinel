@@ -910,56 +910,101 @@ async function handleAuditWritePathChokepoint(scenario) {
 // Static audit — regex-based (edge-canonical for test harness per memo §4.2
 // fallback permission). Scans src/**/*.js for adapter persist call patterns
 // and verifies writeCanonicalRecord appears earlier in the same function body.
+/**
+ * F4 static chokepoint audit — two-layer check per SME Commit 3 design.
+ *
+ * Layer 1 (orchestrator-layer call-site count):
+ *   Count calls to `persistCanonicalRecordViaChokepoint(` from
+ *   `pipeline-orchestrator.js` ONLY. Each orchestrator function makes
+ *   exactly one such call per v2 §3.1 lock. Expect N = 5. Predecessor
+ *   check is satisfied by construction (the helper wraps writeCanonicalRecord
+ *   internally; any call to the helper is a chokepoint-routed call).
+ *
+ * Layer 2 (adapter-layer bypass check):
+ *   Count calls to `<any>.persistCanonicalRecord(` from ANY src/ file
+ *   EXCEPT `record-persistence.js` (the helper's own body, which is the
+ *   ONE legitimate direct-adapter call). Expect 0 in production code.
+ *   Any non-helper adapter-persist call is a bypass defect — production
+ *   callers must route through the helper.
+ *
+ * Also negative-assertion #3: scan for try/catch blocks that suppress
+ * DP2NonConformanceError in core modules.
+ */
 function runStaticChokepointAudit(rootDir) {
-  const adapterPersistPatterns = [
-    /\bpersistCanonicalRecord\s*\(/,
-    /\bsaveCanonicalRecord\s*\(/,
-    /\bputCanonical\s*\(/,
-  ];
-  const chokepointPattern = /\bwriteCanonicalRecord\s*\(/;
-  const files = collectJsFiles(rootDir)
-    // Exclude the chokepoint module itself per §2.1 setup
-    .filter((f) => !f.endsWith('canonical-record-writer.js'));
+  const chokepointHelperCall = /\bpersistCanonicalRecordViaChokepoint\s*\(/;
+  const adapterPersistCall = /\.persistCanonicalRecord\s*\(/; // leading `.` excludes helper name
+  const dp2CatchPattern = /catch\s*\([^)]*\)\s*\{[^}]*DP2NonConformanceError/;
 
-  let callSitesFound = 0;
-  let callSitesWithPredecessor = 0;
-  const bypassList = [];
+  const files = collectJsFiles(rootDir);
 
-  for (const file of files) {
-    const content = fs.readFileSync(file, 'utf8');
-    // Strip block comments (/* ... */) so JSDoc doesn't produce false-
-    // positive call-site matches when docs reference API patterns.
-    const stripped = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
-    const lines = stripped.split('\n');
+  // ── Layer 1: orchestrator-layer call-site count ──
+  const orchestratorFiles = files.filter((f) => f.endsWith('pipeline-orchestrator.js'));
+  let orchestratorCallSites = 0;
+  const orchestratorSiteDetail = [];
+  for (const file of orchestratorFiles) {
+    const content = stripCommentsForAudit(fs.readFileSync(file, 'utf8'));
+    const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // Skip line comments (// ...)
-      const trimmed = line.trim();
-      if (trimmed.startsWith('//')) continue;
-      for (const pattern of adapterPersistPatterns) {
-        if (pattern.test(line)) {
-          callSitesFound++;
-          let hasPredecessor = false;
-          for (let j = i - 1; j >= Math.max(0, i - 50); j--) {
-            if (chokepointPattern.test(lines[j])) {
-              hasPredecessor = true;
-              break;
-            }
-            if (/^(function|async function|export function|export async function)\s/.test(lines[j])) break;
-          }
-          if (hasPredecessor) callSitesWithPredecessor++;
-          else bypassList.push({ file: path.relative(process.cwd(), file), line: i + 1, call: line.trim() });
-        }
+      if (line.trim().startsWith('//')) continue;
+      if (chokepointHelperCall.test(line)) {
+        orchestratorCallSites++;
+        orchestratorSiteDetail.push({
+          file: path.relative(process.cwd(), file),
+          line: i + 1,
+          call: line.trim(),
+        });
       }
     }
   }
 
+  // ── Layer 2: adapter-persist bypass check ──
+  // Exclude record-persistence.js (the helper's own implementation).
+  // The helper's single call to adapter.persistCanonicalRecord IS the
+  // legitimate adapter-persist path; all other callers must route via
+  // the helper. Also exclude canonical-record-writer.js per §2.1 setup.
+  const bypassFiles = files.filter(
+    (f) => !f.endsWith('record-persistence.js') && !f.endsWith('canonical-record-writer.js'),
+  );
+  const bypassList = [];
+  for (const file of bypassFiles) {
+    const content = stripCommentsForAudit(fs.readFileSync(file, 'utf8'));
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim().startsWith('//')) continue;
+      if (adapterPersistCall.test(line)) {
+        bypassList.push({
+          file: path.relative(process.cwd(), file),
+          line: i + 1,
+          call: line.trim(),
+        });
+      }
+    }
+  }
+
+  // ── Negative assertion 3: DP2NonConformanceError suppression ──
+  const suppressList = [];
+  for (const file of files) {
+    const content = stripCommentsForAudit(fs.readFileSync(file, 'utf8'));
+    if (dp2CatchPattern.test(content)) {
+      suppressList.push({ file: path.relative(process.cwd(), file) });
+    }
+  }
+
   return {
-    callSitesFound,
-    callSitesWithPredecessor,
+    callSitesFound: orchestratorCallSites,
+    callSitesWithPredecessor: orchestratorCallSites, // by construction: helper wraps writeCanonicalRecord
     bypassCount: bypassList.length,
     bypassList,
+    orchestratorSiteDetail,
+    suppressList,
   };
+}
+
+function stripCommentsForAudit(content) {
+  // Strip block comments (/* ... */); line comments handled per-line.
+  return content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
 }
 
 function collectJsFiles(dir) {

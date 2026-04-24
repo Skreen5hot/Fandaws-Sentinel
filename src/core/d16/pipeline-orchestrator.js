@@ -396,6 +396,20 @@ export async function orchestrateAnalystOverride(cauIRI, inputs, context, adapte
 
 // ── Dispatcher integration seam (SME-D16-X4 Commit 3) ─────────────
 //
+// TEMPORARY MIGRATION SUPPORT — remove when all callers supply dispatcher
+// inputs (cauSignature + bfoSignatureReference). Track conversion progress
+// via `specs/d16/x4-avc-triage.md`. Without explicit temporariness, future
+// contributors may add features only to the legacy path or leave scenarios
+// unconverted indefinitely, turning this migration affordance into
+// permanent dual-path maintenance.
+//
+// Distinction from DP-2-P1 explicit-phase-routing discipline: that lock
+// prevents ambiguity between legitimately-different production modes
+// (scaffold vs production emission) which are both permanent. THIS seam
+// is a feature-detection branch for caller migration, NOT permanent dual-
+// mode semantics. Both modes produce identical production disposition
+// output; only the inference path differs.
+//
 // If caller supplies dispatcher-facing inputs, run the NC dispatcher for
 // target category + each disjoint category, combine satisfied sets across
 // categories for Inconsistent-via-disjoint-full-satisfaction detection,

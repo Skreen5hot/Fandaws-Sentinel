@@ -138,3 +138,44 @@ With Commit 4 landing, SME-D16-X3 v2 transitions from LOCK-IN-PROGRESS (Commits 
 - `specs/d16/d16-phase1-closeout.md` — updated at Commit 4 landing to reflect orchestrator + live-pipeline attestation
 - `tests/integration/d16-pipeline-live.test.js` — the live integration test (7 tests; all green)
 - Commits: `9c22963` (Commit 1), `65e6664` (Commit 2), `76b0d84` (Commit 3), (pending) Commit 4
+
+---
+
+## 13. Post-X3 update — X4 dispatcher landing implications (2026-04-24)
+
+**This section added post-X3-closure to reflect SME-D16-X4 Bucket A landing (commits 5c1c06c / 907e752 / ee6c44b / pending).**
+
+### 13.1 What X4 Bucket A changed on top of X3
+
+X3 Commit 4 attested that the orchestrator's live pipeline produces DP-2-conformant records against evaluator-derived dispositions. Those dispositions flowed from `evaluateCAU`'s **synthetic-allowlist** path (caller supplied pre-computed `satisfiedNCs`). X4 Bucket A landed:
+
+- `nc-dispatcher.js` — real NC inference over CAU signatures (27 OWL-DIRECT + 10 Wave 0/1/2 helper routings)
+- `evaluateCAU` trichotomy support alongside backward-compat legacy path
+- Orchestrator dispatcher-call seam (temporary migration support) at `pipeline-orchestrator.js:397`
+
+### 13.2 Implication for "what this doesn't attest" (§9 carry-forward)
+
+The original §9 caveat *"real Pass 2 calibration data"* held for X3 because synthetic-allowlist inputs drove dispositions. Under X4, the **structural path to real calibration** exists — dispatcher consumes a CAU signature and produces trichotomy via real inference. But:
+
+- **X4 Bucket A is PARTIAL coverage.** 7 CURATED-NC predicates have no helper yet (Bucket B queued per §6.1 of SME-D16-X4 memo). Signatures whose satisfaction depends on Bucket-B-deferred predicates route `undetermined`, not `satisfied`, which routes downstream dispositions to Plausible-with-coverage-gap rather than Entailed.
+- **Real PROV-O run through live dispatcher would shift dispositions** from the X3 baseline (14 Entailed / 8 Plausible / 3 Inconsistent / 3 NotApplicable + inheritance/reactive coverage) toward **more Plausible + fewer Entailed** under Bucket A coverage limits.
+- Per the X4 triage artifact (`specs/d16/x4-avc-triage.md`): this is **BCL (bucket-coverage-limited)** — scenario expectation holds once Bucket B lands. It is NOT correction-of-scaffold-error (SWC) and NOT dispatcher defect (RID).
+
+### 13.3 X4 Bucket A acceptance status at this landing
+
+- **All 70 AVC scenarios continue to pass** under legacy-path evaluation (SYNTHETIC_NC_SATISFACTION allowlist preserved).
+- **Triage artifact landed** enumerating 12 synthetic scenarios: 8 NAN, 4 BCL, zero SWC/RID/SA. Bundle v6 amendment list empty.
+- **Scenario migration to dispatcher-path inputs deferred** per triage §4 — forcing scenarios onto partial-coverage now would regress test intent without producing calibration value.
+- **Honest-admission pattern preserved:** Commit 4 of X4 does NOT attest full dispatcher-path validation of AVC scenarios; it attests triage classification + documents the migration path for Bucket B delivery.
+
+### 13.4 Carry-forward to eventual real Pass 2 calibration
+
+When full dispatcher-path coverage exists (Bucket A + Bucket B + Bucket C per SME-D16-X4 memo §6.2), real PROV-O Pass 2 calibration becomes achievable. Until then, calibration data under partial coverage would confound "how well does PROV-O align with BFO?" with "which NC helpers are missing?" — a signal conflation that proof-discipline requires avoiding.
+
+**Pass 2 readiness sequence (post-X4 Bucket A):**
+1. Bucket B closes the 7 helper gaps → BCL scenarios clear to original expectations.
+2. AVC scenario migration cycle converts scaffold scenarios to dispatcher inputs; legacy path retires.
+3. X3 Commit 4 live integration test re-runs under full coverage → real calibration baseline.
+4. Real PROV-O run through Workbench v0.2 ingestion → Pass 2 calibration proper.
+
+Commits 1/4 through 4/4 of SME-D16-X4 deliver step 0 (dispatcher infrastructure); steps 1-4 remain future work.

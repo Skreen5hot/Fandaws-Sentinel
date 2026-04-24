@@ -264,3 +264,74 @@ export function buildScaffoldCanonicalRecord(input) {
     reproducibilityHash: buildScaffoldReproducibilityHash({ cauIRI }),
   };
 }
+
+/**
+ * Assemble a complete PRODUCTION canonical record by composing DP-2.2
+ * explanation + provenance builders with the scaffold reproducibility hash
+ * (I2b bypass sentinel active until DP-2.3.2 lands).
+ *
+ * The explanation source shape varies by disposition — caller passes the
+ * disposition-specific payload to the appropriate builder via
+ * `explanationInput`. Provenance is built from iteration + session state.
+ *
+ * @param {object} input
+ * @param {string} input.cauIRI
+ * @param {string} input.sessionId
+ * @param {string} input.disposition
+ * @param {string | null} [input.bfoCategory]
+ * @param {object} input.explanationInput - disposition-specific explanation payload
+ * @param {object} input.iterationState    - { rounds: [...], crossCAUInfluences?, propertyAlignmentsConsumed? }
+ * @param {object} input.sessionState      - { backgroundTheoryVersion, compatibilityDegraded? }
+ * @param {object} [input.overrideInfo]    - { analystOverride: true, originalDisposition? }
+ * @param {string} [input.authorTimestamp]
+ * @returns {Promise<object>} canonical record satisfying I1 + I2a
+ */
+export async function buildProductionCanonicalRecord(input) {
+  const {
+    cauIRI, sessionId, disposition, bfoCategory = null,
+    explanationInput, iterationState, sessionState, overrideInfo, authorTimestamp,
+  } = input;
+
+  const { buildEntailedExplanation, buildPlausibleExplanation, buildInconsistentExplanation, buildNotApplicableExplanation } =
+    await import('./explanation-builder.js');
+  const { buildProvenance } = await import('./provenance-builder.js');
+
+  let explanation;
+  switch (disposition) {
+    case 'Entailed':
+      explanation = await buildEntailedExplanation({ cauIRI, sessionId, bfoCategory, ...explanationInput });
+      break;
+    case 'Plausible':
+      explanation = await buildPlausibleExplanation({ cauIRI, sessionId, ...explanationInput });
+      break;
+    case 'Inconsistent':
+      explanation = await buildInconsistentExplanation({ cauIRI, sessionId, ...explanationInput });
+      break;
+    case 'NotApplicable':
+      explanation = await buildNotApplicableExplanation({ cauIRI, sessionId, ...explanationInput });
+      break;
+    default:
+      throw new TypeError(`buildProductionCanonicalRecord: unknown disposition ${JSON.stringify(disposition)}.`);
+  }
+
+  const provenance = buildProvenance({
+    cauIRI,
+    sessionId,
+    iterationState,
+    sessionState,
+    overrideInfo,
+    authorTimestamp,
+  });
+
+  return {
+    cauIRI,
+    disposition,
+    bfoCategory,
+    explanation,
+    provenance,
+    // DP-2.3.2 will replace this with real SHA-256 Final Hash computation;
+    // until then, production records carry the scaffold sentinel so I2a
+    // shape-validation passes while I2b remains bypassed.
+    reproducibilityHash: buildScaffoldReproducibilityHash({ cauIRI }),
+  };
+}

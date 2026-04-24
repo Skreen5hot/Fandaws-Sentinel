@@ -1,8 +1,8 @@
 # DP-2 Scaffolding — Locked Decisions
 
-**Status:** Lock-in-progress 2026-04-23 (X1 resolved same day; only X2 remaining). Captures SME dispositions on the 10 design-sketch decisions from `dp2-scaffolding-design-sketch.md`. Analogous to the Wave 2 locked-decisions capture.
-**Parent artifact:** `specs/d16/dp2-scaffolding-design-sketch.md` (LOCK-IN-PROGRESS 2026-04-23, revised post-review same day).
-**Review cycle:** SME review 2026-04-23 → developer response + revision → SME ACK + X1 delivery → developer X1 ACK (all 2026-04-23). X2 delivery pending; full lock contingent on X2.
+**Status:** **LOCKED 2026-04-24.** All 10 design-sketch decisions locked. X1 resolved 2026-04-23; X2 resolved 2026-04-24 via `specs/d16/dp2-x2-config-allow-list-memo-v1.md`. Full DP-2 implementation proceeds sub-wave by sub-wave without further design-review cycles. Analogous to Wave 2's 2026-04-22 lock.
+**Parent artifact:** `specs/d16/dp2-scaffolding-design-sketch.md` (LOCK-IN-PROGRESS 2026-04-23, revised post-review same day; sketch §5.2.2 carries a non-blocking spec-citation correction — W-D-16 → PS-8 — per X2 memo §5.2).
+**Review cycle:** SME review 2026-04-23 → developer response + revision → SME ACK + X1 delivery → developer X1 ACK (all 2026-04-23). DP-2.1 landed 2026-04-24; SME X2 delivery 2026-04-24 completes lock.
 
 ---
 
@@ -73,10 +73,17 @@
 
 ### DP-2.3.D3 — Session configuration hash scope
 
-- **Approach locked; field list OWED by SME.** Approach: explicit allow-list of semantically-relevant fields, documented in `reproducibility-hash.js`.
+- **LOCKED 2026-04-24 via `specs/d16/dp2-x2-config-allow-list-memo-v1.md`.** Approach: explicit allow-list of semantically-relevant fields at DP-2.3.2 hash assembly time.
 - **Rejected:** hash all config fields indiscriminately.
 - **Reason:** hashing implementation-only fields (e.g., `logVerbosity`) would falsely invalidate cross-session reproducibility on log-level changes.
-- **Companion commitment:** SME-DP2-X2 delivery pre-DP-2.3.2. Developer proposal for SME review: IN = fields that affect reasoning outputs (weight vector bounds, iteration fallback cap, OWA/CWA posture flags). OUT = `logVerbosity`, UI preferences, session UUID. SME may confirm, revise, or replace the list.
+- **Allow-list (v1.0):** three top-level fields, six sub-fields via weightVector expansion.
+  - `notApplicableThreshold` (engine sessionConfig; DP-1-R2)
+  - `inconsistentThreshold` (engine sessionConfig; DP-1-R2)
+  - `weightVector.{domain, range, bfoSubcategory, characteristics, allowsInheresIn, lexical}` (Workbench frozen snapshot; PD-10 / D-9)
+- **Explicit OUT (selected):** `compatibilityDegraded` (derived, captured in provenance); `parsedProperties` (derived from source bytes); `hornInferenceStepCap`, `tauPrologVersion` (upstream Phase D2; effects captured via signature hash); `imports` (W-D-19 declared-but-not-followed); `MAX_ROUNDS` (hard-coded constant); session UUID, `logVerbosity`, UI preferences, `authorTimestamp`-type fields (metadata/implementation).
+- **Hashing semantics:** effective post-default-resolution values; JCS canonicalization per D3.D1; SHA-256 per D3.D2 crypto shim.
+- **Amendment:** additions via amendment cycle (see memo §4). Removals disallowed (compatibility break).
+- **Companion commitment:** DP-2.3.2 implementation reads allow-list fields from an immutable session-start snapshot per memo §5.1 (split-brain watch-item).
 
 ---
 
@@ -99,7 +106,7 @@
 | SME-DP2-F3 | validationState terminal semantics | **Resolved** — I2a rejects terminal-`provisional` per NA Commitment 2 |
 | SME-DP2-F4 | Audit scenario promotion | **Resolved — promoted to required** — `dp2-writepath-chokepoint-exclusivity`, AVC bundle v5 |
 | SME-DP2-X1 | Item 1 operational-definition memo | **Resolved 2026-04-23.** SME delivered `specs/d16/dp2-x1-property-linked-neighbor-memo-rev1.md` REV1. Developer ACK: definition implementable as specified; no corner-case gap affecting DP-2.2 implementation planning. One watch-item tracked (§4.9 OERS false-positive risk at OBO-scale) for empirical surfacing during DP-2.2 integration, not blocking. **DP-2.2 unblocked.** |
-| SME-DP2-X2 | Config hash allow-list field enumeration | **Pending SME delivery** — pre-DP-2.3.2 blocker (last remaining lock-completion item) |
+| SME-DP2-X2 | Config hash allow-list field enumeration | **Resolved 2026-04-24.** SME delivered `specs/d16/dp2-x2-config-allow-list-memo-v1.md`. Allow-list: 3 top-level fields (DP-1 thresholds + weightVector 6-tuple); Phase D2 fields (`hornInferenceStepCap`, `tauPrologVersion`) explicitly OUT per §3.2. Full lock achieved. **DP-2.3.2 unblocked** pending developer ACK. |
 
 ## 4. Implementation gating
 
@@ -107,7 +114,7 @@
 - **DP-2.2** — **GREEN-LIT** 2026-04-23 on X1 resolution. `specs/d16/dp2-x1-property-linked-neighbor-memo-rev1.md` is the operational-definition reference for `DependencyGraph` construction and `reconciliationHistory` parent-reconciliation semantics.
 - **DP-2.3.0 byte-capture** — **LANDED 2026-04-24.** crypto-shim + ingestion-byte-registry + upload-panel hook + bfo-signature-cache onSessionStart bytes extension. 25 unit tests green.
 - **DP-2.3.1 per-round hashing** — depends on DP-2.3.0 complete.
-- **DP-2.3.2 Final Hash** — **blocked on X2** (only remaining lock-completion item).
+- **DP-2.3.2 Final Hash** — **UNBLOCKED 2026-04-24** on X2 delivery. Allow-list authority is `specs/d16/dp2-x2-config-allow-list-memo-v1.md`. Pending developer ACK of memo before coding.
 - **Acceptance** — after DP-2.3.2 lands.
 
 ## 5. Lock completion criteria
@@ -116,12 +123,18 @@ Full lock of this artifact requires:
 
 1. ✅ SME acknowledgement that the revised sketch resolves P1, P2, F1-F4 — **received 2026-04-23.**
 2. ✅ SME delivery of X1 (Forward-Flag Item 1 operational-definition memo) — **received 2026-04-23 as REV1; developer ACK same day.**
-3. ☐ SME delivery of X2 (config hash field allow-list) — **last remaining item.**
+3. ✅ SME delivery of X2 (config hash field allow-list) — **delivered 2026-04-24 as `specs/d16/dp2-x2-config-allow-list-memo-v1.md`.** Awaiting developer ACK.
 
-When X2 lands, this artifact's status updates to **LOCKED** (analogous to Wave 2's 2026-04-22 lock) and full DP-2 implementation proceeds sub-wave by sub-wave without further design-review cycles.
+**Lock status: LOCKED 2026-04-24** (pending formal developer ACK of X2 memo; analogous to Wave 2's 2026-04-22 lock). Full DP-2 implementation proceeds sub-wave by sub-wave without further design-review cycles.
 
 ## 6. Watch-items surfaced during lock-completion
 
 Tracked for empirical observation during implementation; not blocking.
 
 - **§4.9 OERS precondition false-positive risk at OBO-scale ingestion.** Per X1 memo reserved-door framing: if `owl:equivalentClass` axioms in OBO imports produce frequent false-positive "un-canonicalized" detections due to benign cross-import overlaps, §4.9 detection semantics may need refinement to distinguish OERS-resolvable from OERS-resolved equivalences. SME default preference is fail-fast. Developer will surface empirical rate during DP-2.2 integration; if fail-fast blocks PROV-O Pass 2 session startup, recovery-strategy decision re-opens (fail-fast vs graph-collapse with audit trail).
+
+- **Engine-Workbench config split-brain (X2 memo §5.1).** DP-1 thresholds live in engine `sessionConfig`; `weightVector` lives in the Workbench localStorage snapshot. DP-2.3.2 implementation must read from an immutable session-start snapshot for each allow-list field. Recommended: consolidate both sources into a unified session-start config snapshot at `sessionStart` lifecycle event. Developer has flexibility on implementation as long as the immutability requirement holds.
+
+- **Spec citation correction: W-D-16 → PS-8.** The `dp2-scaffolding-design-sketch.md` §5.2.2 references "Config immutable post-start per Workbench v0.2 W-D-16." W-D-16 is pagination, not config immutability. Correct citation is **Rule PS-8**. Non-blocking for DP-2.3.2 coding; incorporate at next sketch revision. Source: X2 memo §5.2.
+
+- **F4 audit scenario reframing for bundle v5.** DP-2.1's writer landed as pure-function (validates and returns; does not persist) per CLAUDE.md core-module discipline. The `dp2-writepath-chokepoint-exclusivity` scenario (F4, pending bundle v5) must therefore audit **call-site discipline** rather than in-adapter scan — every StateAdapter persist-canonical-record call path MUST have a `writeCanonicalRecord` validation predecessor in the same lexical scope. Static analysis / grep-plus-AST tractable. Developer-surfaced 2026-04-24; SME-ACK'd.

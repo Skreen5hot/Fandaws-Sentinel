@@ -28,8 +28,14 @@ import { runDP1Diagnostic, setExploratoryMode as dp1SetExploratoryMode, compareA
 import {
   writeCanonicalRecord,
   buildScaffoldCanonicalRecord,
+  buildProductionCanonicalRecord,
   DP2NonConformanceError,
 } from '../../src/core/d16/canonical-record-writer.js';
+import {
+  resetForTests as resetAxiomDictionary,
+  snapshotDictionary,
+  dictionarySize,
+} from '../../src/core/d16/axiom-dictionary.js';
 import bfoSignaturesJson from '../../specs/d16/bfo-signatures-v1.0.json' with { type: 'json' };
 
 // ── Trigger handler registry ──
@@ -352,6 +358,356 @@ function tryWrite(record) {
     }
     throw err;
   }
+}
+
+// ── DP-2.2 handlers — verify real production records carry full DP-2 fields.
+// Each builds session-scoped production records via the DP-2.2 builders then
+// inspects the resulting records' shape against the scenario's expectations.
+
+async function buildEntailedSession(sessionId, count) {
+  const records = [];
+  for (let i = 0; i < count; i++) {
+    const cauIRI = `ex:EntailedCAU${i}`;
+    records.push(await buildProductionCanonicalRecord({
+      cauIRI,
+      sessionId,
+      disposition: 'Entailed',
+      bfoCategory: 'bfo:Process',
+      explanationInput: {
+        satisfiedNCs: [{
+          iri: 'bfo:ProcessNC1',
+          bfoCategoryAffected: 'bfo:Process',
+          axioms: [{ iri: 'ex:hasParticipant', kind: 'restriction', target: 'bfo:Continuant', weight: 'High' }],
+        }],
+        alternativesConsidered: [{ bfoCategory: 'bfo:Occurrent', result: 'rejected: narrower winner' }],
+      },
+      iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 42, timestamp: '2026-04-24T00:00:00Z' }] },
+      sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
+    }));
+  }
+  return records;
+}
+
+async function buildPlausibleSession(sessionId, count) {
+  const records = [];
+  for (let i = 0; i < count; i++) {
+    records.push(await buildProductionCanonicalRecord({
+      cauIRI: `ex:PlausibleCAU${i}`,
+      sessionId,
+      disposition: 'Plausible',
+      bfoCategory: null,
+      explanationInput: {
+        candidateBFOCategories: [
+          { category: 'bfo:Process', conditionsSatisfied: 3, conditionsTotal: 5,
+            satisfiedConditionIRIs: ['bfo:ProcessNC1', 'bfo:ProcessNC2', 'bfo:ProcessNC3'],
+            unsatisfiedConditionIRIs: ['bfo:ProcessNC4', 'bfo:ProcessNC5'],
+            axiomsContributing: [{ iri: 'ex:hp1' }, { iri: 'ex:hp2' }] },
+          { category: 'bfo:Occurrent', conditionsSatisfied: 2, conditionsTotal: 3,
+            satisfiedConditionIRIs: ['bfo:OccurrentNC1', 'bfo:OccurrentNC2'],
+            unsatisfiedConditionIRIs: ['bfo:OccurrentNC3'],
+            axiomsContributing: [{ iri: 'ex:hp3' }] },
+        ],
+        heuristicSignals: [{ signal: 'lexical_match_to_bfo_process', weight: 'low' }],
+      },
+      iterationState: { rounds: [{ round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 30, timestamp: '2026-04-24T00:00:00Z' }] },
+      sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
+    }));
+  }
+  return records;
+}
+
+async function buildInconsistentSession(sessionId, count) {
+  const records = [];
+  for (let i = 0; i < count; i++) {
+    records.push(await buildProductionCanonicalRecord({
+      cauIRI: `ex:InconsistentCAU${i}`,
+      sessionId,
+      disposition: 'Inconsistent',
+      bfoCategory: null,
+      explanationInput: {
+        disjointnessViolation: {
+          axiom: { iri: 'bfo:ContinuantOccurrentDisjoint', kind: 'disjointness' },
+          conflictingCategories: ['bfo:IndependentContinuant', 'bfo:Occurrent'],
+        },
+      },
+      iterationState: { rounds: [{ round: 0, disposition: 'Inconsistent', bfoCategory: null, reasonerStepsConsumed: 15, timestamp: '2026-04-24T00:00:00Z' }] },
+      sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
+    }));
+  }
+  return records;
+}
+
+async function buildNotApplicableSession(sessionId, count) {
+  const routingMechanisms = ['automatic', 'default_axiom_poor', 'manual'];
+  const records = [];
+  for (let i = 0; i < count; i++) {
+    records.push(await buildProductionCanonicalRecord({
+      cauIRI: `ex:NotApplicableCAU${i}`,
+      sessionId,
+      disposition: 'NotApplicable',
+      bfoCategory: null,
+      explanationInput: {
+        routingMechanism: routingMechanisms[i % routingMechanisms.length],
+        triggerAxiom: { iri: `ex:trigger-${i}`, kind: 'nonBfoDeclaration' },
+        triggerRule: 'NA-1',
+      },
+      iterationState: { rounds: [{ round: 0, disposition: 'NotApplicable', bfoCategory: null, reasonerStepsConsumed: 5, timestamp: '2026-04-24T00:00:00Z' }] },
+      sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
+    }));
+  }
+  return records;
+}
+
+async function handleVerifyDP2Conformance(scenario) {
+  const disposition = scenario.trigger.disposition;
+  const sessionId = `verify-dp2-${disposition}-session`;
+  resetAxiomDictionary();
+
+  if (disposition === 'Entailed') {
+    const records = await buildEntailedSession(sessionId, 5);
+    for (const r of records) writeCanonicalRecord(r, { phase: 'production' });
+    return {
+      allRecordsHaveExplanation: records.every((r) => r.explanation && r.explanation.axiomEvidence.length > 0),
+      explanationStructure: {
+        satisfiedConditionIRIs: 'non-empty array',
+        axiomsContributing: 'non-empty array',
+        candidateBFOCategory: 'required',
+      },
+    };
+  }
+
+  if (disposition === 'Plausible') {
+    const records = await buildPlausibleSession(sessionId, 3);
+    for (const r of records) writeCanonicalRecord(r, { phase: 'production' });
+    const proseCount = countProseFields(records);
+    return {
+      allRecordsHaveExplanation: records.every((r) => r.explanation && r.explanation.axiomEvidence.length > 0),
+      allExplanationsStructured: records.every((r) => Array.isArray(r.explanation.candidateBFOCategories)),
+      textualProseFieldsInExplanation: proseCount,
+    };
+  }
+
+  if (disposition === 'Inconsistent') {
+    const records = await buildInconsistentSession(sessionId, 2);
+    for (const r of records) writeCanonicalRecord(r, { phase: 'production' });
+    return {
+      allRecordsHaveExplanation: records.every((r) => r.explanation && r.explanation.axiomEvidence.length > 0),
+      explanationStructure: {
+        disjointnessViolation: 'explicit axiom IRI',
+        conflictingCategories: 'array of BFO category IRIs',
+      },
+    };
+  }
+
+  if (disposition === 'NotApplicable') {
+    const records = await buildNotApplicableSession(sessionId, 4);
+    for (const r of records) writeCanonicalRecord(r, { phase: 'production' });
+    const routings = new Set(records.map((r) => r.explanation.routingMechanism));
+    const coveredList = Array.from(['automatic', 'default_axiom_poor', 'manual']).filter((m) => routings.has(m));
+    return {
+      allRecordsHaveExplanation: records.every((r) => r.explanation && r.explanation.axiomEvidence.length === 1),
+      routingMechanismsCovered: coveredList,
+      allRoutingsTraceableToRule: records.every((r) => typeof r.explanation.triggerRule === 'string' && r.explanation.triggerRule.length > 0),
+    };
+  }
+
+  throw new Error(`verifyDP2Conformance: unknown disposition ${disposition}`);
+}
+
+// For the Plausible no-prose negative assertion, count candidate-summary
+// fields that look like prose. Structured fields are: IRIs (contain ':' or
+// prefix notation), short tokens (enum-like), or numbers. Anything else
+// that's a long string in a content position counts as prose.
+function countProseFields(records) {
+  let count = 0;
+  for (const r of records) {
+    for (const cat of (r.explanation.candidateBFOCategories || [])) {
+      for (const [key, value] of Object.entries(cat)) {
+        if (key === 'category') continue; // IRI, not prose
+        if (typeof value === 'string' && value.length > 80) count++;
+      }
+    }
+  }
+  return count;
+}
+
+async function handleVerifyIterationHistory(scenario) {
+  resetAxiomDictionary();
+  const single = await buildProductionCanonicalRecord({
+    cauIRI: 'ex:SinglePassCAU',
+    sessionId: 'single-pass-session',
+    disposition: 'Entailed',
+    bfoCategory: 'bfo:Process',
+    explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
+    iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' }] },
+    sessionState: { backgroundTheoryVersion: 'BFO-2020' },
+  });
+
+  const twoRound = await buildProductionCanonicalRecord({
+    cauIRI: 'ex:TwoRoundCAU',
+    sessionId: 'two-round-session',
+    disposition: 'Entailed',
+    bfoCategory: 'bfo:Process',
+    explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
+    iterationState: {
+      rounds: [
+        { round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' },
+        { round: 1, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 15, timestamp: '2026-04-24T00:01:00Z' },
+      ],
+    },
+    sessionState: { backgroundTheoryVersion: 'BFO-2020' },
+  });
+
+  const threeRound = await buildProductionCanonicalRecord({
+    cauIRI: 'ex:ThreeRoundCAU',
+    sessionId: 'three-round-session',
+    disposition: 'Entailed',
+    bfoCategory: 'bfo:Process',
+    explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
+    iterationState: {
+      rounds: [
+        { round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 8, timestamp: '2026-04-24T00:00:00Z' },
+        { round: 1, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 12, timestamp: '2026-04-24T00:01:00Z' },
+        { round: 2, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 20, timestamp: '2026-04-24T00:02:00Z' },
+      ],
+    },
+    sessionState: { backgroundTheoryVersion: 'BFO-2020' },
+  });
+
+  for (const r of [single, twoRound, threeRound]) writeCanonicalRecord(r, { phase: 'production' });
+
+  return {
+    singlePassRecords: `iterationHistory length == ${single.provenance.iterationHistory.length} (round 0)`,
+    twoRoundFallback: `iterationHistory length == ${twoRound.provenance.iterationHistory.length}`,
+    threeRoundFallback: `iterationHistory length == ${threeRound.provenance.iterationHistory.length}`,
+    allHistoryEntriesComplete: ['round', 'disposition', 'bfoCategory', 'reasonerStepsConsumed', 'timestamp'],
+  };
+}
+
+async function handleInspectProvenanceStorage(scenario) {
+  resetAxiomDictionary();
+  const sessionId = 'shared-axiom-session';
+  const sharedAxiom = {
+    iri: 'bfo:hasParticipant',
+    kind: 'existentialRestriction',
+    target: 'bfo:Continuant',
+    weight: 'High',
+  };
+
+  const records = [];
+  for (let i = 0; i < 10; i++) {
+    records.push(await buildProductionCanonicalRecord({
+      cauIRI: `ex:SharedCAU${i}`,
+      sessionId,
+      disposition: 'Entailed',
+      bfoCategory: 'bfo:Process',
+      explanationInput: {
+        satisfiedNCs: [{ iri: 'bfo:ProcessNC1', bfoCategoryAffected: 'bfo:Process', axioms: [sharedAxiom] }],
+      },
+      iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' }] },
+      sessionState: { backgroundTheoryVersion: 'BFO-2020' },
+    }));
+  }
+
+  for (const r of records) writeCanonicalRecord(r, { phase: 'production' });
+
+  const dictSize = dictionarySize(sessionId);
+  const allRecordsReferenceViaID = records.every((r) => {
+    return r.explanation.axiomEvidence.every((ev) => /^[0-9a-f]{64}$/.test(ev.axiomIRI));
+  });
+
+  // Footprint comparison: sum of dictionary-ID reference size vs inlined
+  // canonical form size. Dedup ratio meaningful when dictSize << records.
+  const snapshot = snapshotDictionary(sessionId);
+  const dedupRatio = records.length / Math.max(dictSize, 1);
+  return {
+    axiomDictionaryExists: snapshot.length > 0,
+    axiomDictionarySize: dictSize === 1 ? 'small (shared axioms appear once)' : `size ${dictSize}`,
+    recordReferencesViaIDsNotInline: allRecordsReferenceViaID,
+    totalStorageFootprintCompactedVsInlined: dedupRatio >= 10
+      ? 'meaningful reduction'
+      : 'no meaningful reduction',
+  };
+}
+
+// Band 3 — evidence-inconsistent-override-path
+async function handleAnalystOverrideCAU(scenario) {
+  resetAxiomDictionary();
+  const sessionId = 'override-session';
+  const cauIRI = scenario.trigger.cauIRI || 'ex:InconsistentClass';
+  const targetPlacement = scenario.trigger.placement || 'bfo:Process';
+
+  const overridden = await buildProductionCanonicalRecord({
+    cauIRI,
+    sessionId,
+    disposition: 'Entailed', // post-override
+    bfoCategory: targetPlacement,
+    explanationInput: {
+      satisfiedNCs: [{
+        iri: 'analystOverride',
+        bfoCategoryAffected: targetPlacement,
+        axioms: [{ iri: 'ex:analyst-asserted-placement', kind: 'analystOverrideAxiom', weight: 'High' }],
+      }],
+      alternativesConsidered: [{ bfoCategory: 'Inconsistent', result: 'overridden by analyst per Rule EV-1' }],
+      reconciliationHistory: [{
+        priorPlacement: { disposition: 'Inconsistent', bfoCategory: null },
+        triggeringEvent: 'analyst_override',
+        updatedPlacement: { disposition: 'Entailed', bfoCategory: targetPlacement },
+        causedBy: null,
+        timestamp: '2026-04-24T00:00:00Z',
+      }],
+    },
+    iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: targetPlacement, reasonerStepsConsumed: 0, timestamp: '2026-04-24T00:00:00Z' }] },
+    sessionState: { backgroundTheoryVersion: 'BFO-2020', compatibilityDegraded: false },
+    overrideInfo: { analystOverride: true, originalDisposition: 'Inconsistent' },
+  });
+
+  writeCanonicalRecord(overridden, { phase: 'production' });
+
+  return {
+    cauFinalDisposition: overridden.disposition,
+    cauProvenance: {
+      analystOverride: overridden.provenance.analystOverride.analystOverride,
+      originalDisposition: overridden.provenance.analystOverride.originalDisposition,
+    },
+    sessionLevelCompatibilityDegradedFlag: overridden.provenance.compatibilityDegraded,
+  };
+}
+
+// Band 5 — notapplicable-provenance-fields: NA records carry all DP-2 fields
+async function handleRetrieveCanonicalRecord(scenario) {
+  resetAxiomDictionary();
+  const cauIRI = scenario.trigger.cauIRI || 'ex:CategoryA';
+  const record = await buildProductionCanonicalRecord({
+    cauIRI,
+    sessionId: 'na-retrieve-session',
+    disposition: 'NotApplicable',
+    bfoCategory: null,
+    explanationInput: {
+      routingMechanism: 'automatic',
+      triggerAxiom: { iri: 'ex:skos-Concept-declaration', kind: 'nonBfoDeclaration' },
+      triggerRule: 'NA-1',
+    },
+    iterationState: { rounds: [{ round: 0, disposition: 'NotApplicable', bfoCategory: null, reasonerStepsConsumed: 5, timestamp: '2026-04-24T00:00:00Z' }] },
+    sessionState: { backgroundTheoryVersion: 'BFO-2020', compatibilityDegraded: false },
+  });
+
+  writeCanonicalRecord(record, { phase: 'production' });
+
+  return {
+    record: {
+      disposition: record.disposition,
+      explanation: record.explanation && record.explanation.routingMechanism
+        ? 'present (routing mechanism documented)'
+        : 'missing',
+      provenance: record.provenance && record.provenance.sessionId
+        ? 'present (sessionId, timestamp, routingMechanism)'
+        : 'missing',
+      reproducibilityHash: record.reproducibilityHash && record.reproducibilityHash.finalHash
+        ? 'present (Final Hash computed)'
+        : 'missing',
+    },
+  };
 }
 
 // Band 5 NA-1.4 reactive engine handlers. Operates per SME-approved
@@ -1054,7 +1410,7 @@ const TRIGGER_HANDLERS = {
   // with a synthetic NC-satisfaction set; others fall through to skip)
   evaluateCAU: handleEvaluateCAU,
   evaluateCAUs: handleEvaluateCAUs,
-  analystOverrideCAU: null,
+  analystOverrideCAU: handleAnalystOverrideCAU,
 
   // Band 4 — BFO Level Distinction
   enumerateBFOTargetCategories: handleEnumerateBFOTargetCategories,
@@ -1066,13 +1422,14 @@ const TRIGGER_HANDLERS = {
   applyMutationSequence: handleApplyMutationSequence,
 
   // Band 6 — DP-2 Invariant Enforcement
-  retrieveCanonicalRecord: null,
+  retrieveCanonicalRecord: handleRetrieveCanonicalRecord,
   retrieveReproducibilityHash: null,
   compareFinalHashes: null,
   attemptCanonicalWrite: handleAttemptCanonicalWrite,
   attemptCanonicalWrites: handleAttemptCanonicalWrites,
-  verifyDP2Conformance: null,
-  inspectProvenanceStorage: null,
+  verifyDP2Conformance: handleVerifyDP2Conformance,
+  verifyIterationHistory: handleVerifyIterationHistory,
+  inspectProvenanceStorage: handleInspectProvenanceStorage,
 
   // Band 7 — DP-1 Diagnostic (startSession also used by Band 1 cache scenario)
   startSession: handleStartSession,

@@ -1,0 +1,256 @@
+{
+  "curated_process_categories_v1.0": {
+    "schema_version": "1.0",
+    "version_identifier": "fandaws-curated-process-categories-v1.0",
+    "authored_by": "SME",
+    "authored_date": "2026-04-22",
+    "intended_grounds": "RoleNC3, FunctionNC3, DispositionNC3 helper predicates in bfo-signatures-v1.0.json — specifically cau_realization_requires_social_institutional_context/1, cau_has_teleological_commitment/1, cau_realization_has_triggering_circumstances/1.",
+    "vd6_behavior": "Per Q-V1.0-2, any new entry added OR any semantic change to an existing entry's include_subclasses flag triggers VD-6 re-evaluation of affected sessions. Additions of entries that don't semantically shift an existing entry's scope (e.g., adding a new social/institutional process type) are VD-6 events but typically don't invalidate prior classifications — the update mostly surfaces coverage for previously-NotApplicable CAUs. Semantic changes to include_subclasses scoping are more disruptive because they redefine the predicate's reach.",
+
+    "source_materials": [
+      "Arp, Smith, Spear (2015) 'Building Ontologies with Basic Formal Ontology' — §5.3.2 (Role), §5.3.3 (Function), §5.3.4 (Disposition)",
+      "Spear, Ceusters, Smith (2016) 'Functions in Basic Formal Ontology' Applied Ontology 11(2):103-128",
+      "Smith, Kumar, Ceusters (2005) 'On Carcinomas and Other Pathological Entities' — §4.3 on socially-realized dispositions",
+      "Röhl, Jansen (2011) 'Representing Dispositions' Journal of Biomedical Semantics 2(Suppl 4):S4 — triggering-circumstance formalization",
+      "CCO Process Hierarchy (current as of 2024) for artifact-process examples"
+    ],
+
+    "scope_note": "Entries in these lists are process categories at the semantic level, not exhaustive enumerations of every instance. Prolog helpers query membership via subsumption — if a CAU's realization targets a process subsumed by one of the listed entries (when include_subclasses: true) or exactly matching a listed entry (when include_subclasses: false), the corresponding helper predicate succeeds. Entries represent BFO-informed judgment about which process types belong in each category per the cited literature; disagreement on specific entries can be resolved via amendment cycle with SME review. These lists are calibration-target for D1.6 (CCO, PROV-O, NCBITaxon sample); expansion for broader OBO coverage is post-D1.6 work.",
+
+    "categories": {
+      "social_institutional": {
+        "description": "Processes realized through social or institutional participation. The bearer realizes the process as a member of a community or organization; the process is socially constituted, not causally triggered by material conditions alone. Per Smith/Kumar/Ceusters 2005 and Arp/Smith/Spear §5.3.2, these processes distinguish Role from both Function (no teleology required) and Disposition (no social context required).",
+        "grounds_nc": "RoleNC3",
+        "helper_predicate": "cau_realization_requires_social_institutional_context/1",
+        "entries": [
+          {
+            "iri": "cco:InstitutionalProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy; aligned with Arp/Smith/Spear §5.3.2 institutional-process examples",
+            "notes": "Broad parent for processes requiring institutional structure. Covers CCO subclasses for organizational activities, governance processes, legal proceedings."
+          },
+          {
+            "iri": "cco:SocialInteractionProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy; Smith/Kumar/Ceusters 2005 §4.3",
+            "notes": "Covers interpersonal and group social processes that realize socially-constituted roles. Distinct from purely physical interaction processes."
+          },
+          {
+            "iri": "cco:CommercialTransaction",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.2 commercial-role examples",
+            "notes": "Transactions whose realization requires buyer/seller/regulatory roles. Includes sale, purchase, contract execution, payment processing."
+          },
+          {
+            "iri": "cco:GovernanceProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy",
+            "notes": "Processes involving authority structures — legislative, judicial, executive. Realizes institutional roles; does not realize through mere material interaction."
+          },
+          {
+            "iri": "cco:ProfessionalActivity",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.2; Smith/Kumar/Ceusters 2005",
+            "notes": "Covers processes realized by professional roles (medical consultation, legal representation, teaching, engineering practice). The professional credential constitutes the role; the activity constitutes the socially-realized process."
+          },
+          {
+            "iri": "cco:EducationalProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy; Arp/Smith/Spear §5.3.2",
+            "notes": "Teaching, learning, assessment, credentialing. Realized through institutional structures (schools, universities, professional bodies) — student and teacher roles are socially constituted."
+          },
+          {
+            "iri": "cco:LegalProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.2 legal-role examples",
+            "notes": "Trials, hearings, filings, adjudication. Realizes legal roles (judge, witness, defendant, counsel) that exist only within institutional legal framework."
+          },
+          {
+            "iri": "cco:OrganizationalProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy",
+            "notes": "Internal organization activities — meetings, deliberations, reporting, supervision. Realizes organizational roles. Distinguished from individual-activity by requirement of organizational context."
+          },
+          {
+            "iri": "cco:CeremonialProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.2; ritual-process examples",
+            "notes": "Weddings, graduations, religious services, inaugurations. Socially-constituted — the process has its identity because of social recognition, not physical mechanism."
+          },
+          {
+            "iri": "cco:CulturalPracticeProcess",
+            "include_subclasses": true,
+            "source": "Smith/Kumar/Ceusters 2005 §4.3; broader cultural-process literature",
+            "notes": "Practices realized through cultural community participation. Inclusive of artistic performance, cultural tradition, community ritual — where the practice's realization is constituted by cultural context."
+          }
+        ]
+      },
+
+      "design_expected": {
+        "description": "Processes the bearer was specifically designed, manufactured, selected, or evolved to realize. The distinguishing feature per Spear/Ceusters/Smith 2016 and Arp/Smith/Spear §5.3.3 is teleological commitment — there is a 'what the thing is for' answer grounded in design intent or evolutionary selection. Function is a subclass of Disposition (per BFO-OWL); what makes a disposition a function is this teleological grounding.",
+        "grounds_nc": "FunctionNC3",
+        "helper_predicate": "cau_has_teleological_commitment/1",
+        "entries": [
+          {
+            "iri": "cco:PumpingProcess",
+            "include_subclasses": true,
+            "source": "Spear/Ceusters/Smith 2016 §3 biological-function examples; CCO Process Hierarchy",
+            "notes": "Exemplar from the D1.6 CCO demo fixture. Heart pumping, mechanical pump displacement — bearers are designed/evolved to pump. Covers biological and artifactual pumping processes."
+          },
+          {
+            "iri": "cco:CirculatoryProcess",
+            "include_subclasses": true,
+            "source": "Spear/Ceusters/Smith 2016 §3 biological-function examples",
+            "notes": "Blood circulation, lymphatic flow, sap transport. Biologically evolved-for processes distinguished from mere fluid movement by the organism's dependency on their realization."
+          },
+          {
+            "iri": "cco:DigestiveProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.3 biological-function examples",
+            "notes": "Digestion, absorption, nutrient processing. Evolved biological functions whose realization the organism is designed-for."
+          },
+          {
+            "iri": "cco:RespiratoryProcess",
+            "include_subclasses": true,
+            "source": "Spear/Ceusters/Smith 2016; Arp/Smith/Spear §5.3.3",
+            "notes": "Breathing, gas exchange, ventilation. Covers both biological (lung function) and artifactual (ventilator function) respiratory processes."
+          },
+          {
+            "iri": "cco:CognitiveProcess",
+            "include_subclasses": true,
+            "source": "Spear/Ceusters/Smith 2016 §5 on neurological functions",
+            "notes": "Memory, perception, reasoning. Evolved neurological functions; the brain is designed-for these processes in the teleological sense used in Spear/Ceusters/Smith 2016. Distinct from arbitrary brain states."
+          },
+          {
+            "iri": "cco:SensoryProcess",
+            "include_subclasses": true,
+            "source": "Spear/Ceusters/Smith 2016 §5",
+            "notes": "Vision, audition, olfaction, touch, proprioception. Sensory organs are evolved-for these processes; artifactual sensors (cameras, microphones) are designed-for analogous processes."
+          },
+          {
+            "iri": "cco:CuttingProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.3 artifact-function examples",
+            "notes": "Knives, scissors, saws — designed-for cutting. Covers artifactual cutting across tool types. Natural cutting (e.g., erosion) is NOT in this category; it's causal-triggering without teleology."
+          },
+          {
+            "iri": "cco:MeasurementProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.3; CCO measurement ontology",
+            "notes": "Thermometers measure temperature; scales measure mass; clocks measure time. Instruments are designed-for measurement functions. Calibration and accuracy concerns are downstream of the design-for commitment."
+          },
+          {
+            "iri": "cco:ComputationalProcess",
+            "include_subclasses": true,
+            "source": "Extension of Spear/Ceusters/Smith 2016 to artifactual cognitive functions",
+            "notes": "Processors execute computations; algorithms realize specific computational functions. Designed-for in the strongest sense — computational devices have explicit specifications of the functions they realize."
+          },
+          {
+            "iri": "cco:CommunicationProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.3 artifact-function and social-function examples",
+            "notes": "Radio transmission, telephone communication, signal conveyance. Designed-for communication functions. Biological communication (animal signaling, evolved vocalization) also fits here via the evolutionary-selection branch of FunctionNC3."
+          },
+          {
+            "iri": "cco:ManufacturingProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy; Arp/Smith/Spear §5.3.3",
+            "notes": "Machines designed-for manufacturing specific products. Covers assembly, fabrication, chemical synthesis in industrial contexts. Distinct from spontaneous physical/chemical change."
+          },
+          {
+            "iri": "cco:MetabolicProcess",
+            "include_subclasses": true,
+            "source": "Spear/Ceusters/Smith 2016; Arp/Smith/Spear §5.3.3 biological-function examples",
+            "notes": "Enzyme catalysis, metabolic pathways, cellular respiration. Biologically evolved-for processes at the molecular level. The enzyme is designed-for (by evolutionary selection) the catalytic function."
+          }
+        ]
+      },
+
+      "causal_triggering": {
+        "description": "Processes triggered by specific circumstances without teleology or social context. Per Arp/Smith/Spear §5.3.4 and Röhl/Jansen 2011, the distinguishing feature is manifestation-on-triggering — the process happens when triggering conditions occur, and the bearer wasn't designed-for or socially-constituted for this realization. The disposition is borne structurally or materially; the process realizes when the trigger conditions arise.",
+        "grounds_nc": "DispositionNC3",
+        "helper_predicate": "cau_realization_has_triggering_circumstances/1",
+        "entries": [
+          {
+            "iri": "cco:ShatteringProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.4 fragility example; Röhl/Jansen 2011",
+            "notes": "Exemplar from the D1.6 CCO demo fixture. Glass shattering on impact, ceramic breaking. Fragility is the borne disposition; shattering is the causally-triggered realization. The artifact wasn't designed-for shattering; impact triggers it."
+          },
+          {
+            "iri": "cco:DissolvingProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.4 solubility example",
+            "notes": "Salt dissolving in water, sugar dissolving in tea. Solubility is the disposition; dissolving is the triggered realization. Contact with solvent is the trigger; the substance wasn't designed-for dissolution."
+          },
+          {
+            "iri": "cco:CombustionProcess",
+            "include_subclasses": true,
+            "source": "Röhl/Jansen 2011 flammability examples",
+            "notes": "Wood burning, gasoline igniting. Flammability is the borne disposition; combustion is the triggered realization under ignition + oxygen conditions. Match design-intent is irrelevant — the wood itself wasn't designed-for burning."
+          },
+          {
+            "iri": "cco:CorrosionProcess",
+            "include_subclasses": true,
+            "source": "CCO Process Hierarchy; Röhl/Jansen 2011 extension",
+            "notes": "Iron rusting, copper oxidizing, acid etching metals. Material corrodibility is the disposition; corrosion is the triggered realization under exposure to corrosive conditions."
+          },
+          {
+            "iri": "cco:DecayProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.4 biological-decay examples",
+            "notes": "Organic matter decomposing, food spoiling, radioactive decay. Decay-disposition is structural; realization triggered by environmental conditions or time-passage. Includes both biological decomposition and physical decay."
+          },
+          {
+            "iri": "cco:EvaporationProcess",
+            "include_subclasses": true,
+            "source": "Physical-disposition examples from Röhl/Jansen 2011",
+            "notes": "Water evaporating, solvent evaporating. Volatility is the disposition; evaporation is triggered by temperature + pressure conditions. The liquid wasn't designed-for evaporation — the molecular structure produces the disposition."
+          },
+          {
+            "iri": "cco:ConductionProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.4 physical-disposition examples",
+            "notes": "Heat conducting through metal, electrical current flowing through conductor. Conductivity is the disposition; conduction is triggered realization under appropriate gradient conditions. Material properties ground the disposition; physical conditions trigger it."
+          },
+          {
+            "iri": "cco:RadiationProcess",
+            "include_subclasses": true,
+            "source": "Physical-disposition examples from the BFO realist-chemistry literature",
+            "notes": "Radioactive emission, thermal radiation. Radioactivity / emissivity are dispositions; radiation is triggered realization. For radioactive materials, trigger is internal (unstable nucleus) — no external trigger needed, but realization still triggered rather than designed-for."
+          },
+          {
+            "iri": "cco:DeformationProcess",
+            "include_subclasses": true,
+            "source": "Röhl/Jansen 2011 material-disposition examples",
+            "notes": "Ductile metal deforming under stress, rubber stretching under tension. Ductility / elasticity are dispositions; deformation is triggered realization under applied force. Distinct from designed-for shape-change (e.g., hydraulic press has designed deformation function)."
+          },
+          {
+            "iri": "cco:ChemicalReactionProcess",
+            "include_subclasses": true,
+            "source": "Arp/Smith/Spear §5.3.4; Röhl/Jansen 2011 on chemical reactivity",
+            "notes": "Acid-base reactions, redox reactions, spontaneous chemical transformations. Reactivity is the disposition; reaction is the triggered realization. Excludes designed-for chemical processes (e.g., synthesis in a designed reactor — that's design_expected) and includes only spontaneous/triggered reactions."
+          },
+          {
+            "iri": "cco:PhaseTransitionProcess",
+            "include_subclasses": true,
+            "source": "Physical-disposition literature in BFO realist-chemistry",
+            "notes": "Melting, freezing, boiling, condensation. Phase-change disposition is material-structural; realization triggered by temperature/pressure crossing phase-boundary conditions. Not designed-for; inherent to material structure."
+          },
+          {
+            "iri": "cco:FailureProcess",
+            "include_subclasses": true,
+            "source": "Extension of Röhl/Jansen 2011 to engineered-material failure",
+            "notes": "Structural failure, mechanical breakdown, fatigue fracture. Failure-disposition borne by the material/structure; realization triggered by accumulated stress or exceeded limits. Includes both material failure and mechanical system breakdown."
+          }
+        ]
+      }
+    },
+
+    "mutual_exclusivity": "The three categories are mutually exclusive at the semantic level per BFO. A specific process type should appear in exactly one category. If a process type appears plausible for two categories, one of the following applies: (a) the category selection reflects which distinguishing feature dominates (e.g., manufacturing by a designed machine is design_expected even though it involves chemical reactions); (b) the process type is overly broad and should be decomposed into subtypes that cleanly fit one category each; (c) the process type is genuinely ambiguous and should route to Plausible with evidence annotation per the three-state evidence model. Disagreement on category placement for specific entries is resolved via amendment cycle with SME review.",
+
+    "non_coverage_handling": "If a CAU's realization targets a process not covered by any list entry (at the direct or subclass level), the three helper predicates all return false, and the CAU's Role/Function/Disposition distinction cannot be resolved from realization-target alone. Per the three-state evidence model, such CAUs route to Plausible with structured evidence annotation rather than being forced into a category. This is design-correct behavior — the curated lists represent calibration-target coverage, not exhaustive enumeration, and genuine non-coverage is better surfaced as Plausible-for-analyst-review than forced into a category on heuristic grounds.",
+
+    "expansion_policy": "Expansion beyond calibration-target coverage (CCO, PROV-O, NCBITaxon sample) is post-D1.6 work. OBO-Foundry ontologies beyond the calibration target may require additional entries specific to their domains. Any expansion triggers VD-6 re-evaluation per Q-V1.0-2 and requires SME review of the candidate additions. The v1.0 lists are sized for D1.6 calibration; v1.1+ expansion follows the amendment cycle discipline established for the three-state evidence model and the BFO Signature Reference."
+  }
+}

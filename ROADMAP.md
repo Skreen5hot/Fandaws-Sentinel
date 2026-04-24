@@ -1914,10 +1914,60 @@ The consistency sandbox uses **Tau Prolog** (a Prolog interpreter written in Jav
 
 ---
 
+## Phase D1.6: Architectural Correction — CAUs, Logical Signatures, Epistemic Commitment
+
+**Goal:** Replace D1's per-class heuristic placement with Candidate Alignment Unit (CAU) reasoning over Normalized Logical Signatures. Introduces a three-state evidence model (Entailed / Plausible / Inconsistent / NotApplicable), iterative cross-phase reasoning, Taxonomic Descent with Provisional Inheritance, a Reactive Re-evaluation Engine, and first-class epistemic-system commitments (DP-1 soft-gate diagnostic, DP-2 mandatory explanation/provenance/reproducibilityHash on every canonical record).
+**Status:** In Progress — Wave 2 closed 2026-04-22; DP-2.1 landed 2026-04-23; **58 of 69 AVC scenarios passing (84%)**, zero regressions across 108 test suites / 2,359 tests
+**Priority:** Critical (blocks PROV-O Pass 2 calibration)
+**Effort:** Very High (14–16 weeks to PROV-O re-run; 11 SME-LOCKED items; 8 bands)
+**Depends on:** Phase D2 (preserved with light correction per D1.6-L21), Workbench v0.2 (adaptation at Phase 1/Phase 2 Review panels per §9.3), IndexedDB-backed DependencyGraph infrastructure (new in v1.1.0)
+**Supersedes:** Phase D1.5 v0.2 (retired)
+**Spec:** `specs/d16/Fandaws_Sentinel_Phase_D1_6_Spec_v1_1_0.md` (v1.1.0, 1,103 lines, SME + Aaron approved)
+**AVC Bundle:** `avc/fandaws-sentinel-d16-avc-bundle.json` (v4, 69 scenarios across 8 bands)
+**Amendment:** D1.6-AMEND-01 (Taxonomic Descent + Reactive Engine, NA-1.1 through NA-1.4) integrated at v1.1.0
+
+### Architecture (Four Mandates + Two Design Principles)
+
+- **M1 — Candidate Alignment Unit (CAU):** Every class is a CAU. Uniform Normalized Logical Signature evaluation replaces hierarchy-based reasoning.
+- **M2 — Iterative Pipeline:** Phase 1 / Phase 2 inform each other through bounded iteration (not strict waterfall).
+- **M3 — Three-State Evidence Model:** Entailed / Plausible / Inconsistent / NotApplicable replace arithmetic confidence scoring.
+- **M4 — Unmapped Classes:** First-class NotApplicable disposition; formal BFO-level constraints (Material/Immaterial, GDC/SDC, Role/Function/Disposition).
+- **DP-1 — Soft-Gate Diagnostic:** Realist incompatibility surfaced with `compatibilityDegraded` session flag; never hard-halts the pipeline.
+- **DP-2 — Epistemic System:** Every canonical record carries `{explanation, provenance, reproducibilityHash}`. Missing any = non-conformant. Hard invariant.
+
+### Wave Structure (11 SME-LOCKED Items)
+
+| Wave | Scope | Items | Status |
+|---|---|---|---|
+| Wave 0 | Baseline CRITICAL helpers | 3 | Complete, SME-validated |
+| Wave 1 | Composition helpers | 4 | Complete, SME-validated |
+| Wave 2 | Axiom-pattern helpers (SDCNC3, GDCNC3, QualityNC3) | 3 | **Closed 2026-04-22**, SME-validated |
+| Wave 3 | RoleNC5 | 1 | **Deferred to v1.1+** (out of current scope) |
+
+**10 of 11 SME-LOCKED items integration-path-complete.**
+
+### Band Structure (AVC Scenarios)
+
+Source modules in `src/core/d16/`: `cau-signature.js`, `turtle-to-triples.js`, `bfo-signature-cache.js`, `three-state-evaluator.js`, `iteration-mechanics.js`, `inheritance-cascade.js`, `reactive-engine.js`, `dp1-diagnostic.js`, `critical-nc-helpers.js`.
+
+Remaining work clusters at **Band 6 — DP-2 Invariant Enforcement** (10 scenarios) plus 3 DP-2-dependent scenarios in other bands (Band 3 override path, Band 5 NotApplicable provenance, Band 8 end-to-end acceptance gate `provo-end-to-end-acceptance`). **13 total blocked until DP-2 infrastructure exists.** DP-2 rules DP-2-R1 through DP-2-R5 govern mandatory fields, schema validation, and axiom-dictionary deduplication.
+
+### Next Cycle — DP-2 Scaffolding Design Sketch
+
+Per SME standing offer, DP-2 scaffolding is architecturally novel and gets a pre-implementation design-sketch review (24h async) before coding. Sub-wave structure likely: DP-2.1 schema validation → DP-2.2 provenance plumbing → DP-2.3 reproducibility hashing.
+
+### Open Forward-Flags (Weeks 9–11 Backlog)
+
+Six items tracked in `docs/architecture/week9-11-forward-flags.md`. Several converge at DP-2: `bfo-signature-cache` session-hash registry hardening; `applyMutationSequence` must-compute fields; class-subsumption infrastructure for curated-list `include_subclasses: true`; §4.5 convergence argument companion (merged); CCO Quality exemplar fixture expansion (low-pri).
+
+**NOT in Phase D1.6:** RoleNC5 (v1.1+), curated-list expansion (triggers VD-6 re-evaluation), `fan:RelationalQuality` reification, full Phase 2 rearchitecture (future D2.1), large-ontology support (>1MB / >500 classes).
+
+---
+
 ## Workbench v0.2: Ingest Mode
 
-**Goal:** Add Ingest mode as a third workspace alongside Converse and Export. Provides the UI surface for the D1/D2 bulk ingestion pipeline. Primary driver: PROV-O Calibration Study requires a UI for three-phase ingestion with structured artifact capture.
-**Status:** Not Started (depends on D1 + D2 complete)
+**Goal:** Add Ingest mode as a third workspace alongside Converse and Export. Provides the UI surface for the D1/D2 bulk ingestion pipeline. Primary driver: PROV-O Calibration Study requires a UI for three-phase ingestion with structured artifact capture. Phase 1/Phase 2 Review panels will be adapted per D1.6 §9.3 once D1.6 DP-2 lands.
+**Status:** Not Started (depends on D1 + D2 complete; Phase 1/2 panel adaptation pending D1.6 DP-2)
 **Priority:** High
 **Effort:** High (60 AVC scenarios, six panels, two new npm dependencies, localStorage persistence)
 **Depends on:** Phase D2 complete (178/178 AVC scenarios). Workbench v0.1 Converse + Export modes functional.

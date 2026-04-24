@@ -1,0 +1,264 @@
+==============================================================================
+D1.6 CAU Signature Extraction Demo — CCO Core subset
+Fixture: C:\Users\aaron\OneDrive\Documents\Fandaws-Sentinel\specs\d16\fixtures\cco-core-demo-subset.ttl
+==============================================================================
+
+Parsed 153 triples in 125ms.
+Namespaces: rdf, rdfs, owl, xsd, bfo, cco
+
+Extracting Signatures for 12 CAUs:
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Agent  (http://www.ontologyrepository.com/CommonCoreOntologies/Agent)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"cco:bearerOf","restrictionKind":"someValuesFrom","target":"cco:AgentRole","diagnosticWeight":"Medium","directlyDeclared":true}
+  propertyRestrictionsAsRange:
+    - {"property":"cco:hasAgent","restrictionKind":"someValuesFrom","sourceClass":null,"diagnosticWeight":"Medium"}
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions:
+    - {"onProperty":"cco:bearerOf","someValuesFrom":"cco:AgentRole"}
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): 6edc2dd428f941bca290aecd693d867734991128bc62e740dfd82e05c3b07a4f
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:AgentRole  (http://www.ontologyrepository.com/CommonCoreOntologies/AgentRole)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"bfo:0000052","restrictionKind":"cardinality","target":"1","diagnosticWeight":"High","directlyDeclared":true}
+  propertyRestrictionsAsRange:
+    - {"property":"cco:bearerOf","restrictionKind":"someValuesFrom","sourceClass":null,"diagnosticWeight":"Medium"}
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions: []
+  universalRestrictions: []
+  cardinalityRestrictions:
+    - {"onProperty":"bfo:0000052","diagnosticWeight":"High","cardinality":1}
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): a7648f99497e262ea01e0cdb5d26970de3e148b60456f48d80a95da98e18f53a
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Artifact  (http://www.ontologyrepository.com/CommonCoreOntologies/Artifact)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain: []
+  propertyRestrictionsAsRange:
+    - {"property":"bfo:0000052","restrictionKind":"someValuesFrom","sourceClass":null,"diagnosticWeight":"Medium"}
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions: []
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): 043a5b442c82aae158771c3ad043a51b1fc65dd2a3e77384ca8a182e9f16c1ec
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Color  (http://www.ontologyrepository.com/CommonCoreOntologies/Color)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"bfo:0000052","restrictionKind":"someValuesFrom","target":"bfo:0000040","diagnosticWeight":"High","directlyDeclared":true}
+  propertyRestrictionsAsRange: []
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions:
+    - {"onProperty":"bfo:0000052","someValuesFrom":"bfo:0000040"}
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): 3a1b586b6afbb063622cec5a3828679795956c141d872fcd073d6fe51b0263b1
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:DesignativeInformationContentEntity  (http://www.ontologyrepository.com/CommonCoreOntologies/DesignativeInformationContentEntity)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"bfo:0000058","restrictionKind":"someValuesFrom","target":"bfo:0000040","diagnosticWeight":"High","directlyDeclared":true}
+  propertyRestrictionsAsRange: []
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions:
+    - {"onProperty":"bfo:0000058","someValuesFrom":"bfo:0000040"}
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): 80098d44730b084ad10b38fc19d80bade280fdc9f1a015d1a292d8fe76b070fa
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Event  (http://www.ontologyrepository.com/CommonCoreOntologies/Event)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"cco:hasAgent","restrictionKind":"someValuesFrom","target":"cco:Agent","diagnosticWeight":"Medium","directlyDeclared":true}
+    - {"property":"bfo:0000057","restrictionKind":"someValuesFrom","target":"cco:Agent","diagnosticWeight":"High","inheritedViaSubPropertyOf":"cco:hasAgent"}
+  propertyRestrictionsAsRange: []
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions:
+    - {"onProperty":"cco:hasAgent","someValuesFrom":"cco:Agent"}
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":true,"maxDepthTraversed":1}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): cac2d7d3acf4905bfbbb3f383e421af18c3a7a9823b47cd1ebe33dbe2c08a3cb
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Fragility  (http://www.ontologyrepository.com/CommonCoreOntologies/Fragility)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"bfo:0000052","restrictionKind":"someValuesFrom","target":"cco:Artifact","diagnosticWeight":"High","directlyDeclared":true}
+    - {"property":"bfo:0000054","restrictionKind":"someValuesFrom","target":"cco:ShatteringProcess","diagnosticWeight":"Medium","directlyDeclared":true}
+  propertyRestrictionsAsRange: []
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions:
+    - {"onProperty":"bfo:0000052","someValuesFrom":"cco:Artifact"}
+    - {"onProperty":"bfo:0000054","someValuesFrom":"cco:ShatteringProcess"}
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): 3926175b6f21ff01651cae49ca9f54e890d24a0cdce38e730e5f665d27eadac3
+
+  ── Production routing (SME-approved curated-list path) ──
+  realizationTargets: ["cco:ShatteringProcess"]
+  helper results:
+    social_institutional (RoleNC3): false
+    design_expected (FunctionNC3):  false
+    causal_triggering (DispositionNC3): true
+  matchCount: 1
+  routing decision: Entailed → bfo:Disposition
+  routedBy: DispositionNC3-via-curated-list
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Heart  (http://www.ontologyrepository.com/CommonCoreOntologies/Heart)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain: []
+  propertyRestrictionsAsRange:
+    - {"property":"bfo:0000052","restrictionKind":"someValuesFrom","sourceClass":null,"diagnosticWeight":"Medium"}
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions: []
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): c3282cb520a2787e71d492d45dd45210fdd0227b518c66f835360d0bae312276
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:HeartPumpingFunction  (http://www.ontologyrepository.com/CommonCoreOntologies/HeartPumpingFunction)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain:
+    - {"property":"bfo:0000052","restrictionKind":"someValuesFrom","target":"cco:Heart","diagnosticWeight":"High","directlyDeclared":true}
+    - {"property":"bfo:0000054","restrictionKind":"someValuesFrom","target":"cco:PumpingProcess","diagnosticWeight":"Medium","directlyDeclared":true}
+  propertyRestrictionsAsRange: []
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions:
+    - {"onProperty":"bfo:0000052","someValuesFrom":"cco:Heart"}
+    - {"onProperty":"bfo:0000054","someValuesFrom":"cco:PumpingProcess"}
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): b6cc94b332bb83a820f60e1a1e33e19fda16a74f902ab048f10672562c80713b
+
+  ── Production routing (SME-approved curated-list path) ──
+  realizationTargets: ["cco:PumpingProcess"]
+  helper results:
+    social_institutional (RoleNC3): false
+    design_expected (FunctionNC3):  true
+    causal_triggering (DispositionNC3): false
+  matchCount: 1
+  routing decision: Entailed → bfo:Function
+  routedBy: FunctionNC3-via-curated-list
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:PumpingProcess  (http://www.ontologyrepository.com/CommonCoreOntologies/PumpingProcess)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain: []
+  propertyRestrictionsAsRange:
+    - {"property":"bfo:0000054","restrictionKind":"someValuesFrom","sourceClass":null,"diagnosticWeight":"Medium"}
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions: []
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): aeea7635b032975957f2670180f425a8a2f4681cf46833ec2f2e0c7bc753cf7e
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:ShatteringProcess  (http://www.ontologyrepository.com/CommonCoreOntologies/ShatteringProcess)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain: []
+  propertyRestrictionsAsRange:
+    - {"property":"bfo:0000054","restrictionKind":"someValuesFrom","sourceClass":null,"diagnosticWeight":"Medium"}
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions: []
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations: []
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): 864ac7d8d3cea0b631c9a420652a39a748ffe201da5388357c943ac5a6795efd
+
+──────────────────────────────────────────────────────────────────────────────
+CAU: cco:Weekday  (http://www.ontologyrepository.com/CommonCoreOntologies/Weekday)
+──────────────────────────────────────────────────────────────────────────────
+  propertyRestrictionsAsDomain: []
+  propertyRestrictionsAsRange: []
+  disjointnessAssertions: []
+  equivalenceClaims: []
+  existentialRestrictions: []
+  universalRestrictions: []
+  cardinalityRestrictions: []
+  hasValueRestrictions: []
+  characteristics: []
+  normalizedEnumerations:
+    - {"kind":"enumeration","cardinality":5,"memberType":"cco:WeekdayInstance"}
+  subPropertyClosureUsed: {"applied":false,"maxDepthTraversed":0}
+  cycleDetectionTriggered: false
+  reproducibilityHash (SHA-256): ccd1e3cba1d3b62a31885f1f37a606aa0e8f615c42bbde9f361cb09046784bae
+
+==============================================================================
+Extracted 12 Signatures in 47ms.
+Average: 3.9ms per CAU.
+==============================================================================

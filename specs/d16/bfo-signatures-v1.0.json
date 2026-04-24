@@ -1,0 +1,909 @@
+{
+  "$schema": "fandaws-bfo-signatures-schema-v1",
+  "version": "1.0",
+  "version_identifier": "fandaws-bfo-sig-ref-v1.0",
+  "status": "IMPLEMENTATION_READY_SME_LOCKED",
+  "authored": "2026-04-21",
+  "parent_reference": "specs/d16/bfo-signature-reference-v1_0.md",
+  "parent_spec": "specs/d16/Fandaws_Sentinel_Phase_D1_6_Spec_v1_1_0.md",
+  "hash_algorithm": "SHA-256",
+  "notes": "Machine-readable encoding of the 55 Necessary Conditions (NCs) defined in the prose reference. Each NC carries an epistemic tag (OWL-DIRECT | OWL-DERIVED | CURATED-NC | CURATED-HEURISTIC) that governs its Tau Prolog treatment and its contribution to Entailment per D1.6 §2.5. Prolog predicate forms are draft stubs — SME Checkpoint 2 (Week 3-4) refines rule bodies against sample CAU Signatures.",
+
+  "owa_reclassification_summary_2026_04_21": "SME async decision 2.1 (pre-Checkpoint-2): ICNC2, ICNC3, IENC2, and OccurrentNC2 reclassified from OWL-DIRECT to OWL-DERIVED with OWA-preserving bodies. Rationale: these four make positive claims about what instances DON'T participate in, and CWA raw-absence encoding (\\+ P(CAU)) would over-commit on partial Signatures — the reasoner would treat 'haven't found evidence' as 'asserted absence,' misclassifying partial ontologies. New bodies use owa_absence_check/3, owa_absence_check_property/2, and owa_disjointness_check/2 helpers which attempt derivation under the background theory and fall back to structural correspondence per D1.6-L4 on step-cap exhaustion. The other 6 originally-OWL-DIRECT negative-commitment items stay OWL-DIRECT (inheritance compositions that follow their parents, or items where the absence-assertion semantic was explicitly confirmed correct).",
+
+  "classification_notes": {
+    "owl_direct_vs_derived_shift": "Post-2026-04-21 status: 4 of the original 10 flagged items (ICNC2, ICNC3, IENC2, OccurrentNC2) reclassified to OWL-DERIVED per SME decision 2.1. See owa_reclassification_summary_2026_04_21 above. Remaining items (ContinuantNC1, ContinuantNC2, and the inheritance-compositions ICNC1 / SDCNC1 / MENC1 / IENC1) stay OWL-DIRECT. Per-item owa_reclassification_note fields on the reclassified entries document rationale at the entry level.",
+    "cau_consistent_with_helper_naming": "The helper predicate cau_consistent_with/3 is used by MENC2, ProcessNC3, TemporalRegionNC2, OccurrentNC1, and ProcessBoundaryNC2. Its current semantic ('the CAU's Signature does not contradict restriction X') conflates two distinct cases: (a) compatibility-via-declared-axiom (the CAU explicitly declares a compatible restriction) and (b) compatibility-via-absence-of-contradiction (the CAU declares no axiom that would rule out the restriction). SME Checkpoint 2 should decide whether to split this into two helper predicates or keep it fused with internal case-handling inside the predicate body.",
+    "dispositionNC5_disjunctive_form": "The Prolog body for DispositionNC5 uses an explicit disjunction with negation-as-failure in the second branch: ( cau_has_teleological_commitment(CAU) ; ( \\+ cau_has_teleological_commitment(CAU), cau_realization_has_triggering_circumstances(CAU) ) ). The second disjunct's negation prevents a Function CAU from matching the non-Function path simultaneously — that would produce two evaluation routes into the realizable-entity cascade and defeat its determinism. Confirmed correct 2026-04-21."
+  },
+
+  "tag_behavior": {
+    "OWL-DIRECT": {
+      "prolog_treatment": "asserted_ground_truth",
+      "required_for_entailment": true,
+      "failure_consequence": "cannot_be_entailed"
+    },
+    "OWL-DERIVED": {
+      "prolog_treatment": "inference_rule_under_step_cap",
+      "required_for_entailment": true,
+      "failure_consequence": "cannot_be_entailed_fallback_to_structural_correspondence_per_D1.6-L4",
+      "step_cap": 10000
+    },
+    "CURATED-NC": {
+      "prolog_treatment": "query_against_curated_signature",
+      "required_for_entailment": true,
+      "failure_consequence": "cannot_be_entailed"
+    },
+    "CURATED-HEURISTIC": {
+      "prolog_treatment": "query_annotation_only",
+      "required_for_entailment": false,
+      "failure_consequence": "plausible_evidence_annotation_only"
+    }
+  },
+
+  "disjointness_map": [
+    { "left": "bfo:Continuant", "right": "bfo:Occurrent", "kind": "owl:disjointWith", "source": "BFO-OWL" },
+    { "left": "bfo:IndependentContinuant", "right": "bfo:SpecificallyDependentContinuant", "kind": "owl:disjointWith", "source": "BFO-OWL" },
+    { "left": "bfo:IndependentContinuant", "right": "bfo:GenericallyDependentContinuant", "kind": "owl:disjointWith", "source": "BFO-OWL" },
+    { "left": "bfo:SpecificallyDependentContinuant", "right": "bfo:GenericallyDependentContinuant", "kind": "owl:disjointWith", "source": "BFO-OWL" },
+    { "left": "bfo:MaterialEntity", "right": "bfo:ImmaterialEntity", "kind": "owl:disjointWith", "source": "BFO-OWL" }
+  ],
+
+  "subsumption_map": [
+    { "sub": "bfo:Process", "super": "bfo:Occurrent" },
+    { "sub": "bfo:ProcessBoundary", "super": "bfo:Occurrent" },
+    { "sub": "bfo:MaterialEntity", "super": "bfo:IndependentContinuant" },
+    { "sub": "bfo:ImmaterialEntity", "super": "bfo:IndependentContinuant" },
+    { "sub": "bfo:Site", "super": "bfo:ImmaterialEntity" },
+    { "sub": "bfo:Role", "super": "bfo:SpecificallyDependentContinuant" },
+    { "sub": "bfo:Disposition", "super": "bfo:SpecificallyDependentContinuant" },
+    { "sub": "bfo:Quality", "super": "bfo:SpecificallyDependentContinuant" },
+    { "sub": "bfo:Function", "super": "bfo:Disposition" }
+  ],
+
+  "evaluation_cascade_realizable_entity": {
+    "spec_ref": "bfo-signature-reference-v1_0.md §5",
+    "rationale": "Prevents iteration oscillation in D1.6 Phase 1 (D1.6-L7). Deterministic cascade, first match terminates.",
+    "steps": [
+      { "order": 1, "check": "FunctionNC3", "placement": "bfo:Function", "why": "Function subsumes Disposition; check most-specific first." },
+      { "order": 2, "check": "RoleNC3",     "placement": "bfo:Role",     "why": "Social/institutional context is orthogonal to internal realization semantics." },
+      { "order": 3, "check": "DispositionNC3","placement": "bfo:Disposition","why": "Causal triggering without teleology and without social context." },
+      { "order": 4, "check": "none",        "placement": "Plausible_or_NotApplicable", "why": "Partial evidence across realizable categories; fall through per D1.6-L13." }
+    ]
+  },
+
+  "placement_target_categories": [
+    "bfo:IndependentContinuant",
+    "bfo:MaterialEntity",
+    "bfo:ImmaterialEntity",
+    "bfo:Site",
+    "bfo:SpecificallyDependentContinuant",
+    "bfo:Role",
+    "bfo:Disposition",
+    "bfo:Function",
+    "bfo:Quality",
+    "bfo:GenericallyDependentContinuant",
+    "bfo:Process",
+    "bfo:ProcessBoundary",
+    "bfo:TemporalRegion"
+  ],
+
+  "nc_coverage_categories": [
+    "bfo:Entity",
+    "bfo:Continuant",
+    "bfo:IndependentContinuant",
+    "bfo:MaterialEntity",
+    "bfo:ImmaterialEntity",
+    "bfo:Site",
+    "bfo:SpecificallyDependentContinuant",
+    "bfo:Role",
+    "bfo:Disposition",
+    "bfo:Function",
+    "bfo:Quality",
+    "bfo:GenericallyDependentContinuant",
+    "bfo:Occurrent",
+    "bfo:Process",
+    "bfo:ProcessBoundary",
+    "bfo:TemporalRegion"
+  ],
+
+  "target_categories_note": "placement_target_categories lists the 13 medium-granularity BFO categories that Phase 1 places CAUs into (per D1.6-L14). nc_coverage_categories adds bfo:Entity, bfo:Continuant, and bfo:Occurrent — these three upper-level categories are NOT placement destinations; their NCs exist to be inherited by subclasses (e.g., every Continuant subclass inherits ContinuantNC1-3). The Phase 1 evaluator MUST restrict placement decisions to placement_target_categories; attempting to place a CAU at bfo:Entity / bfo:Continuant / bfo:Occurrent is a spec violation.",
+
+
+  "necessary_conditions": [
+    {
+      "id": "EntityNC1",
+      "iri": "fandaws-bfo-sig-ref:EntityNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Entity",
+      "priority": "Standard",
+      "description": "CAU is declared as owl:Class or subclass of owl:Thing with at least one BFO-relevant axiom. Bare owl:Class with zero axioms routes to NotApplicable per D1.6-L13.",
+      "source": "BFO-OWL 2020 top-level class structure",
+      "prolog": {
+        "predicate": "nc_entity_nc1(CAU)",
+        "body_draft": "cau_declared_owl_class(CAU), cau_has_bfo_relevant_axiom(CAU)."
+      }
+    },
+
+    {
+      "id": "ContinuantNC1",
+      "iri": "fandaws-bfo-sig-ref:ContinuantNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Continuant",
+      "priority": "Standard",
+      "description": "CAU does NOT require temporal participation. Signature does not contain property restrictions that force instances to be processes or events.",
+      "source": "BFO-OWL bfo:Continuant owl:disjointWith bfo:Occurrent",
+      "prolog": {
+        "predicate": "nc_continuant_nc1(CAU)",
+        "body_draft": "\\+ cau_requires_temporal_participation(CAU)."
+      }
+    },
+    {
+      "id": "ContinuantNC2",
+      "iri": "fandaws-bfo-sig-ref:ContinuantNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Continuant",
+      "priority": "Standard",
+      "description": "Signature admits instances locatable at a temporal region without being that region or existing through it.",
+      "source": "BFO-OWL Continuant vs Occurrent distinction",
+      "prolog": {
+        "predicate": "nc_continuant_nc2(CAU)",
+        "body_draft": "cau_admits_temporal_location(CAU), \\+ cau_is_temporal_extent(CAU)."
+      }
+    },
+    {
+      "id": "ContinuantNC3",
+      "iri": "fandaws-bfo-sig-ref:ContinuantNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Continuant",
+      "priority": "Standard",
+      "description": "Instances maintain identity across time. Persistence semantics are normatively required; OWL-level axioms do not express persistence directly.",
+      "source": "Arp/Smith/Spear §4.2",
+      "prolog": {
+        "predicate": "nc_continuant_nc3(CAU)",
+        "body_draft": "cau_identity_persists_through_time(CAU)."
+      }
+    },
+
+    {
+      "id": "ICNC1",
+      "iri": "fandaws-bfo-sig-ref:ICNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:IndependentContinuant",
+      "priority": "Standard",
+      "description": "All Continuant NCs satisfied (inheritance via rdfs:subClassOf).",
+      "source": "BFO-OWL hierarchy",
+      "prolog": {
+        "predicate": "nc_ic_nc1(CAU)",
+        "body_draft": "nc_continuant_nc1(CAU), nc_continuant_nc2(CAU), nc_continuant_nc3(CAU)."
+      }
+    },
+    {
+      "id": "ICNC2",
+      "iri": "fandaws-bfo-sig-ref:ICNC2",
+      "tag": "OWL-DERIVED",
+      "category": "bfo:IndependentContinuant",
+      "priority": "Standard",
+      "description": "Signature does NOT require bfo:inheresIn some bearer relationship. Excludes SDC-style inherence.",
+      "source": "BFO-OWL bfo:IndependentContinuant",
+      "owa_reclassified": "2026-04-21",
+      "owa_reclassification_note": "Shifted from OWL-DIRECT to OWL-DERIVED per SME async decision 2.1. CWA body (\\+ raw absence assertion) would over-commit on partial Signatures where inheresIn might be derivable under background theory but isn't explicitly declared. OWA-preserving body below uses derivation attempt; falls back to structural correspondence per D1.6-L4 on step-cap exhaustion.",
+      "prolog": {
+        "predicate": "nc_ic_nc2(CAU)",
+        "body_draft": "owa_absence_check(CAU, 'bfo:inheresIn', _).",
+        "owa_helper_contract": "owa_absence_check(CAU, Property, Target) succeeds iff derivable_under_background_theory(cau_has_property_restriction(CAU, Property, Target)) fails AND (the query completed within the step cap OR structural_correspondence_fallback(CAU, Property) confirms absence at the Signature level)."
+      }
+    },
+    {
+      "id": "ICNC3",
+      "iri": "fandaws-bfo-sig-ref:ICNC3",
+      "tag": "OWL-DERIVED",
+      "category": "bfo:IndependentContinuant",
+      "priority": "Standard",
+      "description": "Signature does NOT require bfo:concretizes some information-bearing-entity relationship. Excludes GDC-style concretization.",
+      "source": "BFO-OWL bfo:IndependentContinuant",
+      "owa_reclassified": "2026-04-21",
+      "owa_reclassification_note": "Shifted from OWL-DIRECT to OWL-DERIVED per SME async decision 2.1. Same rationale as ICNC2.",
+      "prolog": {
+        "predicate": "nc_ic_nc3(CAU)",
+        "body_draft": "owa_absence_check(CAU, 'bfo:concretizes', _).",
+        "owa_helper_contract": "See ICNC2 for owa_absence_check/3 contract."
+      }
+    },
+
+    {
+      "id": "MENC1",
+      "iri": "fandaws-bfo-sig-ref:MENC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:MaterialEntity",
+      "priority": "Standard",
+      "description": "All IndependentContinuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_me_nc1(CAU)",
+        "body_draft": "nc_ic_nc1(CAU), nc_ic_nc2(CAU), nc_ic_nc3(CAU)."
+      }
+    },
+    {
+      "id": "MENC2",
+      "iri": "fandaws-bfo-sig-ref:MENC2",
+      "tag": "OWL-DERIVED",
+      "category": "bfo:MaterialEntity",
+      "priority": "Standard",
+      "description": "Signature is consistent with bfo:occupiesSpatialRegion through material constitution. Derived from MaterialEntity subclass relationship to IndependentContinuant plus matter-constitution commitment.",
+      "source": "BFO-OWL derivation",
+      "prolog": {
+        "predicate": "nc_me_nc2(CAU)",
+        "body_draft": "cau_consistent_with(CAU, 'bfo:occupiesSpatialRegion', _), cau_has_matter_constitution_compat(CAU)."
+      }
+    },
+    {
+      "id": "MENC3",
+      "iri": "fandaws-bfo-sig-ref:MENC3",
+      "tag": "CURATED-HEURISTIC",
+      "category": "bfo:MaterialEntity",
+      "priority": "Heuristic",
+      "description": "Instances have mass or extension through their matter. Demoted to heuristic v1.0: many MaterialEntity instances are identified without explicit mass/extension axioms.",
+      "source": "Arp/Smith/Spear §5.1",
+      "prolog": {
+        "predicate": "heur_me_nc3(CAU)",
+        "body_draft": "cau_has_mass_or_extension_axiom(CAU)."
+      }
+    },
+
+    {
+      "id": "IENC1",
+      "iri": "fandaws-bfo-sig-ref:IENC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:ImmaterialEntity",
+      "priority": "Standard",
+      "description": "All IndependentContinuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_ie_nc1(CAU)",
+        "body_draft": "nc_ic_nc1(CAU), nc_ic_nc2(CAU), nc_ic_nc3(CAU)."
+      }
+    },
+    {
+      "id": "IENC2",
+      "iri": "fandaws-bfo-sig-ref:IENC2",
+      "tag": "OWL-DERIVED",
+      "category": "bfo:ImmaterialEntity",
+      "priority": "Standard",
+      "description": "Signature is INCOMPATIBLE with having matter as continuant part. Complement of MaterialEntity within IndependentContinuant.",
+      "source": "BFO-OWL bfo:ImmaterialEntity",
+      "owa_reclassified": "2026-04-21",
+      "owa_reclassification_note": "Shifted from OWL-DIRECT to OWL-DERIVED per SME async decision 2.1. 'Incompatible with matter as part' is a positive claim about absence; CWA raw-absence encoding would misclassify partial Signatures.",
+      "prolog": {
+        "predicate": "nc_ie_nc2(CAU)",
+        "body_draft": "owa_absence_check_property(CAU, matter_as_part).",
+        "owa_helper_contract": "owa_absence_check_property/2 is the variant for categorical predicates (not keyed to a specific property IRI like owa_absence_check/3 is). For the 'has matter as part' category specifically: succeeds iff (a) derivable_under_background_theory(cau_has_material_continuant_part(CAU)) fails under the step cap, AND (b) structural correspondence confirms absence at the Signature level. Structural correspondence for 'has matter as part' scans the CAU's existentialRestrictions, universalRestrictions, and propertyRestrictionsAsDomain arrays for any restriction whose onProperty is bfo:hasContinuantPart (numeric or symbolic form) AND whose target is a class with rdfs:subClassOf bfo:MaterialEntity (transitive). If no such restriction is found, the fallback succeeds (absence confirmed); if any such restriction is found, the fallback fails (matter-part present). Note: this contract uses only axiom-kind fields already produced by the current CAU Signature extractor — no extractor extension required. If SME Checkpoint 2 directs a dedicated 'materialConstitution' axiom-kind field (to catch ontologies using custom parthood predicates beyond bfo:hasContinuantPart), that becomes a signature-schema extension for Week 3 implementation."
+      }
+    },
+    {
+      "id": "IENC3",
+      "iri": "fandaws-bfo-sig-ref:IENC3",
+      "tag": "CURATED-HEURISTIC",
+      "category": "bfo:ImmaterialEntity",
+      "priority": "Heuristic",
+      "description": "Instances are either sites (occupy spatial regions without material constitution) or fiat boundaries. Demoted to heuristic v1.0: enumerates common subtypes, not strict requirement on parent.",
+      "source": "Arp/Smith/Spear §5.2",
+      "prolog": {
+        "predicate": "heur_ie_nc3(CAU)",
+        "body_draft": "( cau_pattern_site(CAU) ; cau_pattern_fiat_boundary(CAU) )."
+      }
+    },
+
+    {
+      "id": "SiteNC1",
+      "iri": "fandaws-bfo-sig-ref:SiteNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Site",
+      "priority": "Standard",
+      "description": "All ImmaterialEntity NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_site_nc1(CAU)",
+        "body_draft": "nc_ie_nc1(CAU), nc_ie_nc2(CAU)."
+      }
+    },
+    {
+      "id": "SiteNC2",
+      "iri": "fandaws-bfo-sig-ref:SiteNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Site",
+      "priority": "Standard",
+      "description": "Signature is consistent with three-dimensional spatial occupation.",
+      "source": "BFO-OWL bfo:Site",
+      "prolog": {
+        "predicate": "nc_site_nc2(CAU)",
+        "body_draft": "cau_consistent_with_3d_spatial_occupation(CAU)."
+      }
+    },
+    {
+      "id": "SiteNC3",
+      "iri": "fandaws-bfo-sig-ref:SiteNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Site",
+      "priority": "Standard",
+      "description": "Bounded by material entities or fiat boundaries.",
+      "source": "Arp/Smith/Spear §5.2.3",
+      "prolog": {
+        "predicate": "nc_site_nc3(CAU)",
+        "body_draft": "( cau_bounded_by_material_entity(CAU) ; cau_bounded_by_fiat_surface(CAU) )."
+      }
+    },
+
+    {
+      "id": "SDCNC1",
+      "iri": "fandaws-bfo-sig-ref:SDCNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:SpecificallyDependentContinuant",
+      "priority": "Standard",
+      "description": "All Continuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_sdc_nc1(CAU)",
+        "body_draft": "nc_continuant_nc1(CAU), nc_continuant_nc2(CAU), nc_continuant_nc3(CAU)."
+      }
+    },
+    {
+      "id": "SDCNC2",
+      "iri": "fandaws-bfo-sig-ref:SDCNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:SpecificallyDependentContinuant",
+      "priority": "Standard",
+      "description": "Signature contains bfo:inheresIn property restriction OR axioms structurally equivalent to 'inheres in some specific bearer.'",
+      "source": "BFO-OWL bfo:SpecificallyDependentContinuant",
+      "prolog": {
+        "predicate": "nc_sdc_nc2(CAU)",
+        "body_draft": "cau_has_property_restriction(CAU, 'bfo:inheresIn', _)."
+      }
+    },
+    {
+      "id": "SDCNC3",
+      "iri": "fandaws-bfo-sig-ref:SDCNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:SpecificallyDependentContinuant",
+      "priority": "High",
+      "description": "Instances are specifically dependent on their bearer — the SDC cannot exist without its particular bearer. Distinguishing the 'specifically' in 'specifically dependent.'",
+      "source": "Arp/Smith/Spear §5.3",
+      "prolog": {
+        "predicate": "nc_sdc_nc3(CAU)",
+        "body_draft": "cau_bearer_is_particular_not_generic(CAU)."
+      }
+    },
+
+    {
+      "id": "RoleNC1",
+      "iri": "fandaws-bfo-sig-ref:RoleNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Role",
+      "priority": "Standard",
+      "description": "All SpecificallyDependentContinuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_role_nc1(CAU)",
+        "body_draft": "nc_sdc_nc1(CAU), nc_sdc_nc2(CAU), nc_sdc_nc3(CAU)."
+      }
+    },
+    {
+      "id": "RoleNC2",
+      "iri": "fandaws-bfo-sig-ref:RoleNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Role",
+      "priority": "Standard",
+      "description": "Declared as rdfs:subClassOf bfo:RealizableEntity or structurally equivalent.",
+      "source": "BFO-OWL bfo:Role rdfs:subClassOf bfo:RealizableEntity",
+      "prolog": {
+        "predicate": "nc_role_nc2(CAU)",
+        "body_draft": "cau_declared_subclass_of(CAU, 'bfo:RealizableEntity')."
+      }
+    },
+    {
+      "id": "RoleNC3",
+      "iri": "fandaws-bfo-sig-ref:RoleNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Role",
+      "priority": "CRITICAL",
+      "sme_locked": true,
+      "description": "Realization requires a social, institutional, or organizational context. SME-LOCKED: distinguishing feature separating Role from Function and Disposition.",
+      "source": "Arp/Smith/Spear §5.3.2",
+      "helper_definition_source": "specs/d16/curated-process-categories-v1.0.json → categories.social_institutional (10 entries, delivered 2026-04-22). Helper implementation: src/core/d16/critical-nc-helpers.js → cauRealizationRequiresSocialInstitutionalContext.",
+      "prolog": {
+        "predicate": "nc_role_nc3(CAU)",
+        "body_draft": "cau_realization_requires_social_institutional_context(CAU)."
+      }
+    },
+    {
+      "id": "RoleNC4",
+      "iri": "fandaws-bfo-sig-ref:RoleNC4",
+      "tag": "CURATED-NC",
+      "category": "bfo:Role",
+      "priority": "CRITICAL",
+      "sme_locked": true,
+      "description": "Does NOT require teleological commitment (design purpose). SME-LOCKED: negative-distinguishing feature from Function.",
+      "source": "Arp/Smith/Spear §5.3.2-5.3.4",
+      "prolog": {
+        "predicate": "nc_role_nc4(CAU)",
+        "body_draft": "\\+ cau_has_teleological_commitment(CAU)."
+      }
+    },
+    {
+      "id": "RoleNC5",
+      "iri": "fandaws-bfo-sig-ref:RoleNC5",
+      "tag": "CURATED-NC",
+      "category": "bfo:Role",
+      "priority": "High",
+      "sme_locked": true,
+      "description": "Instances can be lost or acquired without destruction of the bearer. Reinforces contingent nature of Role vs intrinsic nature of Function/Disposition.",
+      "source": "Smith, Kumar, Ceusters (2005) §4.3",
+      "prolog": {
+        "predicate": "nc_role_nc5(CAU)",
+        "body_draft": "cau_bearer_survives_role_loss(CAU)."
+      }
+    },
+
+    {
+      "id": "DispositionNC1",
+      "iri": "fandaws-bfo-sig-ref:DispositionNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Disposition",
+      "priority": "Standard",
+      "description": "All SpecificallyDependentContinuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_disposition_nc1(CAU)",
+        "body_draft": "nc_sdc_nc1(CAU), nc_sdc_nc2(CAU), nc_sdc_nc3(CAU)."
+      }
+    },
+    {
+      "id": "DispositionNC2",
+      "iri": "fandaws-bfo-sig-ref:DispositionNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Disposition",
+      "priority": "Standard",
+      "description": "Declared as rdfs:subClassOf bfo:RealizableEntity.",
+      "source": "BFO-OWL bfo:Disposition rdfs:subClassOf bfo:RealizableEntity",
+      "prolog": {
+        "predicate": "nc_disposition_nc2(CAU)",
+        "body_draft": "cau_declared_subclass_of(CAU, 'bfo:RealizableEntity')."
+      }
+    },
+    {
+      "id": "DispositionNC3",
+      "iri": "fandaws-bfo-sig-ref:DispositionNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Disposition",
+      "priority": "CRITICAL",
+      "sme_locked": true,
+      "description": "Realization is triggered by specific circumstances without teleology or social context. Distinguishing feature separating pure-disposition realization from Role (socially realized) and Function (designed-for). Function-case satisfaction flows through DispositionNC5's disjunctive first branch via FunctionNC3, not through DispositionNC3 directly.",
+      "description_revised_2026_04_22": "Prior formulation ('applies to both generic dispositions (causal triggering) and Functions (triggered within design-expected operational context)') was taxonomically correct but created description/helper mismatch — the helper queries causal_triggering curated list only, not design_expected. Tightened to match helper coverage per SME option 1 (2026-04-22). Function CAUs satisfy DispositionNC5 via branch A (FunctionNC3), not via this NC directly; tightened description makes the architectural split explicit.",
+      "source": "Arp/Smith/Spear §5.3.4",
+      "helper_definition_source": "specs/d16/curated-process-categories-v1.0.json → categories.causal_triggering (12 entries, delivered 2026-04-22). Helper implementation: src/core/d16/critical-nc-helpers.js → cauRealizationHasTriggeringCircumstances.",
+      "prolog": {
+        "predicate": "nc_disposition_nc3(CAU)",
+        "body_draft": "cau_realization_has_triggering_circumstances(CAU)."
+      }
+    },
+    {
+      "id": "DispositionNC4",
+      "iri": "fandaws-bfo-sig-ref:DispositionNC4",
+      "tag": "CURATED-NC",
+      "category": "bfo:Disposition",
+      "priority": "CRITICAL",
+      "sme_locked": true,
+      "description": "Does NOT require social or organizational context for realization. Negative-distinguishing from Role.",
+      "source": "Arp/Smith/Spear §5.3",
+      "prolog": {
+        "predicate": "nc_disposition_nc4(CAU)",
+        "body_draft": "\\+ cau_realization_requires_social_institutional_context(CAU)."
+      }
+    },
+    {
+      "id": "DispositionNC5",
+      "iri": "fandaws-bfo-sig-ref:DispositionNC5",
+      "tag": "CURATED-NC",
+      "category": "bfo:Disposition",
+      "priority": "Critical",
+      "sme_locked": true,
+      "v1_0_corrected": true,
+      "description": "Disjunctive condition reflecting Function ⊂ Disposition: CAU is either (a) a Function (teleological disposition) OR (b) a non-Function Disposition (causal triggering without teleology). v0.1 formulation removed — it would have forced Functions to fail their parent's NC.",
+      "source": "Arp/Smith/Spear §5.3.3; BFO-OWL bfo:Function rdfs:subClassOf bfo:Disposition",
+      "prolog": {
+        "predicate": "nc_disposition_nc5(CAU)",
+        "body_draft": "( cau_has_teleological_commitment(CAU) ; ( \\+ cau_has_teleological_commitment(CAU), cau_realization_has_triggering_circumstances(CAU) ) )."
+      }
+    },
+
+    {
+      "id": "FunctionNC1",
+      "iri": "fandaws-bfo-sig-ref:FunctionNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Function",
+      "priority": "Standard",
+      "description": "All Disposition NCs satisfied (Function is a subclass of Disposition in BFO 2020).",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_function_nc1(CAU)",
+        "body_draft": "nc_disposition_nc1(CAU), nc_disposition_nc2(CAU), nc_disposition_nc3(CAU), nc_disposition_nc4(CAU), nc_disposition_nc5(CAU)."
+      }
+    },
+    {
+      "id": "FunctionNC2",
+      "iri": "fandaws-bfo-sig-ref:FunctionNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Function",
+      "priority": "Standard",
+      "description": "Declared as rdfs:subClassOf bfo:Disposition or structurally equivalent.",
+      "source": "BFO-OWL",
+      "prolog": {
+        "predicate": "nc_function_nc2(CAU)",
+        "body_draft": "cau_declared_subclass_of(CAU, 'bfo:Disposition')."
+      }
+    },
+    {
+      "id": "FunctionNC3",
+      "iri": "fandaws-bfo-sig-ref:FunctionNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Function",
+      "priority": "CRITICAL",
+      "sme_locked": true,
+      "description": "Has teleological commitment — bearer was designed, manufactured, selected, or evolved to bear this function. SME-LOCKED: distinguishing feature from Disposition (no teleology) and Role (socially realized).",
+      "source": "Arp/Smith/Spear §5.3.3",
+      "helper_definition_source": "specs/d16/curated-process-categories-v1.0.json → categories.design_expected (12 entries, delivered 2026-04-22). Helper implementation: src/core/d16/critical-nc-helpers.js → cauHasTeleologicalCommitment.",
+      "prolog": {
+        "predicate": "nc_function_nc3(CAU)",
+        "body_draft": "cau_has_teleological_commitment(CAU)."
+      }
+    },
+    {
+      "id": "FunctionNC4",
+      "iri": "fandaws-bfo-sig-ref:FunctionNC4",
+      "tag": "CURATED-NC",
+      "category": "bfo:Function",
+      "priority": "High",
+      "sme_locked": true,
+      "description": "Realization is an expected or typical process for the bearer, given the bearer's design or evolutionary history. Reinforces design-expected realization semantics.",
+      "source": "Spear, Ceusters, Smith (2016)",
+      "prolog": {
+        "predicate": "nc_function_nc4(CAU)",
+        "body_draft": "cau_realization_is_design_expected(CAU)."
+      }
+    },
+
+    {
+      "id": "QualityNC1",
+      "iri": "fandaws-bfo-sig-ref:QualityNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Quality",
+      "priority": "Standard",
+      "description": "All SpecificallyDependentContinuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_quality_nc1(CAU)",
+        "body_draft": "nc_sdc_nc1(CAU), nc_sdc_nc2(CAU), nc_sdc_nc3(CAU)."
+      }
+    },
+    {
+      "id": "QualityNC2",
+      "iri": "fandaws-bfo-sig-ref:QualityNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Quality",
+      "priority": "Standard",
+      "description": "Declared as rdfs:subClassOf bfo:Quality or structurally equivalent.",
+      "source": "BFO-OWL",
+      "prolog": {
+        "predicate": "nc_quality_nc2(CAU)",
+        "body_draft": "cau_declared_subclass_of(CAU, 'bfo:Quality')."
+      }
+    },
+    {
+      "id": "QualityNC3",
+      "iri": "fandaws-bfo-sig-ref:QualityNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Quality",
+      "priority": "High",
+      "sme_locked": true,
+      "description": "Instances are fully realized at all times their bearer exists. Unlike dispositions, qualities do not wait for triggering circumstances. Enforces always-realized vs conditionally-realized distinction separating Quality from Disposition within SDC.",
+      "source": "Arp/Smith/Spear §5.3.5",
+      "prolog": {
+        "predicate": "nc_quality_nc3(CAU)",
+        "body_draft": "cau_always_realized_when_bearer_exists(CAU), \\+ cau_realization_has_triggering_circumstances(CAU)."
+      }
+    },
+    {
+      "id": "QualityNC4",
+      "iri": "fandaws-bfo-sig-ref:QualityNC4",
+      "tag": "CURATED-HEURISTIC",
+      "category": "bfo:Quality",
+      "priority": "Heuristic",
+      "description": "Instances are measurable values, observable properties, or physical attributes (mass, charge, color, temperature, shape). Demoted to heuristic v1.0: example list, not strict requirement.",
+      "source": "Arp/Smith/Spear §5.3.5 examples",
+      "prolog": {
+        "predicate": "heur_quality_nc4(CAU)",
+        "body_draft": "( cau_is_measurable_attribute(CAU) ; cau_is_observable_property(CAU) )."
+      }
+    },
+
+    {
+      "id": "GDCNC1",
+      "iri": "fandaws-bfo-sig-ref:GDCNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:GenericallyDependentContinuant",
+      "priority": "Standard",
+      "description": "All Continuant NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_gdc_nc1(CAU)",
+        "body_draft": "nc_continuant_nc1(CAU), nc_continuant_nc2(CAU), nc_continuant_nc3(CAU)."
+      }
+    },
+    {
+      "id": "GDCNC2",
+      "iri": "fandaws-bfo-sig-ref:GDCNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:GenericallyDependentContinuant",
+      "priority": "Standard",
+      "description": "Signature contains bfo:concretizes property restriction OR axioms structurally equivalent.",
+      "source": "BFO-OWL bfo:GenericallyDependentContinuant",
+      "prolog": {
+        "predicate": "nc_gdc_nc2(CAU)",
+        "body_draft": "cau_has_property_restriction(CAU, 'bfo:concretizes', _)."
+      }
+    },
+    {
+      "id": "GDCNC3",
+      "iri": "fandaws-bfo-sig-ref:GDCNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:GenericallyDependentContinuant",
+      "priority": "High",
+      "sme_locked": true,
+      "description": "Instances can have multiple simultaneous concretizations — independent of any single bearer. Primary discriminator from SDC ('generic' vs 'specific').",
+      "source": "Arp/Smith/Spear §5.4",
+      "prolog": {
+        "predicate": "nc_gdc_nc3(CAU)",
+        "body_draft": "cau_admits_multiple_simultaneous_concretizations(CAU), \\+ cau_bearer_is_particular_not_generic(CAU)."
+      }
+    },
+    {
+      "id": "GDCNC4",
+      "iri": "fandaws-bfo-sig-ref:GDCNC4",
+      "tag": "CURATED-HEURISTIC",
+      "category": "bfo:GenericallyDependentContinuant",
+      "priority": "Heuristic",
+      "v1_0_widened": true,
+      "description": "Instances are typically informational, representational, or sequence-pattern content (PDF documents, musical scores, software programs, genetic sequences, procedural patterns, algorithms). Demoted to heuristic v1.0: pattern tendency, not strict requirement.",
+      "source": "Smith, Ceusters (2006); widened per SME v1.0 §3.2",
+      "prolog": {
+        "predicate": "heur_gdc_nc4(CAU)",
+        "body_draft": "( cau_is_informational_content(CAU) ; cau_is_representational_content(CAU) ; cau_is_sequence_pattern(CAU) )."
+      }
+    },
+
+    {
+      "id": "OccurrentNC1",
+      "iri": "fandaws-bfo-sig-ref:OccurrentNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Occurrent",
+      "priority": "Standard",
+      "description": "Signature requires or is consistent with bfo:occupiesTemporalRegion some bfo:TemporalRegion.",
+      "source": "BFO-OWL bfo:Occurrent temporal commitment",
+      "prolog": {
+        "predicate": "nc_occurrent_nc1(CAU)",
+        "body_draft": "cau_consistent_with(CAU, 'bfo:occupiesTemporalRegion', 'bfo:TemporalRegion')."
+      }
+    },
+    {
+      "id": "OccurrentNC2",
+      "iri": "fandaws-bfo-sig-ref:OccurrentNC2",
+      "tag": "OWL-DERIVED",
+      "category": "bfo:Occurrent",
+      "priority": "Standard",
+      "description": "Does NOT satisfy any Continuant NC (disjointness).",
+      "source": "BFO-OWL bfo:Occurrent owl:disjointWith bfo:Continuant",
+      "owa_reclassified": "2026-04-21",
+      "owa_reclassification_note": "Shifted from OWL-DIRECT to OWL-DERIVED per SME async decision 2.1. Disjointness-by-negation-of-parent is a derivation through BFO's disjointness axiom, not a literal axiom on the CAU itself. Under OWA, 'didn't satisfy ContinuantNC1' ≠ 'asserted not-Continuant' — the proper check is that the disjointness is derivable under the background theory.",
+      "prolog": {
+        "predicate": "nc_occurrent_nc2(CAU)",
+        "body_draft": "owa_disjointness_check(CAU, 'bfo:Continuant').",
+        "owa_helper_contract": "owa_disjointness_check/2 queries the background theory for derivable disjointness. Falls back to structural correspondence (absence of Continuant NC satisfaction at the Signature level) on step-cap exhaustion."
+      }
+    },
+    {
+      "id": "OccurrentNC3",
+      "iri": "fandaws-bfo-sig-ref:OccurrentNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:Occurrent",
+      "priority": "Standard",
+      "sme_locked": true,
+      "description": "Instances have temporal parts — they unfold through a temporal region, not at an instant. Unfolding-through-time is sometimes implicit in OWL encodings.",
+      "source": "Arp/Smith/Spear §4.3",
+      "prolog": {
+        "predicate": "nc_occurrent_nc3(CAU)",
+        "body_draft": "cau_unfolds_through_time(CAU)."
+      }
+    },
+
+    {
+      "id": "ProcessNC1",
+      "iri": "fandaws-bfo-sig-ref:ProcessNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Process",
+      "priority": "Standard",
+      "description": "All Occurrent NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_process_nc1(CAU)",
+        "body_draft": "nc_occurrent_nc1(CAU), nc_occurrent_nc2(CAU), nc_occurrent_nc3(CAU)."
+      }
+    },
+    {
+      "id": "ProcessNC2",
+      "iri": "fandaws-bfo-sig-ref:ProcessNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:Process",
+      "priority": "Standard",
+      "description": "Signature contains bfo:hasParticipant some bfo:Continuant OR structurally equivalent.",
+      "source": "BFO-OWL bfo:Process participant axiom",
+      "prolog": {
+        "predicate": "nc_process_nc2(CAU)",
+        "body_draft": "cau_has_property_restriction(CAU, 'bfo:hasParticipant', 'bfo:Continuant')."
+      }
+    },
+    {
+      "id": "ProcessNC3",
+      "iri": "fandaws-bfo-sig-ref:ProcessNC3",
+      "tag": "OWL-DERIVED",
+      "category": "bfo:Process",
+      "priority": "Standard",
+      "description": "Signature is consistent with bfo:occupiesTemporalRegion some bfo:OneDimensionalTemporalRegion (temporal interval, not instant).",
+      "source": "BFO-OWL derivation via compatibility check",
+      "prolog": {
+        "predicate": "nc_process_nc3(CAU)",
+        "body_draft": "cau_consistent_with(CAU, 'bfo:occupiesTemporalRegion', 'bfo:OneDimensionalTemporalRegion')."
+      }
+    },
+    {
+      "id": "ProcessNC4",
+      "iri": "fandaws-bfo-sig-ref:ProcessNC4",
+      "tag": "CURATED-NC",
+      "category": "bfo:Process",
+      "priority": "Standard",
+      "description": "Instances can have process boundaries (beginnings and endings as temporal boundaries). Reinforces temporal-extension requirement.",
+      "source": "Arp/Smith/Spear §6.2",
+      "prolog": {
+        "predicate": "nc_process_nc4(CAU)",
+        "body_draft": "cau_admits_process_boundaries(CAU)."
+      }
+    },
+    {
+      "id": "ProcessNC5",
+      "iri": "fandaws-bfo-sig-ref:ProcessNC5",
+      "tag": "CURATED-HEURISTIC",
+      "category": "bfo:Process",
+      "priority": "Heuristic",
+      "description": "Participants change or maintain states through the process. Demoted to heuristic v1.0: typical pattern, not strict requirement.",
+      "source": "Arp/Smith/Spear §6.2",
+      "prolog": {
+        "predicate": "heur_process_nc5(CAU)",
+        "body_draft": "cau_participants_change_or_maintain_states(CAU)."
+      }
+    },
+
+    {
+      "id": "ProcessBoundaryNC1",
+      "iri": "fandaws-bfo-sig-ref:ProcessBoundaryNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:ProcessBoundary",
+      "priority": "Standard",
+      "description": "All Occurrent NCs satisfied.",
+      "source": "BFO-OWL subclass hierarchy",
+      "prolog": {
+        "predicate": "nc_pb_nc1(CAU)",
+        "body_draft": "nc_occurrent_nc1(CAU), nc_occurrent_nc2(CAU), nc_occurrent_nc3(CAU)."
+      }
+    },
+    {
+      "id": "ProcessBoundaryNC2",
+      "iri": "fandaws-bfo-sig-ref:ProcessBoundaryNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:ProcessBoundary",
+      "priority": "Standard",
+      "description": "Signature is consistent with bfo:occupiesTemporalRegion some bfo:ZeroDimensionalTemporalRegion (temporal instant).",
+      "source": "BFO-OWL bfo:ProcessBoundary",
+      "prolog": {
+        "predicate": "nc_pb_nc2(CAU)",
+        "body_draft": "cau_consistent_with(CAU, 'bfo:occupiesTemporalRegion', 'bfo:ZeroDimensionalTemporalRegion')."
+      }
+    },
+    {
+      "id": "ProcessBoundaryNC3",
+      "iri": "fandaws-bfo-sig-ref:ProcessBoundaryNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:ProcessBoundary",
+      "priority": "Standard",
+      "sme_locked": true,
+      "description": "Instances are instantaneous events — they mark transitions, not periods. Distinguishes ProcessBoundary (instantaneous) from Process (interval).",
+      "source": "Arp/Smith/Spear §6.3",
+      "prolog": {
+        "predicate": "nc_pb_nc3(CAU)",
+        "body_draft": "cau_is_instantaneous_event(CAU), \\+ cau_has_temporal_interval(CAU)."
+      }
+    },
+
+    {
+      "id": "TemporalRegionNC1",
+      "iri": "fandaws-bfo-sig-ref:TemporalRegionNC1",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:TemporalRegion",
+      "priority": "Standard",
+      "description": "Declared as rdfs:subClassOf bfo:TemporalRegion or structurally equivalent.",
+      "source": "BFO-OWL",
+      "prolog": {
+        "predicate": "nc_tr_nc1(CAU)",
+        "body_draft": "cau_declared_subclass_of(CAU, 'bfo:TemporalRegion')."
+      }
+    },
+    {
+      "id": "TemporalRegionNC2",
+      "iri": "fandaws-bfo-sig-ref:TemporalRegionNC2",
+      "tag": "OWL-DIRECT",
+      "category": "bfo:TemporalRegion",
+      "priority": "Standard",
+      "description": "Signature is consistent with self-occupation (TemporalRegions occupy themselves).",
+      "source": "BFO-OWL",
+      "prolog": {
+        "predicate": "nc_tr_nc2(CAU)",
+        "body_draft": "cau_consistent_with_self_occupation(CAU)."
+      }
+    },
+    {
+      "id": "TemporalRegionNC3",
+      "iri": "fandaws-bfo-sig-ref:TemporalRegionNC3",
+      "tag": "CURATED-NC",
+      "category": "bfo:TemporalRegion",
+      "priority": "Low",
+      "sme_locked": true,
+      "description": "Instances are temporal extents — zero-dimensional (instants) or one-dimensional (intervals). Operational characterization for calendar-time and clock-time ontology vocabularies.",
+      "source": "Arp/Smith/Spear §4.3",
+      "prolog": {
+        "predicate": "nc_tr_nc3(CAU)",
+        "body_draft": "( cau_is_zero_dimensional_temporal(CAU) ; cau_is_one_dimensional_temporal(CAU) )."
+      }
+    }
+  ],
+
+  "excluded_candidate_conditions": [
+    {
+      "category": "bfo:Entity",
+      "excluded": "Declaration as rdfs:Resource alone",
+      "rationale": "Too weak; all RDF resources are not entities in BFO sense."
+    },
+    {
+      "category": "bfo:Entity",
+      "excluded": "Declaration with any rdfs:comment",
+      "rationale": "Annotation metadata is not ontological commitment."
+    }
+  ],
+
+  "scope_decisions_locked": [
+    { "id": "7.1", "decision": "Site as separate target category — SEPARATE" },
+    { "id": "7.2", "decision": "Quality subtypes — DEFERRED" },
+    { "id": "7.3", "decision": "Process subtypes — DEFERRED" },
+    { "id": "7.4", "decision": "Realizable entity fine-grain — DEFERRED" },
+    { "id": "7.5", "decision": "TemporalRegion split — DEFERRED" },
+    { "id": "7.6", "decision": "Citations — LOCKED WITH ISO/IEC 21838-2:2021 ADDITION" }
+  ],
+
+  "implementation_notes": {
+    "prolog_body_drafts": "All prolog.body_draft fields are starter stubs. SME Checkpoint 2 (Week 3-4) refines them against real CAU Signatures extracted from CCO Core, IAO, and OBI samples. Stub predicates (cau_*) form the signature query surface that src/core/d16/cau-signature.js emits as Prolog facts.",
+    "step_cap_fallback": "OWL-DERIVED rules fall back to structural correspondence per D1.6-L4 when the 10000-step Horn cap is exceeded. Structural correspondence is not a silent pass — it is logged with a FallbackUsed annotation on the CAU's evidence record.",
+    "versioning": "Any change to this file triggers a VD-6-equivalent event per Q-V1.0-2: all prior session Final Hashes become invalid; existing canonical records are re-evaluated on next analyst access.",
+    "related_files": [
+      "specs/d16/bfo-signature-reference-v1_0.md (prose reference — source of truth for semantics)",
+      "src/core/d16/cau-signature.js (extractor; emits Prolog facts that these NCs query)",
+      "tests/avc/d16-runner.test.js (Band 4 scenarios verify NC satisfaction)"
+    ]
+  }
+}

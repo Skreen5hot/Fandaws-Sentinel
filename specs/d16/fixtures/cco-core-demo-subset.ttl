@@ -1,0 +1,234 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix bfo: <http://purl.obolibrary.org/obo/BFO_> .
+@prefix cco: <http://www.ontologyrepository.com/CommonCoreOntologies/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# ============================================================================
+# CCO Core Demo Subset — for Checkpoint 2 Signature extraction spot-check
+#
+# Source: synthesized representative subset aligned with Common Core Ontologies
+# (https://github.com/CommonCoreOntology/CommonCoreOntologies). NOT the full
+# CCO Core — a demo-scale fixture designed to exercise:
+#   - Multiple BFO categories (Continuant / Occurrent split, SDC triad)
+#   - Property restrictions (someValuesFrom, allValuesFrom, cardinality)
+#   - Sub-property closure (cco:hasAgent subPropertyOf bfo:hasParticipant)
+#   - owl:oneOf (enumeration)
+#   - Disjointness assertions
+#   - bfo:inheresIn cardinality (diagnosticWeight: High path)
+#
+# Checkpoint 2 usage: run scripts/d16-cco-demo.js and spot-check Signatures
+# for 5-10 classes against SME expectations. If expected extraction differs
+# from actual, flag the gap in the checkpoint agenda.
+#
+# Replacement path: substitute this fixture with the real CCO Core module
+# (available at OSF / GitHub) for production calibration. The extractor is
+# fixture-agnostic; only the ontology file changes.
+# ============================================================================
+
+# ── Ontology declaration ──
+<http://fandaws.example/cco-demo/> a owl:Ontology .
+
+# ── BFO upper-level anchors (minimal, just to anchor subclass chains) ──
+bfo:0000001 a owl:Class ;    # bfo:Entity
+  rdfs:label "entity" .
+bfo:0000002 a owl:Class ;    # bfo:Continuant
+  rdfs:subClassOf bfo:0000001 ;
+  rdfs:label "continuant" .
+bfo:0000003 a owl:Class ;    # bfo:Occurrent
+  rdfs:subClassOf bfo:0000001 ;
+  rdfs:label "occurrent" ;
+  owl:disjointWith bfo:0000002 .
+bfo:0000004 a owl:Class ;    # bfo:IndependentContinuant
+  rdfs:subClassOf bfo:0000002 .
+bfo:0000020 a owl:Class ;    # bfo:SpecificallyDependentContinuant
+  rdfs:subClassOf bfo:0000002 ;
+  owl:disjointWith bfo:0000004 .
+bfo:0000031 a owl:Class ;    # bfo:GenericallyDependentContinuant
+  rdfs:subClassOf bfo:0000002 ;
+  owl:disjointWith bfo:0000004 ;
+  owl:disjointWith bfo:0000020 .
+bfo:0000040 a owl:Class ;    # bfo:MaterialEntity
+  rdfs:subClassOf bfo:0000004 .
+bfo:0000015 a owl:Class ;    # bfo:Process
+  rdfs:subClassOf bfo:0000003 .
+bfo:0000017 a owl:Class ;    # bfo:RealizableEntity
+  rdfs:subClassOf bfo:0000020 .
+bfo:0000019 a owl:Class ;    # bfo:Quality
+  rdfs:subClassOf bfo:0000020 .
+bfo:0000023 a owl:Class ;    # bfo:Role
+  rdfs:subClassOf bfo:0000017 .
+bfo:0000016 a owl:Class ;    # bfo:Disposition
+  rdfs:subClassOf bfo:0000017 .
+bfo:0000034 a owl:Class ;    # bfo:Function
+  rdfs:subClassOf bfo:0000016 .
+
+# ── BFO properties (minimal) ──
+bfo:0000057 a owl:ObjectProperty ;  # bfo:hasParticipant
+  rdfs:label "has participant" ;
+  rdfs:domain bfo:0000015 ;          # Process
+  rdfs:range bfo:0000002 .            # Continuant
+bfo:0000052 a owl:ObjectProperty ;  # bfo:inheresIn
+  rdfs:label "inheres in" ;
+  rdfs:domain bfo:0000020 ;          # SDC
+  rdfs:range bfo:0000004 .            # IC
+bfo:0000058 a owl:ObjectProperty ;  # bfo:concretizes
+  rdfs:label "concretizes" ;
+  rdfs:domain bfo:0000031 ;          # GDC
+  rdfs:range bfo:0000004 .
+bfo:0000054 a owl:ObjectProperty ;  # bfo:isRealizedIn
+  rdfs:label "is realized in" ;
+  rdfs:domain bfo:0000017 ;          # RealizableEntity
+  rdfs:range bfo:0000003 .            # Occurrent
+
+# ============================================================================
+# CCO Demo Classes — 10 classes covering BFO distribution
+# ============================================================================
+
+# ── Artifact (MaterialEntity subclass) ──
+cco:Artifact a owl:Class ;
+  rdfs:subClassOf bfo:0000040 ;     # MaterialEntity
+  rdfs:label "artifact" ;
+  rdfs:comment "A designed material entity produced by an intentional process." .
+
+# ── Event (Process subclass) ──
+# Uses cco:hasAgent (subPropertyOf bfo:hasParticipant) to exercise LS-3
+# sub-property closure. Extractor should surface TWO domain restrictions:
+# one directly on cco:hasAgent, one inherited on bfo:0000057.
+cco:Event a owl:Class ;
+  rdfs:subClassOf bfo:0000015 ;     # Process
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty cco:hasAgent ;
+    owl:someValuesFrom cco:Agent
+  ] ;
+  rdfs:label "event" ;
+  rdfs:comment "A process in which at least one agent participates. Restriction on cco:hasAgent exercises LS-3 sub-property closure up to bfo:hasParticipant." .
+
+# ── Agent (MaterialEntity subclass with ontology-level role requirement) ──
+cco:Agent a owl:Class ;
+  rdfs:subClassOf bfo:0000040 ;     # MaterialEntity
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty cco:bearerOf ;
+    owl:someValuesFrom cco:AgentRole
+  ] ;
+  rdfs:label "agent" .
+
+# ── AgentRole (Role — bfo:Role subclass, bfo:inheresIn cardinality 1 → diagnosticWeight High) ──
+cco:AgentRole a owl:Class ;
+  rdfs:subClassOf bfo:0000023 ;     # Role
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000052 ;    # inheresIn
+    owl:cardinality "1"^^xsd:nonNegativeInteger ;
+    owl:onClass cco:Agent
+  ] ;
+  rdfs:label "agent role" ;
+  rdfs:comment "Role borne by exactly one Agent bearer. Specifically dependent; lost/acquired without destroying the bearer." .
+
+# ── HeartPumpingFunction (Function — teleological Disposition) ──
+# Teleological commitment encoded FORMALLY via bfo:0000054 (isRealizedIn) →
+# cco:PumpingProcess, per SME guidance 2026-04-21. Prior fixture versions
+# encoded this in rdfs:comment only; extractor correctly ignored those per
+# Signal Discipline (NA-1.2, Rule PH2-2).
+cco:HeartPumpingFunction a owl:Class ;
+  rdfs:subClassOf bfo:0000034 ;     # Function
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000052 ;    # inheresIn
+    owl:someValuesFrom cco:Heart
+  ] ;
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000054 ;    # isRealizedIn
+    owl:someValuesFrom cco:PumpingProcess
+  ] ;
+  rdfs:label "heart pumping function" .
+
+cco:PumpingProcess a owl:Class ;
+  rdfs:subClassOf bfo:0000015 ;     # Process
+  rdfs:label "pumping process" ;
+  rdfs:comment "Teleologically-realized process — bearer was biologically selected to realize this process type." .
+
+# ── Fragility (Disposition — non-teleological, triggered by impact) ──
+# Realization encoded FORMALLY via bfo:0000054 (isRealizedIn) →
+# cco:ShatteringProcess. The presence of isRealizedIn is NOT the teleological
+# discriminator — Function and Disposition both have realization. The
+# distinction lives in the target process type (PumpingProcess is a
+# design-expected realization; ShatteringProcess is a causal-triggered one).
+# Role/Function/Disposition cascade per BFO signature reference §5 is what
+# resolves teleology; this fixture makes the structural inputs visible.
+cco:Fragility a owl:Class ;
+  rdfs:subClassOf bfo:0000016 ;     # Disposition
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000052 ;    # inheresIn
+    owl:someValuesFrom cco:Artifact
+  ] ;
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000054 ;    # isRealizedIn
+    owl:someValuesFrom cco:ShatteringProcess
+  ] ;
+  rdfs:label "fragility" .
+
+cco:ShatteringProcess a owl:Class ;
+  rdfs:subClassOf bfo:0000015 ;     # Process
+  rdfs:label "shattering process" ;
+  rdfs:comment "Causally-triggered process — realization depends on mechanical impact, not on bearer design intent." .
+
+# ── Color (Quality — always-realized attribute) ──
+cco:Color a owl:Class ;
+  rdfs:subClassOf bfo:0000019 ;     # Quality
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000052 ;    # inheresIn
+    owl:someValuesFrom bfo:0000040
+  ] ;
+  rdfs:label "color" .
+
+# ── Heart (MaterialEntity — bearer for HeartPumpingFunction) ──
+cco:Heart a owl:Class ;
+  rdfs:subClassOf bfo:0000040 ;     # MaterialEntity
+  rdfs:label "heart" .
+
+# ── DesignativeInformationContentEntity (GDC — concretizes) ──
+cco:DesignativeInformationContentEntity a owl:Class ;
+  rdfs:subClassOf bfo:0000031 ;     # GenericallyDependentContinuant
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty bfo:0000058 ;    # concretizes
+    owl:someValuesFrom bfo:0000040
+  ] ;
+  rdfs:label "designative information content entity" ;
+  rdfs:comment "Informational GDC — multiple simultaneous concretizations possible." .
+
+# ── Weekday (enumeration — owl:oneOf homogeneous for LS-8) ──
+cco:Weekday a owl:Class ;
+  rdfs:subClassOf bfo:0000019 ;     # Quality
+  owl:equivalentClass [
+    owl:oneOf ( cco:Monday cco:Tuesday cco:Wednesday cco:Thursday cco:Friday )
+  ] ;
+  rdfs:label "weekday" .
+
+cco:Monday a cco:WeekdayInstance .
+cco:Tuesday a cco:WeekdayInstance .
+cco:Wednesday a cco:WeekdayInstance .
+cco:Thursday a cco:WeekdayInstance .
+cco:Friday a cco:WeekdayInstance .
+
+# ============================================================================
+# CCO properties with sub-property closure (exercises LS-3)
+# ============================================================================
+
+cco:bearerOf a owl:ObjectProperty ;
+  owl:inverseOf bfo:0000052 ;        # inverse of inheresIn
+  rdfs:label "bearer of" .
+
+cco:hasAgent a owl:ObjectProperty ;
+  rdfs:subPropertyOf bfo:0000057 ;    # subPropertyOf hasParticipant — exercises LS-3
+  rdfs:label "has agent" ;
+  rdfs:domain cco:Event ;
+  rdfs:range cco:Agent .

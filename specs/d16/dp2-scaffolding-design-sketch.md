@@ -297,7 +297,7 @@ Per the Wave 2 design-sketch discipline and the DP-2 coding-halt directive in th
 
 - **DP-2.1** — **LANDED 2026-04-23.** Modules `src/core/d16/dp2-schema.js` + `src/core/d16/canonical-record-writer.js` shipped. 43/43 unit tests pass; 2/2 Band 6 DP-2.1 AVC scenarios pass (`dp2-schema-validation-rejects-missing-explanation`, `dp2-schema-validation-rejects-empty-axiom-evidence`). Zero regressions across 108 test suites / 2,359 passing. F4 supplementary scenario `dp2-writepath-chokepoint-exclusivity` deferred to AVC bundle v5 (requires SME authorization per handoff-memo NOT-TO-DO discipline).
 - **DP-2.2** — **GREEN-LIT.** X1 memo (REV1) delivered and ACK'd same day; `DependencyGraph` operational definition locked.
-- **DP-2.3.0 byte-capture** — may proceed in parallel with DP-2.1 once DP-2.3 crypto shim exists (small work; no additional decisions pending).
+- **DP-2.3.0 byte-capture** — **LANDED 2026-04-24.** Modules `src/core/d16/crypto-shim.js` + `src/core/d16/ingestion-byte-registry.js` shipped. Upload panel + bfo-signature-cache integration wired. 25/25 unit tests green (includes NIST SHA-256 vectors). Registry exposed via `Fandaws.captureSourceBytes` / `captureBFOBytes` / `captureCuratedBytes` / `getIngestionHashes`.
 - **DP-2.3.1 per-round hashing** — depends on DP-2.3.0 complete.
 - **DP-2.3.2 Final Hash + scaffold retirement** — **blocked on SME-DP2-X2** (config allow-list, last remaining gating item).
 - **Acceptance** — after DP-2.3.2 + supplementary audit scenario landing.

@@ -105,7 +105,7 @@
 
 - **DP-2.1** — **GREEN-LIT** 2026-04-23 on SME revision ACK. All DP-2.1 decisions locked.
 - **DP-2.2** — **GREEN-LIT** 2026-04-23 on X1 resolution. `specs/d16/dp2-x1-property-linked-neighbor-memo-rev1.md` is the operational-definition reference for `DependencyGraph` construction and `reconciliationHistory` parent-reconciliation semantics.
-- **DP-2.3.0 byte-capture** — unblocked; may run in parallel with DP-2.1 once crypto shim exists.
+- **DP-2.3.0 byte-capture** — **LANDED 2026-04-24.** crypto-shim + ingestion-byte-registry + upload-panel hook + bfo-signature-cache onSessionStart bytes extension. 25 unit tests green.
 - **DP-2.3.1 per-round hashing** — depends on DP-2.3.0 complete.
 - **DP-2.3.2 Final Hash** — **blocked on X2** (only remaining lock-completion item).
 - **Acceptance** — after DP-2.3.2 lands.

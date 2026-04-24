@@ -200,3 +200,14 @@ export { buildFingerprint, scoreAgainstAll, validateWeightVector, DEFAULT_WEIGHT
 export { routeCandidate, validateSubPropertyPromotion, validateMergeTarget } from './core/ingestion/disambiguation-router.js';
 export { buildFactBase, extractSubclassFacts } from './core/ingestion/fact-base-builder.js';
 export { parseOntology, detectFormat } from './core/ingestion/ontology-parser.js';
+
+// D1.6 DP-2.3.0 byte-capture retrofit (SME D3.2 lock): raw-byte content
+// hashes captured at ingestion time, consumed by DP-2.3.2 Final Hash.
+export { sha256, byteLengthOf } from './core/d16/crypto-shim.js';
+export {
+  captureSource as captureSourceBytes,
+  captureBFO as captureBFOBytes,
+  captureCurated as captureCuratedBytes,
+  getHashes as getIngestionHashes,
+  clearSession as clearIngestionSession,
+} from './core/d16/ingestion-byte-registry.js';

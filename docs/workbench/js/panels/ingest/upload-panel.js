@@ -261,6 +261,22 @@ export function initUploadPanel(el, nav) {
         return;
       }
 
+      // DP-2.3.0 byte-capture (SME D3.2 lock): compute raw-byte content hash
+      // of the source ontology at ingestion time. DP-2.3.2 Final Hash pipeline
+      // consumes this via getIngestionHashes(result.sessionId). Failure here
+      // is non-fatal for DP-2.1-level session startup but will be load-bearing
+      // when DP-2.3.2 lands. Best-effort now; hard-required then.
+      if (Fandaws.captureSourceBytes && result.sessionId) {
+        try {
+          await Fandaws.captureSourceBytes({
+            sessionId: result.sessionId,
+            bytes: fileContent,
+          });
+        } catch (hashErr) {
+          console.warn('DP-2.3.0 source byte capture failed:', hashErr);
+        }
+      }
+
       // Create session in ingest state
       const { id, session, error } = nav.ingestState.createSession({
         sourceFilename: fileName || 'uploaded-ontology',

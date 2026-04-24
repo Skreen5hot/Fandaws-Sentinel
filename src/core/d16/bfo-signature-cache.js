@@ -66,11 +66,31 @@ export function resetForTests() {
  * Simulate a session start. Returns a status record describing what loaded
  * from cache vs what had to be recomputed. Production implementation reads
  * from IndexedDB instead of the in-memory Map and emits the same shape.
+ *
+ * DP-2.3.0 byte-capture retrofit: when caller provides `bfoBytes` and/or
+ * `curatedBytes` with a `sessionId`, raw-byte content hashes are captured
+ * into the ingestion-byte-registry per SME D3.2 lock. DP-2.3.2 Final Hash
+ * assembly reads these via `getIngestionHashes(sessionId)`.
+ *
+ * @param {object} params
+ * @param {string} [params.bfoVersion]
+ * @param {string} [params.curatedVersion]
+ * @param {string} [params.sessionId] — required when passing bfoBytes / curatedBytes
+ * @param {string | Uint8Array} [params.bfoBytes]
+ * @param {string | Uint8Array} [params.curatedBytes]
  */
-export function onSessionStart({ bfoVersion, curatedVersion }) {
+export function onSessionStart({ bfoVersion, curatedVersion, sessionId, bfoBytes, curatedBytes }) {
   ensureInit();
   const b = bfoVersion || versionState.bfoVersion;
   const c = curatedVersion || versionState.curatedVersion;
+
+  // DP-2.3.0 byte capture — fire-and-forget; registry is async. Callers
+  // wanting to await the capture should use ingestion-byte-registry
+  // directly. Failure here must not block session startup (non-fatal for
+  // DP-2.1-level session operation; hard-required at DP-2.3.2 landing).
+  if (sessionId && (bfoBytes != null || curatedBytes != null)) {
+    captureBytesAsync(sessionId, bfoBytes, curatedBytes);
+  }
 
   if (cacheState && cacheState.bfoVersion === b && cacheState.curatedVersion === c) {
     return {
@@ -91,6 +111,23 @@ export function onSessionStart({ bfoVersion, curatedVersion }) {
     bfoVersion: b,
     curatedVersion: c,
   };
+}
+
+async function captureBytesAsync(sessionId, bfoBytes, curatedBytes) {
+  try {
+    const registry = await import('./ingestion-byte-registry.js');
+    if (bfoBytes != null) {
+      await registry.captureBFO({ sessionId, bytes: bfoBytes });
+    }
+    if (curatedBytes != null) {
+      await registry.captureCurated({ sessionId, bytes: curatedBytes });
+    }
+  } catch (err) {
+    // Non-fatal per DP-2.3.0 scaffold discipline. DP-2.3.2 adds hard
+    // verification that hashes exist before Final Hash emission.
+    // eslint-disable-next-line no-console
+    console.warn('DP-2.3.0 BFO/curated byte capture failed:', err);
+  }
 }
 
 /**

@@ -55,6 +55,13 @@ import {
   resetFrozenConfigForTests,
 } from '../../src/core/d16/session-config-snapshot.js';
 import { validateCanonicalRecord } from '../../src/core/d16/dp2-schema.js';
+import {
+  orchestrateThreeStateTerminal,
+  orchestrateInheritance,
+  orchestrateReactive,
+  orchestrateNotApplicable,
+  orchestrateAnalystOverride,
+} from '../../src/core/d16/pipeline-orchestrator.js';
 import fs from 'fs';
 import path from 'path';
 import bfoSignaturesJson from '../../specs/d16/bfo-signatures-v1.0.json' with { type: 'json' };
@@ -385,15 +392,26 @@ function tryWrite(record) {
 // Each builds session-scoped production records via the DP-2.2 builders then
 // inspects the resulting records' shape against the scenario's expectations.
 
+// MIGRATED to orchestrator dispatch per SME-D16-X3 v2 Commit 2.
+// Each helper now routes through a pipeline-orchestrator function rather
+// than calling buildProductionCanonicalRecord directly. Dry-run mode
+// (no adapter) preserves the pre-migration return shape (array of
+// records); F4 static audit sees orchestrator call sites as the
+// structural chokepoint-routed writes.
+
+function ncsFor(category) {
+  return necessaryConditionsFor(category).map((nc) => nc.shortIRI);
+}
+
 async function buildEntailedSession(sessionId, count) {
   const records = [];
   for (let i = 0; i < count; i++) {
     const cauIRI = `ex:EntailedCAU${i}`;
-    records.push(await buildProductionCanonicalRecord({
-      cauIRI,
-      sessionId,
-      disposition: 'Entailed',
-      bfoCategory: 'bfo:Process',
+    const result = await orchestrateThreeStateTerminal(cauIRI, {
+      evaluatorInput: {
+        targetCategory: 'bfo:Process',
+        satisfiedNCs: ncsFor('bfo:Process'),
+      },
       explanationInput: {
         satisfiedNCs: [{
           iri: 'bfo:ProcessNC1',
@@ -404,7 +422,8 @@ async function buildEntailedSession(sessionId, count) {
       },
       iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 42, timestamp: '2026-04-24T00:00:00Z' }] },
       sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
-    }));
+    }, { phase: 'production', sessionId }, null);
+    records.push(result.record);
   }
   return records;
 }
@@ -412,11 +431,13 @@ async function buildEntailedSession(sessionId, count) {
 async function buildPlausibleSession(sessionId, count) {
   const records = [];
   for (let i = 0; i < count; i++) {
-    records.push(await buildProductionCanonicalRecord({
-      cauIRI: `ex:PlausibleCAU${i}`,
-      sessionId,
-      disposition: 'Plausible',
-      bfoCategory: null,
+    const cauIRI = `ex:PlausibleCAU${i}`;
+    const result = await orchestrateThreeStateTerminal(cauIRI, {
+      evaluatorInput: {
+        // Partial satisfaction → evaluator returns Plausible
+        targetCategory: 'bfo:Process',
+        satisfiedNCs: ncsFor('bfo:Process').slice(0, 1),
+      },
       explanationInput: {
         candidateBFOCategories: [
           { category: 'bfo:Process', conditionsSatisfied: 3, conditionsTotal: 5,
@@ -432,7 +453,8 @@ async function buildPlausibleSession(sessionId, count) {
       },
       iterationState: { rounds: [{ round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 30, timestamp: '2026-04-24T00:00:00Z' }] },
       sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
-    }));
+    }, { phase: 'production', sessionId }, null);
+    records.push(result.record);
   }
   return records;
 }
@@ -440,20 +462,26 @@ async function buildPlausibleSession(sessionId, count) {
 async function buildInconsistentSession(sessionId, count) {
   const records = [];
   for (let i = 0; i < count; i++) {
-    records.push(await buildProductionCanonicalRecord({
-      cauIRI: `ex:InconsistentCAU${i}`,
-      sessionId,
-      disposition: 'Inconsistent',
-      bfoCategory: null,
+    const cauIRI = `ex:InconsistentCAU${i}`;
+    // IC target + SDC satisfaction → disjointness per bfo-signatures map
+    const result = await orchestrateThreeStateTerminal(cauIRI, {
+      evaluatorInput: {
+        targetCategory: 'bfo:IndependentContinuant',
+        satisfiedNCs: [
+          ...ncsFor('bfo:IndependentContinuant'),
+          ...ncsFor('bfo:SpecificallyDependentContinuant'),
+        ],
+      },
       explanationInput: {
         disjointnessViolation: {
-          axiom: { iri: 'bfo:ContinuantOccurrentDisjoint', kind: 'disjointness' },
-          conflictingCategories: ['bfo:IndependentContinuant', 'bfo:Occurrent'],
+          axiom: { iri: 'bfo:IC-SDC-Disjoint', kind: 'disjointness' },
+          conflictingCategories: ['bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant'],
         },
       },
       iterationState: { rounds: [{ round: 0, disposition: 'Inconsistent', bfoCategory: null, reasonerStepsConsumed: 15, timestamp: '2026-04-24T00:00:00Z' }] },
       sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
-    }));
+    }, { phase: 'production', sessionId }, null);
+    records.push(result.record);
   }
   return records;
 }
@@ -462,19 +490,15 @@ async function buildNotApplicableSession(sessionId, count) {
   const routingMechanisms = ['automatic', 'default_axiom_poor', 'manual'];
   const records = [];
   for (let i = 0; i < count; i++) {
-    records.push(await buildProductionCanonicalRecord({
-      cauIRI: `ex:NotApplicableCAU${i}`,
-      sessionId,
-      disposition: 'NotApplicable',
-      bfoCategory: null,
-      explanationInput: {
-        routingMechanism: routingMechanisms[i % routingMechanisms.length],
-        triggerAxiom: { iri: `ex:trigger-${i}`, kind: 'nonBfoDeclaration' },
-        triggerRule: 'NA-1',
-      },
+    const cauIRI = `ex:NotApplicableCAU${i}`;
+    const result = await orchestrateNotApplicable(cauIRI, {
+      routingMechanism: routingMechanisms[i % routingMechanisms.length],
+      triggerAxiom: { iri: `ex:trigger-${i}`, kind: 'nonBfoDeclaration' },
+      triggerRule: 'NA-1',
       iterationState: { rounds: [{ round: 0, disposition: 'NotApplicable', bfoCategory: null, reasonerStepsConsumed: 5, timestamp: '2026-04-24T00:00:00Z' }] },
       sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
-    }));
+    }, { phase: 'production', sessionId }, null);
+    records.push(result.record);
   }
   return records;
 }
@@ -554,48 +578,34 @@ function countProseFields(records) {
 
 async function handleVerifyIterationHistory(scenario) {
   resetAxiomDictionary();
-  const single = await buildProductionCanonicalRecord({
-    cauIRI: 'ex:SinglePassCAU',
-    sessionId: 'single-pass-session',
-    disposition: 'Entailed',
-    bfoCategory: 'bfo:Process',
-    explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
-    iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' }] },
-    sessionState: { backgroundTheoryVersion: 'BFO-2020' },
-  });
 
-  const twoRound = await buildProductionCanonicalRecord({
-    cauIRI: 'ex:TwoRoundCAU',
-    sessionId: 'two-round-session',
-    disposition: 'Entailed',
-    bfoCategory: 'bfo:Process',
-    explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
-    iterationState: {
-      rounds: [
-        { round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' },
-        { round: 1, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 15, timestamp: '2026-04-24T00:01:00Z' },
-      ],
-    },
-    sessionState: { backgroundTheoryVersion: 'BFO-2020' },
-  });
+  async function emitEntailedViaOrchestrator(cauIRI, sessionId, rounds) {
+    const result = await orchestrateThreeStateTerminal(cauIRI, {
+      evaluatorInput: {
+        targetCategory: 'bfo:Process',
+        satisfiedNCs: ncsFor('bfo:Process'),
+      },
+      explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
+      iterationState: { rounds },
+      sessionState: { backgroundTheoryVersion: 'BFO-2020' },
+    }, { phase: 'production', sessionId }, null);
+    return result.record;
+  }
 
-  const threeRound = await buildProductionCanonicalRecord({
-    cauIRI: 'ex:ThreeRoundCAU',
-    sessionId: 'three-round-session',
-    disposition: 'Entailed',
-    bfoCategory: 'bfo:Process',
-    explanationInput: { satisfiedNCs: [{ axioms: [{ iri: 'ex:a1' }] }] },
-    iterationState: {
-      rounds: [
-        { round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 8, timestamp: '2026-04-24T00:00:00Z' },
-        { round: 1, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 12, timestamp: '2026-04-24T00:01:00Z' },
-        { round: 2, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 20, timestamp: '2026-04-24T00:02:00Z' },
-      ],
-    },
-    sessionState: { backgroundTheoryVersion: 'BFO-2020' },
-  });
+  const single = await emitEntailedViaOrchestrator('ex:SinglePassCAU', 'single-pass-session', [
+    { round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' },
+  ]);
 
-  for (const r of [single, twoRound, threeRound]) writeCanonicalRecord(r, { phase: 'production' });
+  const twoRound = await emitEntailedViaOrchestrator('ex:TwoRoundCAU', 'two-round-session', [
+    { round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' },
+    { round: 1, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 15, timestamp: '2026-04-24T00:01:00Z' },
+  ]);
+
+  const threeRound = await emitEntailedViaOrchestrator('ex:ThreeRoundCAU', 'three-round-session', [
+    { round: 0, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 8, timestamp: '2026-04-24T00:00:00Z' },
+    { round: 1, disposition: 'Plausible', bfoCategory: null, reasonerStepsConsumed: 12, timestamp: '2026-04-24T00:01:00Z' },
+    { round: 2, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 20, timestamp: '2026-04-24T00:02:00Z' },
+  ]);
 
   return {
     singlePassRecords: `iterationHistory length == ${single.provenance.iterationHistory.length} (round 0)`,
@@ -617,20 +627,19 @@ async function handleInspectProvenanceStorage(scenario) {
 
   const records = [];
   for (let i = 0; i < 10; i++) {
-    records.push(await buildProductionCanonicalRecord({
-      cauIRI: `ex:SharedCAU${i}`,
-      sessionId,
-      disposition: 'Entailed',
-      bfoCategory: 'bfo:Process',
+    const result = await orchestrateThreeStateTerminal(`ex:SharedCAU${i}`, {
+      evaluatorInput: {
+        targetCategory: 'bfo:Process',
+        satisfiedNCs: ncsFor('bfo:Process'),
+      },
       explanationInput: {
         satisfiedNCs: [{ iri: 'bfo:ProcessNC1', bfoCategoryAffected: 'bfo:Process', axioms: [sharedAxiom] }],
       },
       iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: 'bfo:Process', reasonerStepsConsumed: 10, timestamp: '2026-04-24T00:00:00Z' }] },
       sessionState: { backgroundTheoryVersion: 'BFO-2020' },
-    }));
+    }, { phase: 'production', sessionId }, null);
+    records.push(result.record);
   }
-
-  for (const r of records) writeCanonicalRecord(r, { phase: 'production' });
 
   const dictSize = dictionarySize(sessionId);
   const allRecordsReferenceViaID = records.every((r) => {
@@ -651,18 +660,22 @@ async function handleInspectProvenanceStorage(scenario) {
   };
 }
 
-// Band 3 — evidence-inconsistent-override-path
+// Band 3 — evidence-inconsistent-override-path (migrated to orchestrateAnalystOverride)
 async function handleAnalystOverrideCAU(scenario) {
   resetAxiomDictionary();
   const sessionId = 'override-session';
   const cauIRI = scenario.trigger.cauIRI || 'ex:InconsistentClass';
   const targetPlacement = scenario.trigger.placement || 'bfo:Process';
 
-  const overridden = await buildProductionCanonicalRecord({
-    cauIRI,
-    sessionId,
-    disposition: 'Entailed', // post-override
-    bfoCategory: targetPlacement,
+  const result = await orchestrateAnalystOverride(cauIRI, {
+    overrideMetadata: {
+      analystId: 'scenario-analyst',
+      timestamp: '2026-04-24T00:00:00Z',
+      rationale: 'Analyst override per Rule EV-1: Inconsistent CAU re-placed at bfo:Process.',
+      priorAutomatedDisposition: 'Inconsistent',
+      priorAutomatedBfoCategory: null,
+    },
+    overrideResult: { disposition: 'Entailed', bfoCategory: targetPlacement },
     explanationInput: {
       satisfiedNCs: [{
         iri: 'analystOverride',
@@ -680,10 +693,8 @@ async function handleAnalystOverrideCAU(scenario) {
     },
     iterationState: { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: targetPlacement, reasonerStepsConsumed: 0, timestamp: '2026-04-24T00:00:00Z' }] },
     sessionState: { backgroundTheoryVersion: 'BFO-2020', compatibilityDegraded: false },
-    overrideInfo: { analystOverride: true, originalDisposition: 'Inconsistent' },
-  });
-
-  writeCanonicalRecord(overridden, { phase: 'production' });
+  }, { phase: 'production', sessionId }, null);
+  const overridden = result.record;
 
   return {
     cauFinalDisposition: overridden.disposition,
@@ -1014,54 +1025,70 @@ async function runProvOSession(sessionId, sourceBytes) {
   for (let i = 0; i < distribution.length; i++) {
     const disposition = distribution[i];
     const cauIRI = `prov:CAU${String(i).padStart(2, '0')}`;
-    let explanationInput;
-    let bfoCategory = null;
+    const iterationState = { rounds: [{ round: 0, disposition, bfoCategory: null, reasonerStepsConsumed: 10, timestamp: FIXED_TIMESTAMP }] };
+    const sessionState = { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false };
+    const ctx = { phase: 'production', sessionId };
+    let orchResult;
+
     switch (disposition) {
-      case 'Entailed':
-        bfoCategory = 'bfo:Process';
-        explanationInput = {
-          satisfiedNCs: [{
-            iri: 'bfo:ProcessNC1', bfoCategoryAffected: 'bfo:Process',
-            axioms: [{ iri: 'bfo:hasParticipant', kind: 'restriction', target: 'bfo:Continuant', weight: 'High' }],
-          }],
-          alternativesConsidered: [{ bfoCategory: 'bfo:Occurrent', result: 'rejected: narrower winner' }],
-        };
-        break;
-      case 'Plausible':
-        explanationInput = {
-          candidateBFOCategories: [{
-            category: 'bfo:Process', conditionsSatisfied: 3, conditionsTotal: 5,
-            satisfiedConditionIRIs: ['bfo:ProcessNC1', 'bfo:ProcessNC2', 'bfo:ProcessNC3'],
-            unsatisfiedConditionIRIs: ['bfo:ProcessNC4', 'bfo:ProcessNC5'],
-            axiomsContributing: [{ iri: 'prov:partial-axiom' }],
-          }],
-        };
-        break;
-      case 'Inconsistent':
-        explanationInput = {
-          disjointnessViolation: {
-            axiom: { iri: 'bfo:ContinuantOccurrentDisjoint', kind: 'disjointness' },
-            conflictingCategories: ['bfo:IndependentContinuant', 'bfo:Occurrent'],
+      case 'Entailed': {
+        iterationState.rounds[0].bfoCategory = 'bfo:Process';
+        orchResult = await orchestrateThreeStateTerminal(cauIRI, {
+          evaluatorInput: { targetCategory: 'bfo:Process', satisfiedNCs: ncsFor('bfo:Process') },
+          explanationInput: {
+            satisfiedNCs: [{
+              iri: 'bfo:ProcessNC1', bfoCategoryAffected: 'bfo:Process',
+              axioms: [{ iri: 'bfo:hasParticipant', kind: 'restriction', target: 'bfo:Continuant', weight: 'High' }],
+            }],
+            alternativesConsidered: [{ bfoCategory: 'bfo:Occurrent', result: 'rejected: narrower winner' }],
           },
-        };
+          iterationState, sessionState,
+        }, ctx, null);
         break;
-      case 'NotApplicable':
-        explanationInput = {
+      }
+      case 'Plausible': {
+        orchResult = await orchestrateThreeStateTerminal(cauIRI, {
+          evaluatorInput: { targetCategory: 'bfo:Process', satisfiedNCs: ncsFor('bfo:Process').slice(0, 1) },
+          explanationInput: {
+            candidateBFOCategories: [{
+              category: 'bfo:Process', conditionsSatisfied: 3, conditionsTotal: 5,
+              satisfiedConditionIRIs: ['bfo:ProcessNC1', 'bfo:ProcessNC2', 'bfo:ProcessNC3'],
+              unsatisfiedConditionIRIs: ['bfo:ProcessNC4', 'bfo:ProcessNC5'],
+              axiomsContributing: [{ iri: 'prov:partial-axiom' }],
+            }],
+          },
+          iterationState, sessionState,
+        }, ctx, null);
+        break;
+      }
+      case 'Inconsistent': {
+        orchResult = await orchestrateThreeStateTerminal(cauIRI, {
+          evaluatorInput: {
+            targetCategory: 'bfo:IndependentContinuant',
+            satisfiedNCs: [...ncsFor('bfo:IndependentContinuant'), ...ncsFor('bfo:SpecificallyDependentContinuant')],
+          },
+          explanationInput: {
+            disjointnessViolation: {
+              axiom: { iri: 'bfo:IC-SDC-Disjoint', kind: 'disjointness' },
+              conflictingCategories: ['bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant'],
+            },
+          },
+          iterationState, sessionState,
+        }, ctx, null);
+        break;
+      }
+      case 'NotApplicable': {
+        orchResult = await orchestrateNotApplicable(cauIRI, {
           routingMechanism: 'automatic',
           triggerAxiom: { iri: 'skos:Concept-declaration', kind: 'nonBfoDeclaration' },
           triggerRule: 'NA-1',
-        };
+          iterationState, sessionState,
+        }, ctx, null);
         break;
+      }
     }
 
-    const record = await buildProductionCanonicalRecord({
-      cauIRI, sessionId, disposition, bfoCategory,
-      explanationInput,
-      iterationState: { rounds: [{ round: 0, disposition, bfoCategory, reasonerStepsConsumed: 10, timestamp: FIXED_TIMESTAMP }] },
-      sessionState: { backgroundTheoryVersion: 'BFO-2020+curated-v1.0', compatibilityDegraded: false },
-      authorTimestamp: FIXED_TIMESTAMP,
-    });
-    writeCanonicalRecord(record, { phase: 'production' });
+    const record = orchResult.record;
 
     // Finalize: register signature + compute real Final Hash + remove sentinel
     registerSessionSignature({
@@ -1141,47 +1168,64 @@ async function runRuntimeChokepointAudit() {
     config: DEFAULT_TEST_CONFIG(),
   });
 
+  // F4 runtime audit migrated to orchestrator dispatch per SME-D16-X3 v2
+  // Commit 2. Each disposition built via its family's orchestrator
+  // function; all records finalized and validated via I2a.
   const dispositions = ['Entailed', 'Plausible', 'Inconsistent', 'NotApplicable'];
   const records = [];
+  const iterState = { rounds: [{ round: 0, disposition: 'Entailed', bfoCategory: null, reasonerStepsConsumed: 5, timestamp: '2026-04-24T00:00:00Z' }] };
+  const sessState = { backgroundTheoryVersion: 'BFO-2020' };
+  const ctx = { phase: 'production', sessionId };
+
   for (let i = 0; i < dispositions.length; i++) {
     const disposition = dispositions[i];
     const cauIRI = `ex:F4-${i + 1}`;
-    let explanationInput;
+    let orchResult;
     switch (disposition) {
       case 'Entailed':
-        explanationInput = { satisfiedNCs: [{ iri: 'nc1', axioms: [{ iri: 'ax-entailed' }] }] };
+        orchResult = await orchestrateThreeStateTerminal(cauIRI, {
+          evaluatorInput: { targetCategory: 'bfo:Process', satisfiedNCs: ncsFor('bfo:Process') },
+          explanationInput: { satisfiedNCs: [{ iri: 'nc1', axioms: [{ iri: 'ax-entailed' }] }] },
+          iterationState: iterState, sessionState: sessState,
+        }, ctx, null);
         break;
       case 'Plausible':
-        explanationInput = {
-          candidateBFOCategories: [{
-            category: 'bfo:Process', conditionsSatisfied: 1, conditionsTotal: 3,
-            satisfiedConditionIRIs: ['nc1'], unsatisfiedConditionIRIs: ['nc2', 'nc3'],
-            axiomsContributing: [{ iri: 'ax-plausible' }],
-          }],
-        };
+        orchResult = await orchestrateThreeStateTerminal(cauIRI, {
+          evaluatorInput: { targetCategory: 'bfo:Process', satisfiedNCs: ncsFor('bfo:Process').slice(0, 1) },
+          explanationInput: {
+            candidateBFOCategories: [{
+              category: 'bfo:Process', conditionsSatisfied: 1, conditionsTotal: 3,
+              satisfiedConditionIRIs: ['nc1'], unsatisfiedConditionIRIs: ['nc2', 'nc3'],
+              axiomsContributing: [{ iri: 'ax-plausible' }],
+            }],
+          },
+          iterationState: iterState, sessionState: sessState,
+        }, ctx, null);
         break;
       case 'Inconsistent':
-        explanationInput = {
-          disjointnessViolation: {
-            axiom: { iri: 'ax-disjoint' },
-            conflictingCategories: ['bfo:IndependentContinuant', 'bfo:Occurrent'],
+        orchResult = await orchestrateThreeStateTerminal(cauIRI, {
+          evaluatorInput: {
+            targetCategory: 'bfo:IndependentContinuant',
+            satisfiedNCs: [...ncsFor('bfo:IndependentContinuant'), ...ncsFor('bfo:SpecificallyDependentContinuant')],
           },
-        };
+          explanationInput: {
+            disjointnessViolation: {
+              axiom: { iri: 'ax-disjoint' },
+              conflictingCategories: ['bfo:IndependentContinuant', 'bfo:SpecificallyDependentContinuant'],
+            },
+          },
+          iterationState: iterState, sessionState: sessState,
+        }, ctx, null);
         break;
       case 'NotApplicable':
-        explanationInput = { routingMechanism: 'automatic', triggerAxiom: { iri: 'ax-na' } };
+        orchResult = await orchestrateNotApplicable(cauIRI, {
+          routingMechanism: 'automatic',
+          triggerAxiom: { iri: 'ax-na' },
+          iterationState: iterState, sessionState: sessState,
+        }, ctx, null);
         break;
     }
-
-    const record = await buildProductionCanonicalRecord({
-      cauIRI, sessionId, disposition,
-      bfoCategory: disposition === 'Entailed' ? 'bfo:Process' : null,
-      explanationInput,
-      iterationState: { rounds: [{ round: 0, disposition, bfoCategory: null, reasonerStepsConsumed: 5, timestamp: '2026-04-24T00:00:00Z' }] },
-      sessionState: { backgroundTheoryVersion: 'BFO-2020' },
-    });
-    writeCanonicalRecord(record, { phase: 'production' });
-    records.push(record);
+    records.push(orchResult.record);
   }
 
   // Finalize all records in the population (I2b activation sweep).
@@ -1220,25 +1264,18 @@ async function runRuntimeChokepointAudit() {
   };
 }
 
-// Band 5 — notapplicable-provenance-fields: NA records carry all DP-2 fields
+// Band 5 — notapplicable-provenance-fields (migrated to orchestrateNotApplicable)
 async function handleRetrieveCanonicalRecord(scenario) {
   resetAxiomDictionary();
   const cauIRI = scenario.trigger.cauIRI || 'ex:CategoryA';
-  const record = await buildProductionCanonicalRecord({
-    cauIRI,
-    sessionId: 'na-retrieve-session',
-    disposition: 'NotApplicable',
-    bfoCategory: null,
-    explanationInput: {
-      routingMechanism: 'automatic',
-      triggerAxiom: { iri: 'ex:skos-Concept-declaration', kind: 'nonBfoDeclaration' },
-      triggerRule: 'NA-1',
-    },
+  const result = await orchestrateNotApplicable(cauIRI, {
+    routingMechanism: 'automatic',
+    triggerAxiom: { iri: 'ex:skos-Concept-declaration', kind: 'nonBfoDeclaration' },
+    triggerRule: 'NA-1',
     iterationState: { rounds: [{ round: 0, disposition: 'NotApplicable', bfoCategory: null, reasonerStepsConsumed: 5, timestamp: '2026-04-24T00:00:00Z' }] },
     sessionState: { backgroundTheoryVersion: 'BFO-2020', compatibilityDegraded: false },
-  });
-
-  writeCanonicalRecord(record, { phase: 'production' });
+  }, { phase: 'production', sessionId: 'na-retrieve-session' }, null);
+  const record = result.record;
 
   return {
     record: {

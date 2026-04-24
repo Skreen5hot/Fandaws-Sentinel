@@ -1,6 +1,6 @@
 # D1.6 Phase 1 Closeout
 
-**Status:** COMPLETE 2026-04-24.
+**Status:** COMPLETE 2026-04-24. Extended 2026-04-24 with SME-D16-X3 orchestrator-construction arc (4 commits): pipeline-orchestrator.js + AVC handler migration + F4 two-layer audit + live-pipeline integration test. Site-family-to-funnel integration gap (§6 open gap at original closeout) CLOSED. See `provo-reception-live-commit4.md` for live-pipeline attestation.
 **Final gate:** `provo-end-to-end-acceptance` (Band 8) passing.
 **Arc duration:** 2026-04-18 (spec v1.1.0 lock) → 2026-04-24 (Phase 1 complete).
 **Analog:** Wave 2 closeout pattern, scaled to full-phase scope.

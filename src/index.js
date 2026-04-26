@@ -211,3 +211,33 @@ export {
   getHashes as getIngestionHashes,
   clearSession as clearIngestionSession,
 } from './core/d16/ingestion-byte-registry.js';
+
+// D1.6 Bucket C Tau Prolog substrate (X6 LOCKED 2026-04-25). Workbench v0.2
+// Ingest mode (X9) is the first browser-bundled consumer; per-orchestrator-
+// session lifecycle attaches at Sessions panel "New Ingestion Session" /
+// Session Summary "Finalize Session" actions per X6 §6.2 L2 lock + X9 §3.1.
+export {
+  initBucketCPrologSession,
+  teardownPrologSession,
+  PrologSessionContractViolationError,
+  DEFAULT_STEP_CAP as BUCKET_C_DEFAULT_STEP_CAP,
+} from './core/d16/bucket-c-prolog.js';
+
+// D1.6 NC dispatcher (X4-X7). Workbench v0.2 Phase 1/2/3 Review panels invoke
+// dispatcher path through orchestrator family per W-D-7 thin-UI-layer.
+export {
+  evaluateNCSatisfaction,
+  NCInferenceCycleError,
+  DispatcherContractViolationError,
+} from './core/d16/nc-dispatcher.js';
+
+// D1.6 pipeline orchestrator (X3 + X7 + X8 DUAL-MODE). Workbench v0.2 invokes
+// the five entry points per W-D-7. Dispatcher path requires prologSession
+// per X8 §4.2 Option I lock.
+export {
+  orchestrateThreeStateTerminal,
+  orchestrateInheritance,
+  orchestrateReactive,
+  orchestrateNotApplicable,
+  orchestrateAnalystOverride,
+} from './core/d16/pipeline-orchestrator.js';

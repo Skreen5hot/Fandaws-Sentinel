@@ -42,6 +42,7 @@
  */
 
 import * as helpers from './critical-nc-helpers.js';
+import * as owlDerivedHelpers from './owl-derived-nc-helpers.js';
 
 // ── Error classes ─────────────────────────────────────────────────
 
@@ -72,7 +73,23 @@ export class NCInferenceCycleError extends Error {
  * dispositions downstream.
  */
 export class DispatcherContractViolationError extends Error {
-  constructor(required, satisfied, unsatisfied, undetermined) {
+  // Two construction shapes:
+  //   (a) Partition-violation form (legacy): (required, satisfied, unsatisfied, undetermined)
+  //       — fired by partitionEquals check at evaluateNCSatisfaction emission.
+  //   (b) Message form (X7 dispatch-integration): (message)
+  //       — fired by dispatchOwlDerivedNC for registry-miss + non-boolean
+  //         helper return per memo §2.5 throw-not-warn discipline.
+  constructor(arg1, satisfied, unsatisfied, undetermined) {
+    if (typeof arg1 === 'string' && satisfied === undefined) {
+      // Message form
+      super(`DispatcherContractViolationError: ${arg1}`);
+      this.name = 'DispatcherContractViolationError';
+      this.missing = [];
+      this.extra = [];
+      return;
+    }
+    // Partition form
+    const required = arg1;
     const partition = new Set([...satisfied, ...unsatisfied, ...undetermined]);
     const missing = [...required].filter((x) => !partition.has(x));
     const extra = [...partition].filter((x) => !required.has(x));
@@ -103,6 +120,9 @@ const HELPER_REGISTRY = Object.freeze({
   cau_always_realized_when_bearer_exists: helpers.cauAlwaysRealizedWhenBearerExists,
   cau_disposition_disjunctive: helpers.cauDispositionDisjunctive,
   cau_realization_is_design_expected: helpers.cauRealizationIsDesignExpected,
+  cau_identity_persists_through_time: helpers.cauIdentityPersistsThroughTime,
+  cau_unfolds_through_time: helpers.cauUnfoldsThroughTime,
+  cau_admits_process_boundaries: helpers.cauAdmitsProcessBoundaries,
 });
 
 // NCs whose full body_draft is handled inline by a helper (not reducible to
@@ -119,6 +139,31 @@ const HELPER_NC_OVERRIDES = Object.freeze({
   DispositionNC4: helpers.cauDoesNotRequireSocialInstitutionalContext,
   DispositionNC5: helpers.cauDispositionDisjunctive,
   FunctionNC4: helpers.cauRealizationIsDesignExpected,
+  // X5 Bucket B (PROV-O-relevant subset, locked 2026-04-25).
+  ContinuantNC3: helpers.cauIdentityPersistsThroughTime,
+  OccurrentNC3: helpers.cauUnfoldsThroughTime,
+  ProcessNC4: helpers.cauAdmitsProcessBoundaries,
+});
+
+// ── X7 OWL-DERIVED helper registry (Bucket C dispatch integration) ──
+//
+// Maps OWL-DERIVED NC `id` short-form (e.g., 'ICNC2', 'OccurrentNC2') to
+// the X6 async helper. Keys parallel HELPER_NC_OVERRIDES above. All 6
+// OWL-DERIVED NCs in bfo-signatures-v1.0.json must be registered here per
+// memo §2.5 throw-not-warn discipline; missing entry → DispatcherContractViolationError.
+//
+// Activation: dispatchOwlDerivedNC consults this registry only when
+// prologSession is supplied at the dispatcher entry. Legacy callers
+// without prologSession route OWL-DERIVED → undetermined per the
+// TEMPORARY MIGRATION SUPPORT seam at pipeline-orchestrator.js:397
+// (Bucket A behavior preserved for the 70 AVC regression).
+const OWL_DERIVED_HELPER_REGISTRY = Object.freeze({
+  ICNC2: owlDerivedHelpers.cauDoesNotRequireInheresIn,
+  ICNC3: owlDerivedHelpers.cauDoesNotRequireConcretizes,
+  IENC2: owlDerivedHelpers.cauIncompatibleWithMatterAsPart,
+  OccurrentNC2: owlDerivedHelpers.cauDisjointWithContinuant,
+  MENC2: owlDerivedHelpers.cauConsistentWithSpatialAndMatter,
+  ProcessNC3: owlDerivedHelpers.cauConsistentWithOneDimTemporal,
 });
 
 // ── BFO ancestor chain (for P1 recursion + P2 subClassOf check) ───
@@ -151,18 +196,25 @@ const BFO_PARENT = Object.freeze({
 /**
  * Evaluate NC satisfaction for a CAU at a target BFO category.
  *
+ * Async per X7 dispatcher integration (LOCKED 2026-04-25 + 5-function
+ * cascade refinement): when `prologSession` is supplied, OWL-DERIVED NCs
+ * route through Bucket C async helpers via OWL_DERIVED_HELPER_REGISTRY.
+ * When absent, OWL-DERIVED NCs route undetermined per legacy Bucket A
+ * behavior (TEMPORARY MIGRATION SUPPORT seam at pipeline-orchestrator.js:397).
+ *
  * @param {object} input
  * @param {string} input.cauIRI
  * @param {object} input.cauSignature           - per extractCAUSignature output
  * @param {string} input.targetBFOCategory      - e.g., 'bfo:Process'
  * @param {object} input.bfoSignatureReference  - bfo-signatures-v1.0.json content
- * @param {Array<string>} [input.ancestorChain] - named rdfs:subClassOf ancestors of the CAU, from specific→general. Required for P2 NCs. Pass [] if CAU has no named subClassOf axioms.
- * @returns {{satisfied: Set<string>, unsatisfied: Set<string>, undetermined: Set<string>, evidence: Map<string, object>}}
+ * @param {Array<string>} [input.ancestorChain] - named rdfs:subClassOf ancestors of the CAU, from specific→general. MUST be transitively closed (caller-contract per X6 §6.2 L2 lock + X7 §3.4 documentation). Required for P2 NCs. Pass [] if CAU has no named subClassOf axioms.
+ * @param {object} [input.prologSession] - Bucket C Tau Prolog session handle from initBucketCPrologSession. When supplied, OWL-DERIVED NCs route through X6 helpers; absent → undetermined per legacy path.
+ * @returns {Promise<{satisfied: Set<string>, unsatisfied: Set<string>, undetermined: Set<string>, evidence: Map<string, object>}>}
  */
-export function evaluateNCSatisfaction(input) {
+export async function evaluateNCSatisfaction(input) {
   const {
     cauIRI, cauSignature, targetBFOCategory, bfoSignatureReference,
-    ancestorChain = [],
+    ancestorChain = [], prologSession = null,
   } = input;
 
   if (!cauSignature) throw new TypeError('evaluateNCSatisfaction: cauSignature required.');
@@ -181,9 +233,9 @@ export function evaluateNCSatisfaction(input) {
   };
 
   for (const nc of required) {
-    evaluateSingleNC({
+    await evaluateSingleNC({
       nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference,
-      state, visited: new Set([targetBFOCategory]),
+      state, visited: new Set([targetBFOCategory]), prologSession,
     });
   }
 
@@ -205,7 +257,7 @@ export function evaluateNCSatisfaction(input) {
 
 // ── Per-NC evaluation dispatch ────────────────────────────────────
 
-function evaluateSingleNC({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited }) {
+async function evaluateSingleNC({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited, prologSession }) {
   const ncId = nc.shortIRI;
 
   // NC override: some CURATED-NCs route via their dedicated helper rather
@@ -214,7 +266,7 @@ function evaluateSingleNC({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatur
   if (HELPER_NC_OVERRIDES[ncIdShort]) {
     dispatchToHelper({
       nc, helperFn: HELPER_NC_OVERRIDES[ncIdShort],
-      cauIRI, cauSignature, state,
+      cauIRI, cauSignature, ancestorChain, state,
     });
     return;
   }
@@ -233,20 +285,21 @@ function evaluateSingleNC({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatur
       return;
 
     case 'OWL-DIRECT':
-      evaluateOwlDirect({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited });
+      await evaluateOwlDirect({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited, prologSession });
       return;
 
     case 'OWL-DERIVED':
-      // Bucket C scope-out.
-      state.undetermined.add(ncId);
-      state.evidence.set(ncId, {
-        deferredReason: 'OWL-DERIVED-Bucket-C-deferred',
-        note: 'OWL-DERIVED NCs require subsumption/restriction-composition inference. Deferred to Bucket C per SME-D16-X4 memo §6.2.',
+      // X7 Bucket C dispatch integration (LOCKED 2026-04-25). When
+      // prologSession is supplied, route through X6 helper registry;
+      // otherwise route undetermined per legacy path (TEMPORARY MIGRATION
+      // SUPPORT seam at pipeline-orchestrator.js:397).
+      await dispatchOwlDerivedNC({
+        nc, cauIRI, cauSignature, ancestorChain, prologSession, state,
       });
       return;
 
     case 'CURATED-NC':
-      dispatchCuratedNC({ nc, cauIRI, cauSignature, state });
+      dispatchCuratedNC({ nc, cauIRI, cauSignature, ancestorChain, state });
       return;
 
     default:
@@ -260,13 +313,13 @@ function evaluateSingleNC({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatur
 
 // ── Pattern implementations ──────────────────────────────────────
 
-function evaluateOwlDirect({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited }) {
+async function evaluateOwlDirect({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited, prologSession }) {
   const pattern = classifyOwlDirectPattern(nc);
   const ncId = nc.shortIRI;
 
   switch (pattern) {
     case 'P1':
-      evaluateP1Ancestor({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited });
+      await evaluateP1Ancestor({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited, prologSession });
       return;
 
     case 'P2':
@@ -306,7 +359,7 @@ function evaluateOwlDirect({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatu
 // avoid re-computing for categories reached through multiple P1 paths
 // (e.g., evaluating Function NCs triggers Disposition → SDC → Continuant;
 // evaluating Disposition NCs directly triggers SDC → Continuant again).
-function evaluateP1Ancestor({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited }) {
+async function evaluateP1Ancestor({ nc, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, state, visited, prologSession }) {
   const ncId = nc.shortIRI;
   const ancestorCategory = extractAncestorCategoryFromDescription(nc);
 
@@ -324,10 +377,11 @@ function evaluateP1Ancestor({ nc, cauIRI, cauSignature, ancestorChain, bfoSignat
     throw new NCInferenceCycleError([...visited], ancestorCategory);
   }
 
-  const ancestorTrichotomy = evaluateAncestorCategory({
+  const ancestorTrichotomy = await evaluateAncestorCategory({
     ancestorCategory, cauIRI, cauSignature, ancestorChain,
     bfoSignatureReference, cache: state.ancestorCategoryCache,
     visited: new Set([...visited, ancestorCategory]),
+    prologSession,
   });
 
   const dispositions = [];
@@ -360,7 +414,7 @@ function evaluateP1Ancestor({ nc, cauIRI, cauSignature, ancestorChain, bfoSignat
 // Cached per ancestorCategory to avoid re-computation across multiple P1
 // paths. The sub-trichotomy is NOT merged into the parent state; its sole
 // purpose is to drive P1 NC disposition upstream.
-function evaluateAncestorCategory({ ancestorCategory, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, cache, visited }) {
+async function evaluateAncestorCategory({ ancestorCategory, cauIRI, cauSignature, ancestorChain, bfoSignatureReference, cache, visited, prologSession }) {
   if (cache.has(ancestorCategory)) return cache.get(ancestorCategory);
 
   const ancestorNCs = enumerateRequiredNCs(ancestorCategory, bfoSignatureReference);
@@ -372,9 +426,9 @@ function evaluateAncestorCategory({ ancestorCategory, cauIRI, cauSignature, ance
     ancestorCategoryCache: cache, // shared across recursion
   };
   for (const ancNC of ancestorNCs) {
-    evaluateSingleNC({
+    await evaluateSingleNC({
       nc: ancNC, cauIRI, cauSignature, ancestorChain,
-      bfoSignatureReference, state: subState, visited,
+      bfoSignatureReference, state: subState, visited, prologSession,
     });
   }
   const result = {
@@ -857,7 +911,66 @@ function isBfoIRI(iri) {
 
 // ── CURATED-NC dispatch via body_draft predicate name ─────────────
 
-function dispatchCuratedNC({ nc, cauIRI, cauSignature, state }) {
+// X7 OWL-DERIVED dispatch (LOCKED 2026-04-25). Routes to X6 helper when
+// prologSession is supplied; otherwise routes undetermined per legacy
+// path. Throw-not-warn on registry-miss + non-boolean helper result per
+// memo §2.5 + feedback_throw_not_warn_enforcement.md. Substrate errors
+// (PrologSessionContractViolationError) propagate unchanged.
+async function dispatchOwlDerivedNC({ nc, cauIRI, cauSignature, ancestorChain, prologSession, state }) {
+  const ncId = nc.shortIRI;
+
+  // Legacy / migration-support path: prologSession absent → undetermined.
+  // Reason text renamed from 'OWL-DERIVED-Bucket-C-deferred' (X4 stale)
+  // to 'OWL-DERIVED-prolog-session-absent' (X7 documentation hygiene).
+  if (!prologSession) {
+    state.undetermined.add(ncId);
+    state.evidence.set(ncId, {
+      deferredReason: 'OWL-DERIVED-prolog-session-absent',
+      note: 'OWL-DERIVED dispatcher requires prologSession (X6 Bucket C). Legacy callers without prologSession route undetermined per TEMPORARY MIGRATION SUPPORT seam at pipeline-orchestrator.js:397.',
+    });
+    return;
+  }
+
+  const helperFn = OWL_DERIVED_HELPER_REGISTRY[nc.id];
+
+  if (!helperFn) {
+    throw new DispatcherContractViolationError(
+      `OWL-DERIVED NC '${nc.id}' has no helper in OWL_DERIVED_HELPER_REGISTRY. ` +
+      `Per X7 §2.5, all OWL-DERIVED NCs must be registered to surface defects at the ` +
+      `closest enforcement layer (throw-not-warn discipline).`,
+    );
+  }
+
+  const result = await helperFn({
+    prologSession, cauIRI, signature: cauSignature, ancestorChain,
+  });
+
+  if (result.result === true) {
+    state.satisfied.add(ncId);
+  } else if (result.result === false) {
+    state.unsatisfied.add(ncId);
+  } else {
+    throw new DispatcherContractViolationError(
+      `OWL-DERIVED helper '${result.helperIRI || helperFn.name || '(anonymous)'}' returned non-boolean result: ${JSON.stringify(result.result)}. ` +
+      `Per X6 §2.3, OWL-DERIVED helpers under Option C produce deterministic boolean outcomes (true | false, never undetermined).`,
+    );
+  }
+
+  state.evidence.set(ncId, {
+    helperEvidence: {
+      helperName: helperFn.name || result.helperIRI || '(anonymous)',
+      reason: result.reason,
+      evidence: result.evidence,
+      fallbackUsed: result.fallbackUsed,
+      fallbackTrigger: result.fallbackTrigger,
+      groundsNC: result.groundsNC,
+      helperIRI: result.helperIRI,
+      result: result.result,
+    },
+  });
+}
+
+function dispatchCuratedNC({ nc, cauIRI, cauSignature, ancestorChain, state }) {
   const ncId = nc.shortIRI;
   const predicate = extractLeadingPredicateName(nc);
 
@@ -880,14 +993,14 @@ function dispatchCuratedNC({ nc, cauIRI, cauSignature, state }) {
     return;
   }
 
-  dispatchToHelper({ nc, helperFn, cauIRI, cauSignature, state });
+  dispatchToHelper({ nc, helperFn, cauIRI, cauSignature, ancestorChain, state });
 }
 
-function dispatchToHelper({ nc, helperFn, cauIRI, cauSignature, state }) {
+function dispatchToHelper({ nc, helperFn, cauIRI, cauSignature, ancestorChain, state }) {
   const ncId = nc.shortIRI;
   let helperResult;
   try {
-    helperResult = helperFn({ cauIRI, signature: cauSignature });
+    helperResult = helperFn({ cauIRI, signature: cauSignature, ancestorChain });
   } catch (err) {
     state.undetermined.add(ncId);
     state.evidence.set(ncId, {
@@ -990,6 +1103,7 @@ function partitionEquals(required, satisfied, unsatisfied, undetermined) {
 export const _internals = Object.freeze({
   HELPER_REGISTRY,
   HELPER_NC_OVERRIDES,
+  OWL_DERIVED_HELPER_REGISTRY,
   BFO_PARENT,
   classifyOwlDirectPattern,
   extractAncestorCategoryFromDescription,

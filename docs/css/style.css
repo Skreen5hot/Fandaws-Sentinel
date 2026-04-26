@@ -75,6 +75,12 @@ body {
 
 .badge--green { background: var(--green-bg); color: var(--green); }
 .badge--yellow { background: var(--yellow-bg); color: var(--yellow); }
+/* X9 §3.4: SWC indicator for multi-inheritance modeling anomalies (X8
+   bundle v6 SWC pattern). Pairs with text per W-A-2 (color is not the
+   sole carrier of meaning); uses ⚠ icon prefix in markup. Semantic alias
+   for the existing yellow palette to surface analyst-attention contexts
+   distinctly from generic `badge--yellow` use. */
+.badge--warning { background: var(--yellow-bg); color: var(--yellow); }
 .badge--accent { background: rgba(108, 138, 255, 0.12); color: var(--accent); }
 
 /* Navigation */

@@ -43,13 +43,33 @@ initIngest(panelWorkspace, state);
 initInspector(panelInspector, state);
 initStatusBar(statusBar, state);
 
-// ── Mode Switcher ──
+// ── Mode Switcher (W-SP-1 + W-SP-2) ──
+// X9 Step 7: persist active mode to localStorage so page reload restores
+// last-active mode per W-SP-2. Mode-switch state preservation across
+// Converse/Ingest/Export modes per W-SP-1 already enforced by show/hide
+// pattern (DOM stays alive between mode switches; only visibility toggles).
+const LS_ACTIVE_MODE = 'fandaws:wb:activeMode';
+const VALID_MODES = new Set(['converse', 'ingest', 'export']);
+
+function readPersistedMode() {
+  try {
+    const raw = localStorage.getItem(LS_ACTIVE_MODE);
+    return VALID_MODES.has(raw) ? raw : 'converse';
+  } catch { return 'converse'; }
+}
+
+function persistMode(mode) {
+  try { localStorage.setItem(LS_ACTIVE_MODE, mode); } catch { /* */ }
+}
+
 const modeButtons = document.querySelectorAll('.wb-mode');
-let currentMode = 'converse';
+let currentMode = readPersistedMode();
 
 function switchMode(mode) {
   if (mode === currentMode) return;
+  if (!VALID_MODES.has(mode)) return;
   currentMode = mode;
+  persistMode(mode);
 
   modeButtons.forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
@@ -75,6 +95,21 @@ function switchMode(mode) {
 modeButtons.forEach((btn) => {
   btn.addEventListener('click', () => switchMode(btn.dataset.mode));
 });
+
+// W-SP-2: restore last-active mode on page load. Default = converse for
+// first-time visitors; restored mode for returning analysts.
+if (currentMode !== 'converse') {
+  modeButtons.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.mode === currentMode);
+  });
+  if (currentMode === 'export') {
+    hideConverse(panelWorkspace);
+    showExport(panelWorkspace);
+  } else if (currentMode === 'ingest') {
+    hideConverse(panelWorkspace);
+    showIngest(panelWorkspace);
+  }
+}
 
 // ── Reset Graph Button ──
 const resetBtn = document.getElementById('btn-reset-graph');

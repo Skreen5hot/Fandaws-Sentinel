@@ -7,10 +7,27 @@
  *
  * Rules: PD-2 disjoint firing, PD-6 sub-property picker, PD-7 BFO subcategory inheritance,
  *        PD-9 merge rejects owl:topObjectProperty.
+ *
+ * X9 Step 5 (2026-04-25): production wiring of PD-6 picker greying (W-5.8),
+ * PD-7 inherited subcategory read-only (W-5.9), DP-2 record indicator (X9
+ * §3.2), W-5.15 pagination + W-5.2 grouping (PendingHumanResolution first).
  */
 import { escapeHtml } from '../../utils.js';
+import { detectSWCReasons } from './phase1-review-panel.js';
 
 const OWL_TOP_OBJECT_PROPERTY = 'http://www.w3.org/2002/07/owl#topObjectProperty';
+const PAGE_SIZE = 100;
+
+// PD-6 broadness markers: canonical targets whose declared domain/range is
+// at the top of the BFO hierarchy are structurally broader than any
+// candidate sub-property's domain/range. Greyed in the picker per W-5.8.
+const BROAD_BFO_CLASSES = new Set([
+  'bfo:Entity',
+  'bfo:Continuant',
+  'bfo:Occurrent',
+  'owl:Thing',
+  OWL_TOP_OBJECT_PROPERTY,
+]);
 
 const DIMENSIONS = ['domain', 'range', 'bfoSubcategory', 'characteristics', 'allowsInheresIn', 'lexical'];
 const DIMENSION_LABELS = {
@@ -22,10 +39,71 @@ const DIMENSION_LABELS = {
   lexical: 'Lexical',
 };
 
+// Disposition group ordering per W-5.2: PendingHumanResolution surfaces first,
+// then DisambiguationRecord, then NovelPromotionPanel, then AutoMerged.
+const DISPOSITION_ORDER = ['PendingHumanResolution', 'DisambiguationRecord', 'NovelPromotionPanel', 'AutoMerged'];
+
+/**
+ * PD-6 broadness check (W-5.8 visible enforcement). Returns true when the
+ * canonical scored target is structurally broader than the candidate's
+ * domain/range — i.e., promoting candidate as sub-property of this target
+ * would violate I-3 / Rule PD-6 (structural narrowing).
+ *
+ * Pragmatic heuristic for v0.2: top-of-BFO-hierarchy targets always
+ * broader. Full BFO subsumption check deferred to v0.3+ when canonical
+ * relation registry exposes a subsumption query.
+ *
+ * @param {object} candidateRecord - the property being promoted
+ * @param {object} scoreEntry - top-N candidate canonical relation
+ * @returns {boolean}
+ */
+export function isBroaderThanParent(candidateRecord, scoreEntry) {
+  if (!scoreEntry) return false;
+  const targetId = scoreEntry.canonicalId || '';
+  if (BROAD_BFO_CLASSES.has(targetId) || targetId === OWL_TOP_OBJECT_PROPERTY) return true;
+  // Fingerprint-based heuristic: if the canonical's declared domain is
+  // a broad-BFO class while the candidate's domain is more specific.
+  const canonicalDomain = scoreEntry.canonicalDomain || scoreEntry.declaredDomain;
+  const candidateDomain = candidateRecord?.declaredDomain;
+  if (canonicalDomain && BROAD_BFO_CLASSES.has(canonicalDomain) && candidateDomain && !BROAD_BFO_CLASSES.has(candidateDomain)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Group records by disposition with PendingHumanResolution first (W-5.2).
+ * @param {object[]} records
+ * @returns {Map<string, object[]>}
+ */
+export function groupByDisposition(records) {
+  const groups = new Map();
+  for (const order of DISPOSITION_ORDER) groups.set(order, []);
+  groups.set('Other', []);
+  for (const r of records) {
+    const disp = r.routing?.disposition;
+    // Treat unresolved as PendingHumanResolution for grouping per W-5.2
+    const key = !r.resolved && (disp === 'DisambiguationRecord' || disp === 'NovelPromotionPanel')
+      ? 'PendingHumanResolution'
+      : (DISPOSITION_ORDER.includes(disp) ? disp : 'Other');
+    groups.get(key).push(r);
+  }
+  // Drop empty groups for cleaner UI
+  for (const [k, v] of groups) if (v.length === 0) groups.delete(k);
+  return groups;
+}
+
 export function initPhase2ReviewPanel(el, nav) {
   let sessionId = null;
   let records = [];
   let selectedIdx = 0;
+  let currentPage = 0;
+  // PD-6 picker state — when analyst clicks PromoteAsSubProperty, picker
+  // appears showing top-N canonical candidates with broader-than-parent
+  // options greyed out (W-5.8). Picker auto-applies PD-7 BFO subcategory
+  // inheritance to the selected parent when analyst confirms.
+  let pickerOpen = false;
+  let pickerSelectedParent = null;
 
   function getSessionId(data) {
     return data?.sessionId || nav.ingestState.getActiveSession();
@@ -56,16 +134,8 @@ export function initPhase2ReviewPanel(el, nav) {
 
         <div class="ig-phase2-split">
           <div class="ig-phase2-left">
-            <div class="ig-candidate-list" id="ig-p2-list">
-              ${records.map((r, i) => `
-                <div class="ig-candidate-item ${i === selectedIdx ? 'ig-candidate-item--active' : ''} ${r.resolved ? 'ig-candidate-item--resolved' : ''}"
-                     data-idx="${i}">
-                  <span class="ig-candidate-label">${escapeHtml(r.label || r.iri)}</span>
-                  <span class="ig-candidate-disposition ig-disp--${dispositionClass(r.routing?.disposition)}">${shortDisposition(r.routing?.disposition)}</span>
-                  ${r.action ? `<span class="ig-action-badge">${escapeHtml(r.action)}</span>` : ''}
-                </div>
-              `).join('')}
-            </div>
+            ${renderGroupedList()}
+            ${renderPagination()}
           </div>
 
           <div class="ig-phase2-right" id="ig-p2-detail">
@@ -83,6 +153,72 @@ export function initPhase2ReviewPanel(el, nav) {
     `;
 
     wireEvents();
+  }
+
+  // X9 §3.2 + W-5.2/W-5.15 — grouped, paginated candidate list with
+  // PendingHumanResolution surfacing first per spec acceptance.
+  function renderGroupedList() {
+    const grouped = groupByDisposition(records);
+    const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+
+    // Slice page across groups while preserving group ordering. Each group
+    // shows all items belonging to it (grouping preserved across pages
+    // per W-5.15 acceptance).
+    const startIdx = currentPage * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+
+    let globalIdx = -1;
+    return `<div class="ig-candidate-list" id="ig-p2-list">${
+      [...grouped.entries()].map(([groupKey, items]) => {
+        const groupItemsHtml = items.map(r => {
+          globalIdx++;
+          const idx = records.indexOf(r);
+          // Skip rendering items outside the current page slice
+          if (globalIdx < startIdx || globalIdx >= endIdx) return '';
+          const swcReasons = detectSWCReasons(r);
+          const swcBadge = swcReasons.length > 0
+            ? `<span class="badge badge--warning" title="${escapeHtml(swcReasons.join(', '))}">⚠</span>`
+            : '';
+          // X9 §3.2 DP-2 indicator — small icon when canonical record carries
+          // a DP-2 record. Click opens the side-panel detail view with DP-2
+          // fields inline. Lower priority than fingerprint per W-2.
+          const dp2Indicator = r.dp2Record
+            ? `<span class="ig-dp2-icon" title="DP-2 record available — see detail">⓲</span>`
+            : '';
+          return `
+            <div class="ig-candidate-item ${idx === selectedIdx ? 'ig-candidate-item--active' : ''} ${r.resolved ? 'ig-candidate-item--resolved' : ''}"
+                 data-idx="${idx}">
+              <span class="ig-candidate-label">${escapeHtml(r.label || r.iri)}</span>
+              ${swcBadge}
+              ${dp2Indicator}
+              <span class="ig-candidate-disposition ig-disp--${dispositionClass(r.routing?.disposition)}">${shortDisposition(r.routing?.disposition)}</span>
+              ${r.action ? `<span class="ig-action-badge">${escapeHtml(r.action)}</span>` : ''}
+            </div>
+          `;
+        }).filter(Boolean).join('');
+
+        if (!groupItemsHtml) return '';
+        return `
+          <div class="ig-candidate-group" data-group="${escapeHtml(groupKey)}">
+            <div class="ig-candidate-group-header">${escapeHtml(groupKey)} (${items.length})</div>
+            ${groupItemsHtml}
+          </div>
+        `;
+      }).join('')
+    }</div>`;
+  }
+
+  function renderPagination() {
+    const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+    if (totalPages <= 1) return '';
+    return `
+      <div class="ig-pagination">
+        <button class="btn btn--ghost ig-page-btn" id="ig-p2-prev" ${currentPage === 0 ? 'disabled' : ''}>Prev</button>
+        <span>Page ${currentPage + 1} of ${totalPages}</span>
+        <button class="btn btn--ghost ig-page-btn" id="ig-p2-next" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next</button>
+      </div>
+    `;
   }
 
   function dispositionClass(d) {
@@ -150,10 +286,102 @@ export function initPhase2ReviewPanel(el, nav) {
           <span>Margin: ${(routing.margin || 0).toFixed(3)}</span>
         </div>
 
-        ${!record.resolved ? renderActionButtons(record) : renderResolvedBadge(record)}
+        ${renderInheritedSubcategorySection(record)}
+
+        ${!record.resolved
+          ? (pickerOpen && record === records[selectedIdx] ? renderSubPropertyPicker(record) : renderActionButtons(record))
+          : renderResolvedBadge(record)}
 
         <div class="ig-justify-row" ${record.resolved ? 'style="display:none"' : ''}>
-          <input type="text" class="ig-justify-input ig-p2-justify" placeholder="Justification (required)" value="${escapeHtml(record.justification || '')}" />
+          <input type="text" class="ig-justify-input ig-p2-justify" placeholder="Justification (required) *" required value="${escapeHtml(record.justification || '')}" />
+        </div>
+
+        ${renderDp2Section(record)}
+      </div>
+    `;
+  }
+
+  // X9 §3.2 + W-2 hierarchy: DP-2 record subsection. Lower priority than
+  // fingerprint per memo §3.5; collapses by default. When present, shows
+  // explanation/provenance/reproducibilityHash with click-to-copy.
+  function renderDp2Section(record) {
+    const dp2 = record.dp2Record;
+    if (!dp2) return '';
+    const explanationSummary = dp2.explanation
+      ? (dp2.explanation.summary || dp2.explanation.disposition || JSON.stringify(dp2.explanation).slice(0, 200))
+      : '-';
+    const provenanceSummary = dp2.provenance
+      ? (dp2.provenance.mechanism || '-') + (dp2.provenance.causedBy ? ` (caused by: ${escapeHtml(dp2.provenance.causedBy)})` : '')
+      : '-';
+    const repHash = dp2.reproducibilityHash || dp2.recordHash || '-';
+    const truncated = repHash.length > 16 ? repHash.slice(0, 8) + '…' + repHash.slice(-8) : repHash;
+    return `
+      <details class="ig-dp2-record" style="margin-top: 12px; border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px;">
+        <summary style="cursor: pointer; font-weight: 600; font-size: 0.9em;">DP-2 Record</summary>
+        <div style="font-size: 0.85em; margin-top: 6px;">
+          <div><strong>Explanation:</strong> ${escapeHtml(String(explanationSummary))}</div>
+          <div><strong>Provenance:</strong> ${escapeHtml(provenanceSummary)}</div>
+          <div><strong>Reproducibility Hash:</strong>
+            <code class="ig-dp2-hash" data-hash="${escapeHtml(repHash)}" title="Click to copy" style="cursor: pointer;">${escapeHtml(truncated)}</code>
+          </div>
+        </div>
+      </details>
+    `;
+  }
+
+  // PD-7 (W-5.9): inherited BFO subcategory displayed as read-only field
+  // when sub-property promotion has been resolved. Tooltip cites the rule.
+  function renderInheritedSubcategorySection(record) {
+    if (record.action !== 'PromoteAsSubProperty') return '';
+    const inherited = record.inheritedBfoSubcategory || record.scores?.[0]?.bfoSubcategory || '-';
+    return `
+      <div class="ig-pd7-inheritance" style="background: var(--green-bg); padding: 6px 10px; border-radius: 4px; margin-top: 8px;">
+        <strong>BFO Subcategory (inherited per PD-7):</strong>
+        <input type="text" readonly value="${escapeHtml(inherited)}"
+               title="PD-7 (Rule W-5.9): BFO subcategory auto-inherits from parent property; child field is read-only"
+               style="background: transparent; border: none; font-family: monospace; margin-left: 6px;" />
+      </div>
+    `;
+  }
+
+  // PD-6 picker (W-5.8): when analyst chooses PromoteAsSubProperty, picker
+  // shows top-N canonical candidates as parent options. Broader-than-parent
+  // targets are GREYED OUT with tooltip explaining the structural-narrowing
+  // rule. Critical Invariant W-3 affordance — analyst sees the invariant
+  // holding, not just the system enforcing it silently.
+  function renderSubPropertyPicker(record) {
+    const candidates = (record.scores || []).slice(0, 10);
+    return `
+      <div class="ig-subprop-picker" id="ig-p2-picker" style="background: var(--surface-2); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+        <h6 style="margin: 0 0 8px 0;">Select parent property (PD-6 Sub-Property Promotion)</h6>
+        <div class="ig-picker-help" style="font-size: 0.85em; margin-bottom: 8px; color: var(--muted);">
+          Per Invariant I-3 / Rule PD-6: child sub-property's range cannot be broader than its parent's. Broader-than-parent options are greyed out.
+        </div>
+        <div class="ig-picker-list">
+          ${candidates.map((s, i) => {
+            const broader = isBroaderThanParent(record, s);
+            const disabledAttr = broader ? 'disabled' : '';
+            const tooltipText = broader
+              ? 'Target broader than parent — not allowed (Invariant I-3, Rule PD-6)'
+              : `Score ${(s.score || 0).toFixed(3)}`;
+            const radioId = `ig-pd6-radio-${i}`;
+            return `
+              <label class="ig-picker-option ${broader ? 'ig-picker-option--disabled' : ''}"
+                     style="display: block; padding: 6px 8px; cursor: ${broader ? 'not-allowed' : 'pointer'}; ${broader ? 'opacity: 0.4;' : ''}"
+                     title="${escapeHtml(tooltipText)}">
+                <input type="radio" name="ig-p2-pd6-parent" value="${escapeHtml(s.canonicalId || '')}" id="${radioId}" ${disabledAttr} />
+                <span style="margin-left: 6px;">
+                  <code>${escapeHtml(truncateIri(s.canonicalId || ''))}</code>
+                  <span style="margin-left: 8px;">score: ${(s.score || 0).toFixed(3)}</span>
+                  ${broader ? '<span style="margin-left: 8px; color: var(--muted);">⚠ broader-than-parent (PD-6)</span>' : ''}
+                </span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+        <div class="ig-picker-actions" style="margin-top: 10px;">
+          <button class="btn btn--primary" id="ig-pd6-confirm">Confirm Parent Selection</button>
+          <button class="btn btn--ghost" id="ig-pd6-cancel">Cancel</button>
         </div>
       </div>
     `;
@@ -223,106 +451,172 @@ export function initPhase2ReviewPanel(el, nav) {
       });
     });
 
+    // Pagination buttons (W-5.15)
+    el.querySelector('#ig-p2-prev')?.addEventListener('click', () => { currentPage--; render(); });
+    el.querySelector('#ig-p2-next')?.addEventListener('click', () => { currentPage++; render(); });
+
+    // PD-6 sub-property picker controls (W-5.8)
+    el.querySelector('#ig-pd6-confirm')?.addEventListener('click', () => {
+      const record = records[selectedIdx];
+      if (!record) return;
+      const checkedRadio = el.querySelector('input[name="ig-p2-pd6-parent"]:checked');
+      if (!checkedRadio) {
+        const help = el.querySelector('.ig-picker-help');
+        if (help) help.style.color = 'var(--red)';
+        return;
+      }
+      pickerSelectedParent = checkedRadio.value;
+      pickerOpen = false;
+      // Trigger the resolve flow as PromoteAsSubProperty with the selected parent.
+      resolveAction('PromoteAsSubProperty');
+    });
+    el.querySelector('#ig-pd6-cancel')?.addEventListener('click', () => {
+      pickerOpen = false;
+      pickerSelectedParent = null;
+      render();
+    });
+
+    // DP-2 hash click-to-copy
+    el.querySelectorAll('.ig-dp2-hash').forEach(codeEl => {
+      codeEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const hash = codeEl.dataset.hash;
+        if (hash && navigator.clipboard) {
+          navigator.clipboard.writeText(hash).then(
+            () => { codeEl.title = 'Copied!'; setTimeout(() => { codeEl.title = 'Click to copy'; }, 1500); },
+            () => { /* clipboard denied; no-op */ }
+          );
+        }
+      });
+    });
+
     // Action buttons
     el.querySelectorAll('.ig-act-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action;
-        const justifyInput = el.querySelector('.ig-p2-justify');
-        const justification = justifyInput?.value?.trim() || '';
-
-        if (!justification) {
-          if (justifyInput) {
-            justifyInput.style.borderColor = 'var(--red)';
-            justifyInput.placeholder = 'Justification is required';
-            justifyInput.focus();
-          }
+        // PD-6 (W-5.8): PromoteAsSubProperty opens picker FIRST so the
+        // analyst sees broader-than-parent options greyed out before
+        // committing. Picker confirm calls resolveAction internally.
+        if (action === 'PromoteAsSubProperty' && !pickerOpen) {
+          pickerOpen = true;
+          pickerSelectedParent = null;
+          render();
           return;
         }
-
-        const record = records[selectedIdx];
-        if (!record) return;
-
-        // PD-9: reject merge of owl:topObjectProperty
-        if (action === 'Merge' && record.iri === OWL_TOP_OBJECT_PROPERTY) return;
-
-        record.action = action;
-        record.justification = justification;
-        record.resolved = true;
-
-        // PD-7: BFO subcategory inherited on sub-property promotion
-        if (action === 'PromoteAsSubProperty' && record.scores?.[0]) {
-          record.inheritedBfoSubcategory = record.scores[0].bfoSubcategory || null;
-        }
-
-        // ── Gap A/B fix: write to canonical graph, trigger compile() ──
-        const adapter = nav.wbState.getAdapter();
-        const graphId = nav.wbState.getGraphId();
-        const session = nav.ingestState.loadSession(sessionId);
-        const adapterSessionId = nav.ingestState.loadConfig(sessionId)?.adapterSessionId;
-
-        try {
-          if (action === 'Merge') {
-            // Gap A: MergeRecord + owl:equivalentProperty
-            const targetIRI = record.scores?.[0]?.canonicalId;
-            if (targetIRI) {
-              const result = adapter.mergeCanonicalRelation(graphId, {
-                candidateIRI: record.iri,
-                candidateLabel: record.label,
-                targetCanonicalIRI: targetIRI,
-                mergeConfidence: record.scores[0].score,
-                justification,
-                ingestedInSession: adapterSessionId,
-                mergeTrigger: 'HumanConfirmed',
-              });
-              record.executionPropertyIRI = result.executionPropertyIRI;
-              record.mergeRecordId = result.mergeRecordId;
-            }
-          } else if (action === 'PromoteAsNewRelation') {
-            // Gap B: mint fresh fandaws:class/relation/UUID concept
-            const result = adapter.promoteCanonicalRelation(graphId, {
-              candidateIRI: record.iri,
-              candidateLabel: record.label,
-              declaredDomain: record.declaredDomain,
-              declaredRange: record.declaredRange,
-              characteristics: record.declaredCharacteristics || [],
-              bfoSubcategory: null,
-              justification,
-              ingestedInSession: adapterSessionId,
-            });
-            record.canonicalRelationIRI = result.canonicalRelationIRI;
-            record.executionPropertyIRI = result.executionPropertyIRI;
-          } else if (action === 'PromoteAsSubProperty') {
-            // Gap B: mint sub-property, parent is the top-scored canonical
-            const parentIRI = record.scores?.[0]?.canonicalId;
-            const result = adapter.promoteCanonicalRelation(graphId, {
-              candidateIRI: record.iri,
-              candidateLabel: record.label,
-              declaredDomain: record.declaredDomain,
-              declaredRange: record.declaredRange,
-              characteristics: record.declaredCharacteristics || [],
-              bfoSubcategory: record.inheritedBfoSubcategory || null,
-              justification,
-              ingestedInSession: adapterSessionId,
-              subPropertyOf: parentIRI,
-            });
-            record.canonicalRelationIRI = result.canonicalRelationIRI;
-            record.executionPropertyIRI = result.executionPropertyIRI;
-          }
-          // Reject: no canonical mutation needed — resolution is recorded only
-        } catch (err) {
-          console.warn('[phase2-review] canonical write failed:', err);
-        }
-
-        nav.ingestState.savePhase2Records(sessionId, records);
-
-        // Move to next unresolved
-        const nextUnresolved = records.findIndex((r, i) => i > selectedIdx && !r.resolved);
-        if (nextUnresolved !== -1) {
-          selectedIdx = nextUnresolved;
-        }
-        render();
+        resolveAction(action);
       });
     });
+
+    function resolveAction(action) {
+      const justifyInput = el.querySelector('.ig-p2-justify');
+      const justification = justifyInput?.value?.trim() || '';
+
+      if (!justification) {
+        if (justifyInput) {
+          justifyInput.style.borderColor = 'var(--red)';
+          justifyInput.placeholder = 'Justification is required (W-5.10)';
+          justifyInput.focus();
+        }
+        return;
+      }
+
+      const record = records[selectedIdx];
+      if (!record) return;
+
+      // PD-9: reject merge of owl:topObjectProperty
+      if (action === 'Merge' && record.iri === OWL_TOP_OBJECT_PROPERTY) return;
+
+      record.action = action;
+      record.justification = justification;
+      record.resolved = true;
+
+      // PD-7 (W-5.9): BFO subcategory auto-inherits on sub-property promotion.
+      // When PD-6 picker selected an explicit parent, use that; otherwise
+      // fall back to top-scored canonical (legacy single-click flow).
+      let selectedParentIRI = null;
+      if (action === 'PromoteAsSubProperty') {
+        const parent = pickerSelectedParent
+          ? record.scores?.find(s => s.canonicalId === pickerSelectedParent)
+          : record.scores?.[0];
+        if (parent) {
+          record.inheritedBfoSubcategory = parent.bfoSubcategory || null;
+          record.selectedParentIRI = parent.canonicalId;
+          selectedParentIRI = parent.canonicalId;
+        }
+      }
+
+      // ── Gap A/B fix: write to canonical graph, trigger compile() ──
+      const adapter = nav.wbState.getAdapter();
+      const graphId = nav.wbState.getGraphId();
+      const adapterSessionId = nav.ingestState.loadConfig(sessionId)?.adapterSessionId;
+
+      try {
+        if (action === 'Merge') {
+          // Gap A: MergeRecord + owl:equivalentProperty
+          const targetIRI = record.scores?.[0]?.canonicalId;
+          if (targetIRI) {
+            const result = adapter.mergeCanonicalRelation(graphId, {
+              candidateIRI: record.iri,
+              candidateLabel: record.label,
+              targetCanonicalIRI: targetIRI,
+              mergeConfidence: record.scores[0].score,
+              justification,
+              ingestedInSession: adapterSessionId,
+              mergeTrigger: 'HumanConfirmed',
+            });
+            record.executionPropertyIRI = result.executionPropertyIRI;
+            record.mergeRecordId = result.mergeRecordId;
+          }
+        } else if (action === 'PromoteAsNewRelation') {
+          // Gap B: mint fresh fandaws:class/relation/UUID concept
+          const result = adapter.promoteCanonicalRelation(graphId, {
+            candidateIRI: record.iri,
+            candidateLabel: record.label,
+            declaredDomain: record.declaredDomain,
+            declaredRange: record.declaredRange,
+            characteristics: record.declaredCharacteristics || [],
+            bfoSubcategory: null,
+            justification,
+            ingestedInSession: adapterSessionId,
+          });
+          record.canonicalRelationIRI = result.canonicalRelationIRI;
+          record.executionPropertyIRI = result.executionPropertyIRI;
+        } else if (action === 'PromoteAsSubProperty') {
+          // Gap B: mint sub-property; parent is the PD-6-picker-selected
+          // canonical (or top-scored canonical for legacy single-click flow).
+          const parentIRI = selectedParentIRI || record.scores?.[0]?.canonicalId;
+          const result = adapter.promoteCanonicalRelation(graphId, {
+            candidateIRI: record.iri,
+            candidateLabel: record.label,
+            declaredDomain: record.declaredDomain,
+            declaredRange: record.declaredRange,
+            characteristics: record.declaredCharacteristics || [],
+            bfoSubcategory: record.inheritedBfoSubcategory || null,
+            justification,
+            ingestedInSession: adapterSessionId,
+            subPropertyOf: parentIRI,
+          });
+          record.canonicalRelationIRI = result.canonicalRelationIRI;
+          record.executionPropertyIRI = result.executionPropertyIRI;
+        }
+        // Reject: no canonical mutation needed — resolution is recorded only
+      } catch (err) {
+        console.warn('[phase2-review] canonical write failed:', err);
+      }
+
+      nav.ingestState.savePhase2Records(sessionId, records);
+
+      // Reset PD-6 picker state
+      pickerOpen = false;
+      pickerSelectedParent = null;
+
+      // Move to next unresolved
+      const nextUnresolved = records.findIndex((r, i) => i > selectedIdx && !r.resolved);
+      if (nextUnresolved !== -1) {
+        selectedIdx = nextUnresolved;
+      }
+      render();
+    }
 
     // Run Phase 3
     el.querySelector('#ig-run-phase3')?.addEventListener('click', runPhase3);

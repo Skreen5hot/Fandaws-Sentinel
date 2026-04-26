@@ -394,44 +394,57 @@ export async function orchestrateAnalystOverride(cauIRI, inputs, context, adapte
   );
 }
 
-// ── Dispatcher integration seam (SME-D16-X4 Commit 3) ─────────────
+// ── Dispatcher integration seam — DUAL-MODE (SME-D16-X8 Commit 1) ─
 //
-// TEMPORARY MIGRATION SUPPORT — remove when all callers supply dispatcher
-// inputs (cauSignature + bfoSignatureReference). Track conversion progress
-// via `specs/d16/x4-avc-triage.md`. Without explicit temporariness, future
-// contributors may add features only to the legacy path or leave scenarios
-// unconverted indefinitely, turning this migration affordance into
-// permanent dual-path maintenance.
+// DUAL-MODE: dispatcher path requires prologSession (post-X8 collapse per
+// SME-D16-X8 §4 Option I lock 2026-04-25); legacy iteration-mechanics path
+// stays per X4 §2.7 (SYNTHETIC_ITERATION via handleRunPhase1, out of
+// dispatcher scope).
 //
 // Distinction from DP-2-P1 explicit-phase-routing discipline: that lock
 // prevents ambiguity between legitimately-different production modes
 // (scaffold vs production emission) which are both permanent. THIS seam
-// is a feature-detection branch for caller migration, NOT permanent dual-
-// mode semantics. Both modes produce identical production disposition
-// output; only the inference path differs.
+// is a dual-mode branch between dispatcher path (NC inference) and the
+// iteration-mechanics legacy path (out of dispatcher scope per X4 §2.7).
+// Both modes produce identical production disposition output; only the
+// inference path differs.
 //
-// If caller supplies dispatcher-facing inputs, run the NC dispatcher for
-// target category + each disjoint category, combine satisfied sets across
-// categories for Inconsistent-via-disjoint-full-satisfaction detection,
-// and pass trichotomy + combined satisfied to evaluateCAU.
+// Dispatcher-path semantics (post-X8 contract):
+// - Caller supplies cauSignature + bfoSignatureReference + prologSession.
+// - Dispatcher evaluates target category + each disjoint category, combines
+//   satisfied sets for Inconsistent-via-disjoint-full-satisfaction detection,
+//   and passes trichotomy + combined satisfied to evaluateCAU.
+// - prologSession is REQUIRED for OWL-DERIVED inference (Bucket C); absence
+//   throws TypeError per X8 §4 Option I (collapse from prior TEMPORARY
+//   MIGRATION SUPPORT seam — see git history for the X3-era affordance).
 //
-// Caller signals dispatcher path by including cauSignature +
-// bfoSignatureReference in evaluatorInput. Absent those, legacy path fires
-// (evaluateCAU receives the caller's satisfiedNCs Set directly).
-function runEvaluationWithOptionalDispatcher(evaluatorInput) {
+// Legacy-path semantics: caller does NOT supply cauSignature; evaluateCAU
+// runs against caller's pre-computed satisfiedNCs Set (the iteration-mechanics
+// path used by SYNTHETIC_ITERATION scenarios per X4 §2.7).
+async function runEvaluationWithOptionalDispatcher(evaluatorInput) {
   if (!evaluatorInput.cauSignature || !evaluatorInput.bfoSignatureReference) {
-    // Legacy path — unchanged behavior.
+    // Iteration-mechanics legacy path (X4 §2.7) — unchanged behavior.
     return evaluateCAU(evaluatorInput);
+  }
+
+  // Dispatcher path — prologSession is required per X8 §4 Option I.
+  if (!evaluatorInput.prologSession) {
+    throw new TypeError(
+      'runEvaluationWithOptionalDispatcher: prologSession required when invoking dispatcher path. ' +
+      'Per SME-D16-X8 §4 Option I (LOCKED 2026-04-25), all dispatcher-path callers must supply prologSession ' +
+      'from initBucketCPrologSession. Use the iteration-mechanics legacy path (omit cauSignature/bfoSignatureReference) ' +
+      'if dispatcher invocation is not required.',
+    );
   }
 
   const {
     cauIRI, cauSignature, targetCategory, bfoSignatureReference,
-    ancestorChain = [], axiomPoor,
+    ancestorChain = [], axiomPoor, prologSession,
   } = evaluatorInput;
 
-  const targetTrichotomy = evaluateNCSatisfaction({
+  const targetTrichotomy = await evaluateNCSatisfaction({
     cauIRI, cauSignature, targetBFOCategory: targetCategory,
-    bfoSignatureReference, ancestorChain,
+    bfoSignatureReference, ancestorChain, prologSession,
   });
 
   // Cross-category disjointness: call dispatcher for each disjoint
@@ -441,9 +454,9 @@ function runEvaluationWithOptionalDispatcher(evaluatorInput) {
   const combinedSatisfied = new Set(targetTrichotomy.satisfied);
   const disjointCategories = disjointWith(targetCategory);
   for (const dc of disjointCategories) {
-    const dcTrichotomy = evaluateNCSatisfaction({
+    const dcTrichotomy = await evaluateNCSatisfaction({
       cauIRI, cauSignature, targetBFOCategory: dc,
-      bfoSignatureReference, ancestorChain,
+      bfoSignatureReference, ancestorChain, prologSession,
     });
     for (const s of dcTrichotomy.satisfied) combinedSatisfied.add(s);
   }

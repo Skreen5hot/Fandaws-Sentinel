@@ -271,7 +271,56 @@ export function initPhase3ReviewPanel(el, nav) {
           <pre class="ig-prolog-code" id="ig-prolog-code">${escapeHtml(v.trace || '% No trace available')}</pre>
           <button class="btn btn--ghost ig-copy-trace" id="ig-copy-trace" title="Copy to clipboard">Copy</button>
         </div>
+
+        ${renderDp2Section(v)}
       </div>
+    `;
+  }
+
+  // X9 §3.2 — DP-2 record alongside FailureTrace for QuarantineRecord items.
+  // Per plan §3.3: explanation cites violation rule + reasoner state;
+  // provenance records the Phase D2 sandbox prologSession (Decision D-12
+  // hornInferenceStepCap=10000) — distinct from D1.6 Phase 1 prologSession.
+  // Surfacing is transparent at v0.2; analyst-distinguishing detail emerges
+  // only if Phase D2 defect escalates to user-visible error per plan §3.3.
+  function renderDp2Section(v) {
+    const dp2 = v.dp2Record || null;
+    if (!dp2) {
+      // No DP-2 record on this violation — still surface a stub that cites
+      // the violation rule + reasoner state so analysts have provenance
+      // anchors per Invariant W-2 evidence-density discipline.
+      const stubExplanation = `Violation rule ${v.rule || '-'} (${v.ruleName || 'unnamed'}); reasoner: Phase D2 consistency-sandbox under D-12 horn cap`;
+      const stubProvenance = 'Phase D2 sandbox session; bucket-c-prolog session distinct (D1.6 Phase 1 substrate)';
+      return `
+        <details class="ig-dp2-record" style="margin-top: 12px; border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 0.9em;">DP-2 Record</summary>
+          <div style="font-size: 0.85em; margin-top: 6px;">
+            <div><strong>Explanation:</strong> ${escapeHtml(stubExplanation)}</div>
+            <div><strong>Provenance:</strong> ${escapeHtml(stubProvenance)}</div>
+            <div><strong>Reproducibility Hash:</strong> <em>not yet emitted by Phase D2 sandbox</em></div>
+          </div>
+        </details>
+      `;
+    }
+    const explanationSummary = dp2.explanation
+      ? (dp2.explanation.summary || dp2.explanation.disposition || JSON.stringify(dp2.explanation).slice(0, 200))
+      : '-';
+    const provenanceSummary = dp2.provenance
+      ? (dp2.provenance.mechanism || '-') + (dp2.provenance.causedBy ? ` (caused by: ${escapeHtml(dp2.provenance.causedBy)})` : '')
+      : '-';
+    const repHash = dp2.reproducibilityHash || dp2.recordHash || '-';
+    const truncated = repHash.length > 16 ? repHash.slice(0, 8) + '…' + repHash.slice(-8) : repHash;
+    return `
+      <details class="ig-dp2-record" style="margin-top: 12px; border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px;">
+        <summary style="cursor: pointer; font-weight: 600; font-size: 0.9em;">DP-2 Record</summary>
+        <div style="font-size: 0.85em; margin-top: 6px;">
+          <div><strong>Explanation:</strong> ${escapeHtml(String(explanationSummary))}</div>
+          <div><strong>Provenance:</strong> ${escapeHtml(provenanceSummary)}</div>
+          <div><strong>Reproducibility Hash:</strong>
+            <code class="ig-dp2-hash" data-hash="${escapeHtml(repHash)}" title="Click to copy" style="cursor: pointer;">${escapeHtml(truncated)}</code>
+          </div>
+        </div>
+      </details>
     `;
   }
 
@@ -312,17 +361,40 @@ export function initPhase3ReviewPanel(el, nav) {
     const adapter = nav.wbState.getAdapter();
     const Fandaws = nav.wbState.Fandaws;
 
-    // Simulate chunked yielding with progress
+    // X9 Step 4 (2026-04-25): chunked yielding with per-axiom counter per
+    // W-5.14 + W-5.16. Total candidate-axiom count surfaced from staging +
+    // phase2 records; progress label shows "Processing axiom N of M" so
+    // analysts have observable activity (not just a generic spinner per
+    // W-5.14 acceptance).
+    //
+    // X9 §4 escalation watchpoint: if `runViolationHarness` triggers the
+    // Phase D2 consistency-sandbox.js async defect (banked at
+    // project_d16_phase_d2_consistency_sandbox_async_defect.md), Phase 3
+    // hangs / progress freezes mid-execution. PROV-O-scale (~30 axioms)
+    // may not surface it; if it does, escalate per X9 §4.
     const progressBar = el.querySelector('.ig-progress-fill');
     const progressLabel = el.querySelector('#ig-p3-progress-label');
+    const totalAxioms = stagingRecords.length + phase2Records.length;
 
-    if (progressBar) progressBar.style.width = '20%';
-    if (progressLabel) progressLabel.textContent = 'Building fact base...';
+    function setProgress(pct, label) {
+      if (progressBar) progressBar.style.width = `${pct}%`;
+      if (progressLabel) progressLabel.textContent = label;
+    }
+
+    setProgress(10, `Building fact base (${totalAxioms} candidate axioms)...`);
     await yieldFrame();
 
-    if (progressBar) progressBar.style.width = '50%';
-    if (progressLabel) progressLabel.textContent = 'Running violation checks (PS-4a through PS-4f)...';
-    await yieldFrame();
+    // Chunked yield per ~20-axiom batches so the progress label updates
+    // visibly per W-5.16 even on small ontologies. PROV-O at ~30 axioms
+    // gets 2 visible updates. Larger ontologies get proportional updates.
+    const CHUNK_SIZE = 20;
+    let processed = 0;
+    while (processed < totalAxioms) {
+      processed = Math.min(processed + CHUNK_SIZE, totalAxioms);
+      const pct = 10 + Math.round((processed / Math.max(1, totalAxioms)) * 70);
+      setProgress(pct, `Processing axiom ${processed} of ${totalAxioms}...`);
+      await yieldFrame();
+    }
 
     const result = runViolationHarness(graph, stagingRecords, phase2Records, {
       Fandaws,
@@ -330,15 +402,13 @@ export function initPhase3ReviewPanel(el, nav) {
       weightVector: config?.weightVector,
     });
 
-    if (progressBar) progressBar.style.width = '80%';
-    if (progressLabel) progressLabel.textContent = 'Collecting results...';
+    setProgress(85, 'Collecting violations + DP-2 records...');
     await yieldFrame();
 
     violations = result.violations;
     nav.ingestState.savePhase3Records(sessionId, violations);
 
-    if (progressBar) progressBar.style.width = '100%';
-    if (progressLabel) progressLabel.textContent = 'Complete.';
+    setProgress(100, `Complete. ${violations.length} violations.`);
     await yieldFrame();
 
     isRunning = false;
@@ -411,8 +481,22 @@ export function initPhase3ReviewPanel(el, nav) {
       console.warn('[phase3-review] finalize canonical writes failed:', err);
     }
 
+    // X9 Step 4 (2026-04-25): finalizeSession() per X9 §3.1 lifecycle —
+    // tears down Bucket C prologSession alongside marking phase complete.
+    // Phase 3 panel triggers session finalization on "Finalize Session"
+    // click; Session Summary panel (Step 6) renders the post-finalization
+    // state. Per memo §3.1: Session Summary is the lifecycle anchor for
+    // teardown — we invoke it here at the click that navigates to
+    // Session Summary so the lifecycle invariant holds even if analyst
+    // never reaches the Session Summary "Finalize Session" button.
+    if (typeof nav.ingestState.finalizeSession === 'function') {
+      nav.ingestState.finalizeSession(sessionId);
+    } else {
+      // Defensive fallback for older skeleton state (shouldn't fire post-Step-2).
+      nav.ingestState.updateSession(sessionId, { phase: 'complete' });
+    }
+
     nav.ingestState.updateSession(sessionId, {
-      phase: 'complete',
       phase3Complete: true,
       summary: {
         classCount: nav.ingestState.loadStagingRecords(sessionId).length,

@@ -44,9 +44,14 @@ function wellAxiomizedProcessSignature() {
   return sig;
 }
 
-describe('X4 Triage §2.1 — evidence-entailed-via-ncs classified BCL', () => {
-  it('well-axiomized Process candidate dispatches to trichotomy with undetermined NCs', () => {
-    const trichotomy = evaluateNCSatisfaction({
+describe('X4 Triage §2.1 — post-X5 BCL surface (PROV-O-relevant subset closed)', () => {
+  // Post-X5 (2026-04-25): ProcessNC4 + OccurrentNC3 + ContinuantNC3 are
+  // covered by Bucket B helpers. Remaining undetermined under this fixture
+  // comes from Bucket C (OWL-DERIVED, ProcessNC3) — still BCL but for a
+  // different reason. Triage and bundle v6 re-evaluation deferred until
+  // SME re-triage delivery per X5 reception memo discipline.
+  it('well-axiomized Process candidate dispatches to trichotomy with undetermined NCs (Bucket C residual)', async () => {
+    const trichotomy = await evaluateNCSatisfaction({
       cauIRI: 'ex:Activity',
       cauSignature: wellAxiomizedProcessSignature(),
       targetBFOCategory: 'bfo:Process',
@@ -54,17 +59,16 @@ describe('X4 Triage §2.1 — evidence-entailed-via-ncs classified BCL', () => {
       ancestorChain: ['bfo:Process', 'bfo:Occurrent', 'bfo:Entity'],
     });
 
-    // Expected BCL shape: at least one CURATED-NC is undetermined because
-    // its helper isn't in Bucket A. Per triage §2.1:
-    //   - ProcessNC4 (cau_admits_process_boundaries) — no helper
-    //   - OccurrentNC3 (cau_unfolds_through_time) — no helper
     expect(trichotomy.undetermined.size).toBeGreaterThan(0);
-    // Confirm the specific Bucket-B-deferred NCs route undetermined:
-    expect(trichotomy.undetermined.has('bfo:ProcessNC4')).toBe(true);
+    // Post-X5: ProcessNC4 now resolves (Process ancestor → satisfied).
+    expect(trichotomy.undetermined.has('bfo:ProcessNC4')).toBe(false);
+    expect(trichotomy.satisfied.has('bfo:ProcessNC4')).toBe(true);
+    // Bucket C (OWL-DERIVED) ProcessNC3 still undetermined.
+    expect(trichotomy.undetermined.has('bfo:ProcessNC3')).toBe(true);
   });
 
-  it('dispatcher-path evaluateCAU produces Plausible with coverage-gap (not Entailed)', () => {
-    const trichotomy = evaluateNCSatisfaction({
+  it('dispatcher-path evaluateCAU produces Plausible with coverage-gap (Bucket C residual)', async () => {
+    const trichotomy = await evaluateNCSatisfaction({
       cauIRI: 'ex:Activity',
       cauSignature: wellAxiomizedProcessSignature(),
       targetBFOCategory: 'bfo:Process',
@@ -79,16 +83,53 @@ describe('X4 Triage §2.1 — evidence-entailed-via-ncs classified BCL', () => {
       satisfiedNCs: [...trichotomy.satisfied],
     });
 
-    // BCL prediction: Plausible, not Entailed
     expect(result.disposition).toBe('Plausible');
-    // With coverage-gap annotation (not plain partial-match)
     expect(result.explanation.plausibleAnnotation).toMatch(/coverage|undetermined/);
     expect(result.explanation.coverageGap).not.toBeNull();
     expect(result.explanation.coverageGap.deferredReasons.length).toBeGreaterThan(0);
-    // Deferred reasons cite Bucket B
+    // Post-X5: residual coverage gap cites Bucket C (OWL-DERIVED).
     const reasonsText = result.explanation.coverageGap.deferredReasons
       .map((r) => r.reason).join(' ');
-    expect(reasonsText).toMatch(/Bucket-B-deferred/);
+    expect(reasonsText).toMatch(/OWL-DERIVED|Bucket-C-deferred/);
+  });
+
+  it('X5 helpers route ContinuantNC3 / OccurrentNC3 / ProcessNC4 to satisfied/unsatisfied (no longer undetermined)', async () => {
+    // Process target — ProcessNC4 + OccurrentNC3 reachable via Occurrent
+    // P1 recursion. ContinuantNC3 not in Process required-set but reachable
+    // via separate Continuant evaluation.
+    const trichotomy = await evaluateNCSatisfaction({
+      cauIRI: 'ex:Activity',
+      cauSignature: wellAxiomizedProcessSignature(),
+      targetBFOCategory: 'bfo:Process',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:Process', 'bfo:Occurrent', 'bfo:Entity'],
+    });
+    // ProcessNC4 satisfied via Process ancestor.
+    expect(trichotomy.satisfied.has('bfo:ProcessNC4')).toBe(true);
+
+    // Separate evaluation for Continuant target — confirms ContinuantNC3
+    // resolves contradicted (Process ancestor present) under cross-category
+    // disjointness path.
+    const continuantTrichotomy = await evaluateNCSatisfaction({
+      cauIRI: 'ex:Activity',
+      cauSignature: wellAxiomizedProcessSignature(),
+      targetBFOCategory: 'bfo:Continuant',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:Process', 'bfo:Occurrent', 'bfo:Entity'],
+    });
+    expect(continuantTrichotomy.unsatisfied.has('bfo:ContinuantNC3')).toBe(true);
+    expect(continuantTrichotomy.undetermined.has('bfo:ContinuantNC3')).toBe(false);
+
+    // OccurrentNC3 reachable via Occurrent target.
+    const occurrentTrichotomy = await evaluateNCSatisfaction({
+      cauIRI: 'ex:Activity',
+      cauSignature: wellAxiomizedProcessSignature(),
+      targetBFOCategory: 'bfo:Occurrent',
+      bfoSignatureReference: BFO_REF,
+      ancestorChain: ['bfo:Process', 'bfo:Occurrent', 'bfo:Entity'],
+    });
+    expect(occurrentTrichotomy.satisfied.has('bfo:OccurrentNC3')).toBe(true);
+    expect(occurrentTrichotomy.undetermined.has('bfo:OccurrentNC3')).toBe(false);
   });
 
   it('legacy synthetic-allowlist path preserves Entailed expectation (regression guard)', () => {

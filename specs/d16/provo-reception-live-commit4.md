@@ -179,3 +179,203 @@ When full dispatcher-path coverage exists (Bucket A + Bucket B + Bucket C per SM
 4. Real PROV-O run through Workbench v0.2 ingestion → Pass 2 calibration proper.
 
 Commits 1/4 through 4/4 of SME-D16-X4 deliver step 0 (dispatcher infrastructure); steps 1-4 remain future work.
+
+---
+
+## 14. X5 Bucket B addendum (2026-04-25)
+
+**X5 landed:** ContinuantNC3 + OccurrentNC3 + ProcessNC4 helpers added to `critical-nc-helpers.js`; dispatcher integration via `HELPER_NC_OVERRIDES` and `HELPER_REGISTRY`. 121 suites / 2,665 passing / zero regressions.
+
+### 14.1 What X5 closes for the live pipeline
+
+**Three CURATED-NC helper gaps closed:**
+
+- `cau_identity_persists_through_time` (ContinuantNC3) — Continuant-target Entailment can now satisfy the persistence requirement without falling to Plausible-with-coverage-gap.
+- `cau_unfolds_through_time` (OccurrentNC3) — Occurrent-target Entailment can now satisfy temporal-unfolding (with strict-reading dimensionality awareness; ProcessBoundary correctly excluded as contradiction).
+- `cau_admits_process_boundaries` (ProcessNC4) — Process-target Entailment can now satisfy boundary-admissibility via either Process-ancestor or explicit `bfo:hasFirstInstant`/`hasLastInstant` restrictions.
+
+For real PROV-O ingestion through the live pipeline, this means: `prov:Entity` (Continuant), `prov:Activity` (Occurrent / Process), and Process-flavored sub-classes can now reach Entailed via the helper paths covered. Disposition shifts from `Plausible-with-coverage-gap` to `Entailed` are now achievable for these target-category combinations under full signature coverage.
+
+### 14.2 What X5 does NOT close — residual coverage gap surfaced post-X5
+
+**Surfaced post-X5 (carried forward to next cycle):**
+
+- **OWL-DERIVED NCs remain Bucket-C-deferred.** Per `bfo-signatures-v1.0.json` `owa_reclassification_summary_2026_04_21`, the following are tagged OWL-DERIVED: ICNC2, ICNC3, IENC2, OccurrentNC2, ProcessNC3 (and additional NCs). Under Bucket A dispatcher these route `undetermined`. **OccurrentNC2 and ProcessNC3 specifically block Process-target full Entailment** because:
+  - ProcessNC3 is in Process's required-NC set directly → undetermined → Process partial.
+  - OccurrentNC2 cascades through ProcessNC1's P1 ancestor recursion (ProcessNC1 = "all Occurrent NCs satisfied"; OccurrentNC2 undetermined → ProcessNC1 undetermined).
+- **RoleNC5 remains v1.1+** (Wave 3 disposition unchanged).
+
+**Live PROV-O pipeline implication:** for real `prov:Activity` CAUs ingested through the live pipeline, dispositions are expected to route Plausible-with-coverage-gap **even post-X5** because of the OWL-DERIVED Bucket-C cascade through OccurrentNC2 + ProcessNC3. This is honest signal under partial coverage — proof-discipline requires distinguishing it from "PROV-O is poorly aligned with BFO." The disposition reflects "OWL-DERIVED inference layer not yet wired" rather than ontology-level alignment failure.
+
+### 14.3 Updated readiness sequence
+
+Replacing §13.4's sequence with post-X5 reality:
+
+1. ✅ **X5 Bucket B PROV-O-relevant subset landed** (ContinuantNC3, OccurrentNC3, ProcessNC4).
+2. ☐ **Bucket C OWL-DERIVED inference cycle** — needed to close OccurrentNC2 + ProcessNC3 (and the other OWL-DERIVED NCs reclassified under SME async decision 2.1). Independent of Tau Prolog deliberation, but architecturally adjacent — the deliberation cycle's outcome may inform Bucket C's mechanism (Tau Prolog vs structural-correspondence vs hybrid).
+3. ☐ **v1.1+ RoleNC5** — closes `evidence-sibling-ambiguity-plausible`.
+4. ☐ **AVC scenario migration cycle** — converts scaffold scenarios to dispatcher inputs; legacy path retires. Sequenced after Bucket C lands so migration produces calibration-meaningful dispositions, not BCL-degraded outputs.
+5. ☐ **Real PROV-O run via Workbench v0.2 ingestion** — Pass 2 calibration proper.
+
+**Two of four post-X5 BCL scenarios block on Bucket C** (per re-triage at `x4-avc-triage.md` §9). One cleared to NAN (`evidence-inconsistent-disjointness-firing` via direct-disjointness path). One remains v1.1+ blocked.
+
+### 14.4 Bundle v6 status
+
+**Empty amendment list persists post-X5.** Same proof-discipline rationale as Commit 4 §3 conclusion: amending scaffold scenarios to match Bucket-A-or-Bucket-B-partial output codifies coverage gaps. SME bundle v6 authorization memo remains undrafted.
+
+Path to non-empty amendment list: Bucket C delivery (closes Process-target BCL pair) and/or v1.1+ RoleNC5 (closes sibling-ambiguity BCL).
+
+### 14.5 Honest-discipline carry-forward
+
+The X5 closure preserves the same proof-discipline pattern established at Commit 4:
+
+- **Disposition shifts under partial coverage are coverage-limited, not correction-of-prior-scaffold-errors** (per §6 of the original triage).
+- **Empty bundle amendment list under partial coverage is honest** (per §3 conclusion of the original triage). Drafting bundle v6 authorization for an empty list is ceremonial; defer until amendments materialize.
+- **Re-triage on each sub-bucket landing surfaces residual blocker shifts** (banked observation: Bucket B → Bucket C residual shift under X5 was not predictable from the X4-era enumeration which didn't isolate "OWL-DERIVED ancestor cascade" as a distinct blocker class).
+
+---
+
+## 15. X6 Bucket C addendum (2026-04-25)
+
+X6 Bucket C closes the OWL-DERIVED ancestor-cascade gap surfaced in §14.5. Per SME-D16-X6 memo, six OWL-DERIVED NC helpers landed (ICNC2, ICNC3, MENC2, IENC2, OccurrentNC2, ProcessNC3) under Option C (Tau Prolog primary + structural-correspondence fallback at 10K step cap). Cross-NC interaction tests confirm Bucket C closes the BCL cascade-blocker pattern from X5 re-triage §9.4.
+
+### 15.1 What X6 closes for the live pipeline
+
+Per [`x4-avc-triage.md §10`](./x4-avc-triage.md#10-re-triage-post-x6-bucket-c-2026-04-25):
+
+- **`evidence-entailed-via-ncs` → NAN** (cleared by X6). OccurrentNC2 + ProcessNC3 resolve deterministically; ProcessNC1 (P1) cascade unblocks.
+- **`evidence-subsumption-wins` → NAN** (cleared by X6 alongside §entailed). Subsumption-resolution downstream of Entailment-detection.
+- **`evidence-inconsistent-disjointness-firing` → NAN** (already cleared at X5; cross-category disjoint-fully-satisfied path now ALSO available post-X6).
+- **`evidence-sibling-ambiguity-plausible` → BCL (v1.1+)** unchanged (RoleNC5 deferred per Wave 3 disposition).
+
+**Three of four post-Bucket-A BCL scenarios now NAN.** One remains BCL on v1.1+ RoleNC5 (sibling-ambiguity).
+
+### 15.2 The architectural payload — OWA preservation discriminating fixture
+
+The load-bearing test attesting Bucket C's architectural claim lives at [`tests/unit/d16/owl-derived-nc-helpers.test.js:80-95`](../../tests/unit/d16/owl-derived-nc-helpers.test.js#L80-L95):
+
+> A CAU declared `rdfs:subClassOf bfo:Role` with no literal `bfo:inheresIn` restriction routes ICNC2 unsatisfied via `inheres_in_presence_derived` — Tau Prolog inherits inheresIn presence via SDC property domain. Under Option B (structural-only), this case would have falsely satisfied via raw absence — re-introducing the CWA over-commitment SME async decision 2.1 (2026-04-21) explicitly avoided.
+
+Without this test, the architectural claim "Option C beats Option B on OWA preservation" would be unattested. With it, the claim is empirically grounded in the codebase. **Citation point for what Bucket C structurally proves.**
+
+### 15.3 X4 §5 temporary divergence — CLOSURE ATTESTED
+
+Per X4 memo §5.2: the Tau Prolog deliberation cycle was queued during X4 Bucket A landing as a precondition for Bucket C scope decision. Per X6 memo §0 + §8.4 + triage §10.5:
+
+**Option C IS D1.6-L4 implemented literally.** The X4 §5 temporary divergence — wherein Bucket A operated under partial Tau Prolog coverage with a scheduled revisit — **closes at Commit 4 of the X6 arc**. D1.6-L4 stands as written. No spec amendment. The Tau Prolog deliberation cycle obligation from X4 §5.2 is **fulfilled by Bucket C landing**; no separate deliberation cycle artifact required.
+
+This is the architecturally rare outcome where deliberation ratifies spec letter rather than amending it. SME async decision 2.1 had already drafted 4 of 6 NCs' `owa_helper_contract` fields as Option-C-shaped (Tau Prolog primary + structural-correspondence fallback); picking Option C consummates that prior architectural commitment.
+
+### 15.4 Updated readiness sequence
+
+Replacing §14.3's sequence with post-X6 reality:
+
+1. ✅ **X5 Bucket B PROV-O-relevant subset landed** (ContinuantNC3, OccurrentNC3, ProcessNC4).
+2. ✅ **X6 Bucket C OWL-DERIVED inference cycle landed** (ICNC2, ICNC3, MENC2, IENC2, OccurrentNC2, ProcessNC3 under Option C). Tau Prolog deliberation obligation closed.
+3. ☐ **v1.1+ RoleNC5** — closes `evidence-sibling-ambiguity-plausible`.
+4. ☐ **AVC scenario migration cycle** — converts scaffold scenarios to dispatcher inputs; legacy path retires. Sequenced post-Bucket-C so migration produces calibration-meaningful dispositions, not BCL-degraded outputs. **First SWC opportunity may surface here** (per triage §10.3) when discriminating fixtures exercise via real signatures.
+5. ☐ **Real PROV-O run via Workbench v0.2 ingestion** — Pass 2 calibration proper.
+
+**Live PROV-O pipeline implication post-X6:** for real `prov:Activity` CAUs, dispositions should now route Entailed (when Process required-NC set fully determinable) rather than Plausible-with-coverage-gap, **provided** the dispatcher integration of Bucket C helpers lands in a follow-on commit (the helpers themselves are caller-invokable; dispatcher threading of `prologSession` was scoped to Commit 4-and-beyond per implementation plan §2.2 backwards-compat seam). For now, callers without `prologSession` continue to see Bucket C NCs route undetermined — preserving migration-support backwards compatibility.
+
+### 15.5 Bundle v6 status
+
+**Empty amendment list persists post-X6** (per triage §10.3). The SME pre-deliberation prediction at X6 memo §8.2 — "first SWC opportunity across the X4-X6 arc" — did not materialize at this landing. Reasoning: the synthetic allowlists for the cleared BCL scenarios pre-asserted dispositions consistent with what Option C produces; no scaffold scenario is wrong-per-Option-C in ways requiring amendment.
+
+Future SWC opportunity: AVC migration cycle (step 4 above) where signature-driven inputs exercise the OWA-preservation discriminating fixtures via real signatures.
+
+**Bundle v6 authorization memo remains undrafted.** SME-owed reactive on migration cycle or v1.1+ surfacing amendment-worthy cases.
+
+### 15.6 X6 arc closure summary
+
+- 4 commits (Commit 1: substrate; Commit 2: 4 contract-drafted NCs; Commit 3: MENC2 + ProcessNC3 + cross-NC tests; Commit 4: re-triage + reception + closure attestation).
+- 123 suites / 2,786 passing / 11 skipped at arc close. 70 AVC scenarios still pass — no Phase 1 regression.
+- 6 OWL-DERIVED helpers + 6 reason enums + Tau Prolog session lifecycle substrate.
+- 3 of 4 BCL scenarios cleared to NAN; 1 remains BCL on v1.1+.
+- D1.6-L4 ratification + X4 §5 divergence closure attested in §15.3.
+- Bundle v6 deferred (empty); Tau Prolog deliberation closed; AVC migration + v1.1+ remain queued.
+
+### 15.7 Honest-discipline carry-forward
+
+Bucket C closure preserves the proof-discipline pattern established at Commit 4 / X5 §14.5:
+
+- **Disposition shifts under expanded coverage are coverage-driven, not correction-of-prior-scaffold-errors.** Three BCL → NAN migrations cleared because Bucket C unblocked the cascade, not because scaffold expectations were wrong.
+- **Empty bundle amendment list across the entire X4-X6 arc is honest signal.** No SWC, RID, or SA classifications surfaced at any commit; speculative authorization would have codified partial coverage as permanent.
+- **Architectural payload (OWA preservation) attested in code, not in prose.** The discriminating-fixture test at owl-derived-nc-helpers.test.js:80-95 is the canonical citation point for what Bucket C structurally proves.
+
+---
+
+## 16. X8 AVC Migration addendum (2026-04-25)
+
+X8 retires the legacy SYNTHETIC_NC_SATISFACTION allowlist and migrates 6 dispatcher-relevant scenarios to dispatcher-path inputs (signature + ancestorChain + prologSession). Per [`x4-avc-triage.md §11`](./x4-avc-triage.md#11-re-triage-post-x8-avc-migration-2026-04-25): 5 NAN + 1 SWC. **The bundle finally moves.**
+
+### 16.1 What X8 closes for the live pipeline
+
+Migration retires the synthetic allowlist scaffold from when the dispatcher didn't exist or didn't have sufficient helper coverage. Post-X8:
+
+- 6 scenarios run real Bucket A + B + C inference end-to-end via the X7 dispatcher integration.
+- 5 scenarios produce dispositions matching synthetic-allowlist intent (NAN — synthetic was educated guess; real inference confirms).
+- 1 scenario produces a different (correct) disposition (SWC — synthetic was structurally unreachable; real inference catches what synthetic missed).
+- Legacy SYNTHETIC_NC_SATISFACTION allowlist deletes from `tests/avc/d16-runner.test.js`.
+- TEMPORARY MIGRATION SUPPORT seam at `pipeline-orchestrator.js:397` collapses to required-prologSession contract per memo §4 Option I.
+- 70/70 AVC regression preserved (1 scenario `it.skip`'d pending Commit 2 bundle v6 amendment).
+
+### 16.2 The architectural payload — first non-empty bundle amendment
+
+Across X4 → X5 → X6 → X7, the bundle v6 amendment list stayed empty. Each cycle's re-triage (§3, §9.3, §10.3) classified zero SWC despite expanding coverage; the proof-discipline rationale was that speculative authorization codifies partial coverage as permanent. **X8 ends the empty-batch persistence:** real-inference under full coverage surfaces the load-bearing amendment cause.
+
+The SWC scenario is `evidence-inconsistent-disjointness-firing` (per §11.1 / §11.3). The synthetic allowlist asserted Inconsistent via cross-category-NC-fully-satisfied path; real dispatcher's P4 structural contradiction logic (`ContinuantNC1`'s `hasOccupiesTemporalRegion` contradiction vs `OccurrentNC1`'s required `occupiesTemporalRegion` restriction) prevents simultaneous full satisfaction. Real inference correctly refuses; produces Plausible.
+
+This is the validation of bundle v6 deferral discipline. Speculative authorization at:
+- X4 → would have codified the synthetic's structural error as permanent.
+- X5 → would have codified a partial-coverage outcome (Inconsistent unreachable because OccurrentNC2 was undetermined).
+- X6 → would have codified a similar partial-coverage outcome.
+- X7 → similar.
+- **X8** → surfaces the actual load-bearing rationale: real inference under full coverage catches the synthetic's structural error. Bundle v6 amendment redefines the scenario's expected disposition to match real-inference output.
+
+### 16.3 Updated readiness sequence
+
+Replacing §15.4's sequence with post-X8 reality:
+
+1. ✅ X5 Bucket B PROV-O-relevant subset.
+2. ✅ X6 Bucket C OWL-DERIVED inference.
+3. ✅ X7 dispatcher integration.
+4. ✅ X8 AVC migration cycle — 5 NAN + 1 SWC; bundle v6 authorization triggered.
+5. ☐ **X8 Commit 2:** SME bundle v6 authorization memo + bundle v5 → v6 amendment commit (reactive on Commit 1 SWC delivery).
+6. ☐ v1.1+ RoleNC5 — closes `evidence-sibling-ambiguity-plausible` BCL-residual on annotation.
+7. ☐ Real PROV-O run via Workbench v0.2 ingestion — Pass 2 calibration proper.
+
+**Live PROV-O pipeline implication post-X8:** the dispatcher path is the production path. All in-tree callers supply prologSession; iteration-mechanics legacy path is reserved for Band 2 SYNTHETIC_ITERATION scenarios per X4 §2.7. Real `prov:Activity` CAUs ingested via Workbench v0.2 (downstream) will exercise dispatcher path with full Bucket A + B + C inference end-to-end.
+
+### 16.4 TEMPORARY MIGRATION SUPPORT seam — CLOSURE ATTESTED
+
+Per X8 memo §4 Option I (LOCKED 2026-04-25):
+
+- `pipeline-orchestrator.js:397-440` comment block rewritten: "TEMPORARY MIGRATION SUPPORT" → "DUAL-MODE: dispatcher path requires prologSession; legacy iteration-mechanics path stays per X4 §2.7."
+- Dispatcher path's prologSession-presence check upgraded to throw-on-absence: `runEvaluationWithOptionalDispatcher` throws `TypeError` if `cauSignature + bfoSignatureReference` are supplied but `prologSession` is absent.
+- Iteration-mechanics legacy path (no cauSignature/bfoSignatureReference) preserved unchanged for SYNTHETIC_ITERATION scenarios.
+
+The dual-mode is **permanent**, not transitional. Two distinct modes serving different invocation contexts; CLAUDE.md "Don't design for hypothetical future requirements" discipline applied: the seam exists because two genuine modes exist, not as a defensive scaffolding for unwritten external callers.
+
+### 16.5 Bundle v6 status — LANDED
+
+**Bundle v6 LANDED at Commit 2 (2026-04-25).** Authorization memo: [bundle-v6-authorization-memo.md](./bundle-v6-authorization-memo.md). Bundle file: [avc/fandaws-sentinel-d16-avc-bundle.json](../../avc/fandaws-sentinel-d16-avc-bundle.json) at `bundle_version: 6`. Single scenario amended (`evidence-inconsistent-disjointness-firing`); SWC-skip gate retired; AVC suite 76/76 pass on real-inference output. Triage §11.3 updated POPULATED → LANDED with bundle file reference.
+
+**This was the first non-empty bundle amendment list across the X4-X8 arc.** Architectural payload validated; empty-batch persistence ended at the cycle (X8) where real-inference under full coverage surfaced the load-bearing amendment cause.
+
+### 16.6 X8 arc closure summary (Commit 1 of 2)
+
+- 1 commit (Commit 1: migration + triage §11 + retirement + seam disposition Option I + reception §16). Commit 2 reactive (bundle v6 authorization).
+- 6 scenarios migrated; 5 NAN, 1 SWC. SYNTHETIC_NC_SATISFACTION deleted; SYNTHETIC_ITERATION preserved.
+- TEMPORARY MIGRATION SUPPORT seam → DUAL-MODE permanent contract.
+- 70/70 AVC regression preserved (1 SWC-skip pending bundle v6 amendment).
+- Bundle v6 authorization memo SME-owned reactive on Commit 1 landing.
+
+### 16.7 Honest-discipline carry-forward
+
+X8 closure validates the proof-discipline pattern across X4-X8:
+
+- **Empty-batch persistence was honest signal.** Across X4-X7, no SWC surfaced because partial coverage couldn't differentiate synthetic intent from real-inference outcome. X8 under full coverage surfaces the SWC; bundle v6 amendment is now load-bearing rather than ceremonial.
+- **Real inference catches synthetic structural errors.** The dispatcher's P4 contradiction logic surfaced what no synthetic allowlist could verify. This is the architectural payload of the X4-X8 arc operationalized.
+- **DUAL-MODE seam is permanent contract, not transitional affordance.** The TEMPORARY MIGRATION SUPPORT marker retires; the two modes (dispatcher + iteration-mechanics) coexist permanently per X4 §2.7 lock.
+- **AVC migration cycle is the natural sequencing point for bundle amendment surfacing.** Pre-migration (X4-X7), bundle v6 deferral was honest; post-migration (X8), bundle v6 amendment is grounded in real-inference output rather than speculative scaffolding.

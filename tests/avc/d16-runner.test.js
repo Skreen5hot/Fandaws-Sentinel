@@ -62,6 +62,11 @@ import {
   orchestrateNotApplicable,
   orchestrateAnalystOverride,
 } from '../../src/core/d16/pipeline-orchestrator.js';
+import { evaluateNCSatisfaction } from '../../src/core/d16/nc-dispatcher.js';
+import {
+  initBucketCPrologSession,
+  teardownPrologSession,
+} from '../../src/core/d16/bucket-c-prolog.js';
 import fs from 'fs';
 import path from 'path';
 import bfoSignaturesJson from '../../specs/d16/bfo-signatures-v1.0.json' with { type: 'json' };
@@ -181,23 +186,77 @@ async function handleEvaluateCAU(scenario) {
   }
 
   const cauIRI = scenario.trigger.cauIRI;
-  const synthetic = SYNTHETIC_NC_SATISFACTION[scenario.id];
-  if (!synthetic) {
-    throw new Error(`Scenario ${scenario.id}: no synthetic NC-satisfaction set defined. Band 3 scaffold requires one per scenario until Tau Prolog integration lands in Week 4-6.`);
+  const migrated = MIGRATED_SCENARIO_INPUTS[scenario.id];
+  if (!migrated) {
+    throw new Error(`Scenario ${scenario.id}: no migrated input set defined. X8 migration covers 6 dispatcher-relevant scenarios; SYNTHETIC_ITERATION uses handleRunPhase1.`);
   }
-  const input = {
-    cauIRI,
-    satisfiedNCs: synthetic.satisfiedNCs,
-    axiomPoor: synthetic.axiomPoor || false,
-  };
-  // If the scenario specifies a single target, use single-target evaluation
-  // (evidence-entailed-via-ncs path). Otherwise use multi-target evaluation
-  // with D1.6-L12 resolution across all candidate categories.
-  if (synthetic.targetCategory) {
-    return evaluateCAU({ ...input, targetCategory: synthetic.targetCategory });
+
+  // X8 migration (2026-04-25): dispatcher path with prologSession from
+  // the per-suite shared session. SME §3.2 lock: Option B per-suite shared.
+  const prologSession = await getSharedPrologSession();
+
+  // Single-target vs multi-target dispatch. Single-target invokes the
+  // dispatcher directly via evaluateNCSatisfaction; multi-target evaluates
+  // each candidate category and resolves via resolveBestPlacement.
+  if (migrated.targetCategory) {
+    const trichotomy = await evaluateNCSatisfaction({
+      cauIRI: migrated.cauIRI || cauIRI,
+      cauSignature: migrated.signature,
+      targetBFOCategory: migrated.targetCategory,
+      bfoSignatureReference: bfoSignaturesJson,
+      ancestorChain: migrated.ancestorChain,
+      prologSession,
+    });
+    return evaluateCAU({
+      cauIRI: migrated.cauIRI || cauIRI,
+      targetCategory: migrated.targetCategory,
+      ncEvaluation: trichotomy,
+      satisfiedNCs: [...trichotomy.satisfied],
+    });
   }
-  const perCategory = evaluateCAUAgainstCategories(input, synthetic.candidateCategories);
+
+  // Multi-candidate path: evaluate each category, then resolve.
+  // Per-category record shape matches evaluateCAUAgainstCategories so that
+  // resolveBestPlacement consumes it cleanly.
+  const perCategory = [];
+  for (const category of migrated.candidateCategories) {
+    const trichotomy = await evaluateNCSatisfaction({
+      cauIRI: migrated.cauIRI || cauIRI,
+      cauSignature: migrated.signature,
+      targetBFOCategory: category,
+      bfoSignatureReference: bfoSignaturesJson,
+      ancestorChain: migrated.ancestorChain,
+      prologSession,
+    });
+    const result = evaluateCAU({
+      cauIRI: migrated.cauIRI || cauIRI,
+      targetCategory: category,
+      ncEvaluation: trichotomy,
+      satisfiedNCs: [...trichotomy.satisfied],
+    });
+    const requiredNCs = necessaryConditionsFor(category);
+    perCategory.push({
+      category,
+      disposition: result.disposition,
+      conditionsSatisfied: result.explanation.satisfiedConditionIRIs.length,
+      conditionsTotal: requiredNCs.length,
+      satisfiedConditionIRIs: result.explanation.satisfiedConditionIRIs,
+      unsatisfiedConditionIRIs: result.explanation.unsatisfiedConditionIRIs,
+      disjointViolations: result.explanation.disjointViolations || [],
+    });
+  }
   return resolveBestPlacement(perCategory);
+}
+
+// X8 per-suite shared prologSession lifecycle (per SME §3.2 lock).
+// Lazy-initialized on first migrated-scenario invocation; teardown via
+// afterAll at the top-level describe.
+let _sharedPrologSession = null;
+async function getSharedPrologSession() {
+  if (_sharedPrologSession === null || _sharedPrologSession.teardownComplete) {
+    _sharedPrologSession = await initBucketCPrologSession();
+  }
+  return _sharedPrologSession;
 }
 
 // Band 5 multi-subcase taxonomic descent scenarios. Each subcase is an
@@ -1617,100 +1676,171 @@ const RUN_PHASE2_ALLOWLIST = new Set([
 ]);
 const COMPLETE_PHASE3_ALLOWLIST = new Set(['notapplicable-terminal-no-phase3-no-canonical']);
 
-// Per-scenario synthetic NC-satisfaction sets. Each entry encodes what Tau
-// Prolog will later compute from the CAU's Signature. Aligned with each
-// scenario's narrative setup. Validated at Checkpoint 2 against real
-// extraction on CCO Core samples.
-const SYNTHETIC_NC_SATISFACTION = {
+// X8 Migration (2026-04-25): legacy SYNTHETIC_NC_SATISFACTION allowlist
+// retired per SME-D16-X8 memo §3.4. Replaced with MIGRATED_SCENARIO_INPUTS
+// — realistic CAU signatures consumed by the dispatcher (Bucket A + B + C
+// inference end-to-end). Each entry exercises a specific dispatcher path
+// matching the scenario's natural-language intent.
+//
+// Per-scenario signatures are documented inline with brief comments citing
+// the dispatcher path each exercises. SME reviews construction at landing.
+//
+// Migration triage at specs/d16/x4-avc-triage.md §11 (post-X8 migration).
+function emptySig(cauIRI) {
+  return {
+    cauIRI,
+    propertyRestrictionsAsDomain: [],
+    propertyRestrictionsAsRange: [],
+    characteristics: [],
+    disjointnessAssertions: [],
+    equivalenceClaims: [],
+    universalRestrictions: [],
+    existentialRestrictions: [],
+    cardinalityRestrictions: [],
+    hasValueRestrictions: [],
+    normalizedEnumerations: [],
+    subPropertyClosureUsed: { applied: false, maxDepthTraversed: 0 },
+    cycleDetectionTriggered: false,
+  };
+}
+
+const MIGRATED_SCENARIO_INPUTS = {
   'evidence-entailed-via-ncs': {
-    // Strict CURATED-NC policy (SME async 2.2): includes ProcessNC4 (CURATED-NC).
-    // OccurrentNC3 (CURATED-NC inherited via ProcessNC1) also required.
-    // OccurrentNC2 now OWL-DERIVED (OWA-reclassified per SME async 2.1) —
-    // remains required.
+    // Process target — full satisfaction across Bucket A (ProcessNC2 P3,
+    // OccurrentNC1 P3) + Bucket B (ProcessNC4 helper, OccurrentNC3 helper)
+    // + Bucket C (ProcessNC3 OWL-DERIVED, OccurrentNC2 OWL-DERIVED).
+    // ProcessNC1 P1 cascade affirms via fully-satisfied Occurrent NCs.
     targetCategory: 'bfo:Process',
-    satisfiedNCs: [
-      'bfo:ProcessNC1',
-      'bfo:ProcessNC2',
-      'bfo:ProcessNC3',
-      'bfo:ProcessNC4',
-      'bfo:OccurrentNC1',
-      'bfo:OccurrentNC2',
-      'bfo:OccurrentNC3',
-    ],
+    cauIRI: 'ex:Activity1',
+    ancestorChain: ['bfo:Process', 'bfo:Occurrent', 'bfo:Entity'],
+    signature: (() => {
+      const sig = emptySig('ex:Activity1');
+      sig.existentialRestrictions.push(
+        // ProcessNC2 (Bucket A P3): hasParticipant some Continuant
+        { onProperty: 'bfo:hasParticipant', someValuesFrom: 'bfo:Continuant' },
+        // OccurrentNC1 (Bucket A P3) + ProcessNC3 (Bucket C OWL-DERIVED):
+        // occupiesTemporalRegion with OneDim filler
+        { onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:OneDimensionalTemporalRegion' },
+        // ProcessNC4 (Bucket B X5 helper): hasFirstInstant restriction
+        { onProperty: 'bfo:hasFirstInstant', someValuesFrom: 'bfo:ZeroDimensionalTemporalRegion' },
+      );
+      sig.propertyRestrictionsAsDomain.push(
+        { property: 'bfo:hasParticipant', restrictionKind: 'someValuesFrom', target: 'bfo:Continuant' },
+        { property: 'bfo:occupiesTemporalRegion', restrictionKind: 'someValuesFrom', target: 'bfo:OneDimensionalTemporalRegion' },
+      );
+      return sig;
+    })(),
   },
 
   'evidence-plausible-structured-annotations': {
-    // CAU satisfies 3 of 5 NCs for bfo:Process and 2 of 3 for bfo:Occurrent.
-    // Under strict policy Process has NC1-4 (4 required) and Occurrent NC1-3.
-    // Satisfies a subset of each → both Plausible. Aggregate result: Plausible
-    // with evidenceAnnotations listing both categories.
+    // Per SME §2.2 ruling 2026-04-25: drop occupiesTemporalRegion entirely
+    // (lean b). Both OccurrentNC1 and OccurrentNC3 unsatisfied; partial
+    // satisfaction surfaces Plausible with structured annotations across
+    // Process + Occurrent candidates.
     candidateCategories: ['bfo:Process', 'bfo:Occurrent'],
-    satisfiedNCs: [
-      'bfo:ProcessNC1',
-      'bfo:ProcessNC2',
-      'bfo:ProcessNC3',
-      'bfo:OccurrentNC1',
-      'bfo:OccurrentNC2',
-    ],
+    cauIRI: 'ex:PartialActivity',
+    ancestorChain: ['bfo:Process', 'bfo:Occurrent'],
+    signature: (() => {
+      const sig = emptySig('ex:PartialActivity');
+      // ProcessNC2 satisfied (Bucket A P3); ProcessNC4 satisfied via Process
+      // ancestor (Bucket B helper). OccurrentNC1 NOT satisfied (no
+      // occupiesTemporalRegion). ProcessNC3 satisfied via Process ancestor
+      // (Bucket C path-3 reason). Aggregate: partial satisfaction → Plausible.
+      sig.existentialRestrictions.push(
+        { onProperty: 'bfo:hasParticipant', someValuesFrom: 'bfo:Continuant' },
+      );
+      sig.propertyRestrictionsAsDomain.push(
+        { property: 'bfo:hasParticipant', restrictionKind: 'someValuesFrom', target: 'bfo:Continuant' },
+      );
+      return sig;
+    })(),
   },
 
   'evidence-inconsistent-disjointness-firing': {
-    // CAU satisfies all NCs for both bfo:Continuant and bfo:Occurrent.
-    // These are owl:disjointWith per the BFO reference — Entailed in two
-    // disjoint categories short-circuits to Inconsistent.
+    // X8 SWC candidate (surfaced during signature construction): real-
+    // inference structural P4 logic (ContinuantNC1's hasOccupiesTemporalRegion
+    // contradiction) prevents simultaneous full-satisfaction of Continuant
+    // AND Occurrent NCs from a single honest signature. The scenario's
+    // synthetic allowlist pre-asserted both fully satisfied; real dispatcher
+    // honestly refuses. Migration produces Plausible-with-coverage-gap
+    // rather than Inconsistent — surfaces SWC at landing per §11 triage.
+    //
+    // Construction below uses a multi-inheritance ancestor chain. Real
+    // dispatcher correctly flags multi-inheritance contradiction-wins on
+    // ContinuantNC3 + OccurrentNC2 helpers. Output: Plausible.
     candidateCategories: ['bfo:Continuant', 'bfo:Occurrent'],
-    satisfiedNCs: [
-      'bfo:ContinuantNC1',
-      'bfo:ContinuantNC2',
-      'bfo:ContinuantNC3',
-      'bfo:OccurrentNC1',
-      'bfo:OccurrentNC2',
-      'bfo:OccurrentNC3',
-    ],
+    cauIRI: 'ex:ContradictoryClass',
+    ancestorChain: ['bfo:Continuant', 'bfo:Occurrent'],
+    signature: (() => {
+      const sig = emptySig('ex:ContradictoryClass');
+      sig.existentialRestrictions.push(
+        { onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:OneDimensionalTemporalRegion' },
+      );
+      return sig;
+    })(),
+    // X8 Commit 2 (2026-04-25): bundle v6 amendment landed; expected
+    // disposition realigned to real-inference output (Plausible via
+    // multi-inheritance contradiction-wins). Scenario un-skipped per
+    // bundle-v6-authorization-memo.md §4.
   },
 
   'evidence-subsumption-wins': {
-    // CAU satisfies both Process (subclass) and Occurrent (superclass).
-    // D1.6-L12: most-specific subsumer wins → Entailed in Process.
+    // Same shape as evidence-entailed-via-ncs (Process most-specific over
+    // Occurrent). Subsumption-resolution (D1.6-L12) operates downstream of
+    // Entailment detection; Process target's fully-satisfied NC set wins.
     candidateCategories: ['bfo:Process', 'bfo:Occurrent'],
-    satisfiedNCs: [
-      'bfo:ProcessNC1',
-      'bfo:ProcessNC2',
-      'bfo:ProcessNC3',
-      'bfo:ProcessNC4',
-      'bfo:OccurrentNC1',
-      'bfo:OccurrentNC2',
-      'bfo:OccurrentNC3',
-    ],
+    cauIRI: 'ex:SubsumedActivity',
+    ancestorChain: ['bfo:Process', 'bfo:Occurrent', 'bfo:Entity'],
+    signature: (() => {
+      const sig = emptySig('ex:SubsumedActivity');
+      sig.existentialRestrictions.push(
+        { onProperty: 'bfo:hasParticipant', someValuesFrom: 'bfo:Continuant' },
+        { onProperty: 'bfo:occupiesTemporalRegion', someValuesFrom: 'bfo:OneDimensionalTemporalRegion' },
+        { onProperty: 'bfo:hasFirstInstant', someValuesFrom: 'bfo:ZeroDimensionalTemporalRegion' },
+      );
+      sig.propertyRestrictionsAsDomain.push(
+        { property: 'bfo:hasParticipant', restrictionKind: 'someValuesFrom', target: 'bfo:Continuant' },
+        { property: 'bfo:occupiesTemporalRegion', restrictionKind: 'someValuesFrom', target: 'bfo:OneDimensionalTemporalRegion' },
+      );
+      return sig;
+    })(),
   },
 
   'evidence-ncs-from-curated-only': {
-    // Target a fine-grained category that is NOT in the curated BFO reference.
-    // The evaluator's CuratedReferenceIncomplete warning path fires because
-    // requiredNCsForTarget.length === 0 — no curated NCs available to check
-    // against, so Entailment is unreachable per D1.6-L9 (no heuristic NC
-    // inference allowed as fallback).
+    // Trivial migration: empty signature + non-curated target →
+    // requiredNCsForTarget.length === 0 path fires →
+    // CuratedReferenceIncomplete Plausible. Unchanged behavior pre/post-X8.
     targetCategory: 'bfo:RoleSubtype_HypotheticalPricingRole',
-    satisfiedNCs: [],
+    cauIRI: 'ex:HypotheticalPricingRole',
+    ancestorChain: [],
+    signature: emptySig('ex:HypotheticalPricingRole'),
   },
 
   'evidence-sibling-ambiguity-plausible': {
-    // CAU satisfies NCs for both bfo:Role and bfo:Disposition (siblings under
-    // SDC; not disjoint, not subsuming). Resolution: Plausible with both.
-    // Role and Disposition both require SDCNC1-3 + their own NC1-4 (and
-    // Disposition NC5). With strict policy, all CURATED-NCs required.
+    // Role + Disposition siblings. Both require RoleNC5/DispositionNC5
+    // CURATED-NC. RoleNC5 has no helper (v1.1+ deferred per X4 §6.4) →
+    // routes undetermined under dispatcher. Disposition fully determinable
+    // post-X6 (DispositionNC5 helper). Aggregate: Plausible with
+    // candidateCategories. Per SME ruling 2026-04-25: BCL or SA depending
+    // on annotation structure — judgment-call-at-landing.
     candidateCategories: ['bfo:Role', 'bfo:Disposition'],
-    satisfiedNCs: [
-      // Continuant inherited via SDC
-      'bfo:ContinuantNC1', 'bfo:ContinuantNC2', 'bfo:ContinuantNC3',
-      // SDC
-      'bfo:SDCNC1', 'bfo:SDCNC2', 'bfo:SDCNC3',
-      // Role (all)
-      'bfo:RoleNC1', 'bfo:RoleNC2', 'bfo:RoleNC3', 'bfo:RoleNC4', 'bfo:RoleNC5',
-      // Disposition (all)
-      'bfo:DispositionNC1', 'bfo:DispositionNC2', 'bfo:DispositionNC3',
-      'bfo:DispositionNC4', 'bfo:DispositionNC5',
-    ],
+    cauIRI: 'ex:AmbiguousRealizable',
+    ancestorChain: ['bfo:Role', 'bfo:Disposition', 'bfo:SpecificallyDependentContinuant', 'bfo:Continuant'],
+    signature: (() => {
+      const sig = emptySig('ex:AmbiguousRealizable');
+      sig.existentialRestrictions.push(
+        // SDCNC2 (Bucket A P3): inheresIn restriction
+        { onProperty: 'bfo:inheresIn', someValuesFrom: 'bfo:MaterialEntity' },
+      );
+      sig.propertyRestrictionsAsDomain.push(
+        { property: 'bfo:inheresIn', restrictionKind: 'someValuesFrom', target: 'bfo:MaterialEntity' },
+      );
+      sig.cardinalityRestrictions.push(
+        // SDCNC3 helper: cardinality-1 on inheresIn (particular bearer)
+        { onProperty: 'bfo:inheresIn', cardinality: 1 },
+      );
+      return sig;
+    })(),
   },
 };
 
@@ -2106,6 +2236,15 @@ const BAND_NAMES = {
 describe(`D1.6 AVC (${bundle.bundle_id} v${bundle.bundle_version}, spec ${bundle.spec_version})`, () => {
   const bands = organizeByBand(bundle.scenarios);
 
+  // X8 per-suite shared prologSession teardown (per SME §3.2 lock).
+  // Session is lazy-initialized in handleEvaluateCAU on first invocation;
+  // afterAll cleanup releases substrate state when the suite completes.
+  afterAll(() => {
+    if (_sharedPrologSession && !_sharedPrologSession.teardownComplete) {
+      teardownPrologSession(_sharedPrologSession);
+    }
+  });
+
   for (const bandNum of Object.keys(bands).map(Number).sort((a, b) => a - b)) {
     describe(BAND_NAMES[bandNum] || `Band ${bandNum}`, () => {
       for (const scenario of bands[bandNum]) {
@@ -2120,13 +2259,14 @@ describe(`D1.6 AVC (${bundle.bundle_id} v${bundle.bundle_version}, spec ${bundle
           continue;
         }
 
-        // Per-scenario allowlist: evaluateCAU handler is scoped to scenarios
-        // with a synthetic NC-satisfaction set until Tau Prolog integration
-        // lands in Week 4-6. Scenarios outside the allowlist fall through to
-        // skip so the test-first signal tracks implementation progress cleanly.
+        // X8 (2026-04-25): per-scenario allowlist now references
+        // MIGRATED_SCENARIO_INPUTS (dispatcher-path inputs). Scenarios
+        // outside the allowlist fall through to skip until extension cycles
+        // author signature inputs for them. SWC-skip gate retired at X8
+        // Commit 2 (bundle v6 landed; SWC scenario realigned to real-inference output).
         if (
           triggerType === 'evaluateCAU'
-          && !SYNTHETIC_NC_SATISFACTION[scenario.id]
+          && !MIGRATED_SCENARIO_INPUTS[scenario.id]
           && !EVALUATE_CAU_ALLOWLIST_EXTRA.has(scenario.id)
         ) {
           it.skip(`[${scenario.id}] ${scenario.description.slice(0, 80)}${scenario.description.length > 80 ? '…' : ''}`, () => {
@@ -2253,8 +2393,8 @@ describe('D1.6 AVC Bundle Integrity', () => {
     expect(bundle.scenarios).toHaveLength(70);
   });
 
-  it('bundle version is 5', () => {
-    expect(bundle.bundle_version).toBe(5);
+  it('bundle version is 6', () => {
+    expect(bundle.bundle_version).toBe(6);
   });
 
   it('spec version is D1.6 v1.1.0', () => {

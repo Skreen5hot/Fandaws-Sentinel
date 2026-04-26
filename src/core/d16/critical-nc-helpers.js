@@ -790,6 +790,440 @@ export function cauRealizationIsDesignExpected(input) {
   };
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * X5 Bucket B helpers (PROV-O-relevant subset) — per SME consolidated review
+ * lock 2026-04-25. Three CURATED-NC helpers reasoning over ancestor chain
+ * AND CAU Signature axiom patterns. OWA/CWA posture: mixed CWA +
+ * deterministic-false-on-silence per Wave 2 helper precedent.
+ *
+ * Implementation order: ContinuantNC3 → OccurrentNC3 → ProcessNC4 (sketch
+ * dependency: ProcessNC4 conceptually strengthens OccurrentNC3 but each
+ * helper is self-contained — no helper-to-helper dependency at runtime).
+ *
+ * Sketches (locked):
+ *   - specs/d16/x5-continuantnc3-design-sketch.md
+ *   - specs/d16/x5-occurrentnc3-design-sketch.md
+ *   - specs/d16/x5-processnc4-design-sketch.md
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const CONTINUANT_SUBTREE = Object.freeze([
+  'bfo:Continuant',
+  'bfo:IndependentContinuant',
+  'bfo:MaterialEntity',
+  'bfo:ImmaterialEntity',
+  'bfo:Site',
+  'bfo:SpecificallyDependentContinuant',
+  'bfo:GenericallyDependentContinuant',
+  'bfo:Role',
+  'bfo:Disposition',
+  'bfo:Function',
+  'bfo:Quality',
+]);
+
+// Occurrent subtree EXCLUDING ProcessBoundary (which is taxonomically Occurrent
+// but doesn't unfold). Used for OccurrentNC3 affirmation precedence.
+const OCCURRENT_UNFOLDING_SUBTREE = Object.freeze([
+  'bfo:Occurrent',
+  'bfo:Process',
+  'bfo:TemporalRegion',
+]);
+
+const PROCESS_SUBTREE = Object.freeze(['bfo:Process']);
+
+const BFO_HAS_TEMPORAL_PART_IRIS = new Set([
+  'http://purl.obolibrary.org/obo/BFO_0000121',
+  'bfo:0000121',
+  'bfo:hasTemporalPart',
+]);
+
+const BFO_OCCUPIES_TEMPORAL_REGION_IRIS = new Set([
+  'http://purl.obolibrary.org/obo/BFO_0000196',
+  'bfo:0000196',
+  'bfo:occupiesTemporalRegion',
+]);
+
+const BFO_HAS_FIRST_INSTANT_IRIS = new Set([
+  'http://purl.obolibrary.org/obo/BFO_0000222',
+  'bfo:0000222',
+  'bfo:hasFirstInstant',
+]);
+
+const BFO_HAS_LAST_INSTANT_IRIS = new Set([
+  'http://purl.obolibrary.org/obo/BFO_0000224',
+  'bfo:0000224',
+  'bfo:hasLastInstant',
+]);
+
+const BFO_ZERO_DIM_TR_IRIS = new Set([
+  'http://purl.obolibrary.org/obo/BFO_0000148',
+  'bfo:0000148',
+  'bfo:ZeroDimensionalTemporalRegion',
+]);
+
+function isHasTemporalPart(iri) { return BFO_HAS_TEMPORAL_PART_IRIS.has(iri); }
+function isOccupiesTemporalRegion(iri) { return BFO_OCCUPIES_TEMPORAL_REGION_IRIS.has(iri); }
+function isHasFirstInstant(iri) { return BFO_HAS_FIRST_INSTANT_IRIS.has(iri); }
+function isHasLastInstant(iri) { return BFO_HAS_LAST_INSTANT_IRIS.has(iri); }
+function isZeroDimTR(iri) { return BFO_ZERO_DIM_TR_IRIS.has(iri); }
+
+/**
+ * Helper for ContinuantNC3 (CURATED-NC, Standard priority).
+ * Prolog body: cau_identity_persists_through_time(CAU).
+ *
+ * Predicate intent (Arp/Smith/Spear §4.2): Continuants maintain numerical
+ * identity across time. Identity-persistence is inferred from BFO 2020
+ * structural class membership; OWL-level axioms do not express persistence
+ * directly.
+ *
+ * Single defensible reading (no Option A/B branch). bfo:existsAt is NOT an
+ * independent affirmation path (it's downstream-relational of Continuant
+ * membership; including would double-count).
+ *
+ * Multi-inheritance precedence: CONTRADICTION wins over AFFIRMATION when
+ * a CAU's ancestorChain spans both subtrees (modeling anomaly).
+ *
+ * @param {object} input
+ * @param {object} input.signature
+ * @param {string[]} [input.ancestorChain]
+ */
+export function cauIdentityPersistsThroughTime(input) {
+  const { signature, ancestorChain = [] } = input;
+  if (!signature) throw new Error('cauIdentityPersistsThroughTime: signature required');
+
+  const continuantAncestor = ancestorChain.find((a) => CONTINUANT_SUBTREE.includes(a));
+  const occurrentAncestor = ancestorChain.find((a) =>
+    a === 'bfo:Occurrent' || a === 'bfo:Process' || a === 'bfo:ProcessBoundary' || a === 'bfo:TemporalRegion'
+  );
+  const disjointWithOccurrent = (signature.disjointnessAssertions || []).includes('bfo:Occurrent');
+  const equivalentToContinuant = (signature.equivalenceClaims || [])
+    .find((e) => CONTINUANT_SUBTREE.includes(e));
+  const contradictingRestrictions = (signature.existentialRestrictions || [])
+    .filter((r) => isHasTemporalPart(r.onProperty));
+
+  if (occurrentAncestor) {
+    return {
+      result: false,
+      reason: 'occurrent_subtree_ancestor',
+      evidence: { contradictingAncestor: occurrentAncestor },
+      groundsNC: 'ContinuantNC3',
+      helperIRI: 'cau_identity_persists_through_time/1',
+    };
+  }
+  if (contradictingRestrictions.length > 0) {
+    return {
+      result: false,
+      reason: 'temporal_part_decomposition_present',
+      evidence: { contradictingRestrictions: contradictingRestrictions.map((r) => ({ onProperty: r.onProperty, target: r.someValuesFrom })) },
+      groundsNC: 'ContinuantNC3',
+      helperIRI: 'cau_identity_persists_through_time/1',
+    };
+  }
+  if (continuantAncestor) {
+    return {
+      result: true,
+      reason: 'continuant_subtree_ancestor',
+      evidence: { matchedAncestor: continuantAncestor },
+      groundsNC: 'ContinuantNC3',
+      helperIRI: 'cau_identity_persists_through_time/1',
+    };
+  }
+  if (disjointWithOccurrent) {
+    return {
+      result: true,
+      reason: 'disjoint_with_occurrent',
+      evidence: { matchedDisjointness: 'bfo:Occurrent' },
+      groundsNC: 'ContinuantNC3',
+      helperIRI: 'cau_identity_persists_through_time/1',
+    };
+  }
+  if (equivalentToContinuant) {
+    return {
+      result: true,
+      reason: 'equivalent_class_to_continuant',
+      evidence: { matchedEquivalence: equivalentToContinuant },
+      groundsNC: 'ContinuantNC3',
+      helperIRI: 'cau_identity_persists_through_time/1',
+    };
+  }
+  return {
+    result: false,
+    reason: 'no_structural_evidence',
+    evidence: {},
+    groundsNC: 'ContinuantNC3',
+    helperIRI: 'cau_identity_persists_through_time/1',
+  };
+}
+
+/**
+ * Helper for OccurrentNC3 (CURATED-NC, Standard priority, sme_locked).
+ * Prolog body: cau_unfolds_through_time(CAU).
+ *
+ * Predicate intent (Arp/Smith/Spear §4.3): Occurrents have temporal parts —
+ * they unfold across a temporal region. Distinct from Continuants (identity-
+ * persistence) and from ProcessBoundary (zero-dim, doesn't unfold).
+ *
+ * Option B (strict, dimensionality-aware) per SME consolidated review lock
+ * 2026-04-25. ProcessBoundary special-case: ancestorChain containing
+ * ProcessBoundary contradicts (zero-dim Occurrent doesn't unfold).
+ * Multi-inheritance contradiction-wins applies if Process AND ProcessBoundary
+ * both appear (modeling anomaly).
+ */
+export function cauUnfoldsThroughTime(input) {
+  const { signature, ancestorChain = [] } = input;
+  if (!signature) throw new Error('cauUnfoldsThroughTime: signature required');
+
+  const continuantAncestor = ancestorChain.find((a) => CONTINUANT_SUBTREE.includes(a));
+  const hasProcessBoundary = ancestorChain.includes('bfo:ProcessBoundary');
+  const unfoldingOccurrentAncestor = ancestorChain.find((a) =>
+    OCCURRENT_UNFOLDING_SUBTREE.includes(a)
+  );
+
+  // Contradiction wins: Continuant ancestor.
+  if (continuantAncestor) {
+    return {
+      result: false,
+      reason: 'continuant_subtree_ancestor',
+      evidence: { contradictingAncestor: continuantAncestor },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  // ProcessBoundary special-case: ProcessBoundary in chain contradicts,
+  // even when Process / Occurrent are also present (multi-inheritance
+  // contradiction-wins per SME ruling 2026-04-25).
+  if (hasProcessBoundary) {
+    return {
+      result: false,
+      reason: 'process_boundary_ancestor_only',
+      evidence: { contradictingAncestor: 'bfo:ProcessBoundary' },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  // Affirmation: unfolding Occurrent ancestor.
+  if (unfoldingOccurrentAncestor) {
+    return {
+      result: true,
+      reason: 'occurrent_subtree_ancestor',
+      evidence: { matchedAncestor: unfoldingOccurrentAncestor },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  // Affirmation: temporal-extension restriction.
+  // Pattern: occupiesTemporalRegion with non-zero-dim filler OR hasTemporalPart.
+  const occupiesRestrictions = (signature.existentialRestrictions || [])
+    .filter((r) => isOccupiesTemporalRegion(r.onProperty));
+  const nonZeroDimOccupies = occupiesRestrictions.filter((r) => !isZeroDimTR(r.someValuesFrom));
+  const allZeroDimOccupies = occupiesRestrictions.length > 0 && nonZeroDimOccupies.length === 0;
+  const hasTemporalPartRestrictions = (signature.existentialRestrictions || [])
+    .filter((r) => isHasTemporalPart(r.onProperty));
+
+  if (nonZeroDimOccupies.length > 0 || hasTemporalPartRestrictions.length > 0) {
+    const matched = nonZeroDimOccupies[0] || hasTemporalPartRestrictions[0];
+    return {
+      result: true,
+      reason: 'temporal_extension_restriction',
+      evidence: { matchedTemporalExtension: { onProperty: matched.onProperty, target: matched.someValuesFrom } },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  // Contradiction: occupiesTemporalRegion present but only with zero-dim filler.
+  if (allZeroDimOccupies) {
+    return {
+      result: false,
+      reason: 'zero_dimensional_temporal_only',
+      evidence: { zeroDimRestrictions: occupiesRestrictions.map((r) => ({ onProperty: r.onProperty, target: r.someValuesFrom })) },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  // Affirmation: disjoint with Continuant.
+  if ((signature.disjointnessAssertions || []).includes('bfo:Continuant')) {
+    return {
+      result: true,
+      reason: 'disjoint_with_continuant',
+      evidence: { matchedDisjointness: 'bfo:Continuant' },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  // Affirmation: equivalent to unfolding Occurrent.
+  const equivalentOccurrent = (signature.equivalenceClaims || [])
+    .find((e) => OCCURRENT_UNFOLDING_SUBTREE.includes(e));
+  if (equivalentOccurrent) {
+    return {
+      result: true,
+      reason: 'equivalent_class_to_occurrent',
+      evidence: { matchedEquivalence: equivalentOccurrent },
+      groundsNC: 'OccurrentNC3',
+      helperIRI: 'cau_unfolds_through_time/1',
+    };
+  }
+
+  return {
+    result: false,
+    reason: 'no_structural_evidence',
+    evidence: {},
+    groundsNC: 'OccurrentNC3',
+    helperIRI: 'cau_unfolds_through_time/1',
+  };
+}
+
+/**
+ * Helper for ProcessNC4 (CURATED-NC, Standard priority).
+ * Prolog body: cau_admits_process_boundaries(CAU).
+ *
+ * Predicate intent (Arp/Smith/Spear §6.2): Processes have temporal boundaries
+ * (start/end as zero-dim temporal regions). Predicate attests CAU is
+ * structurally compatible with bounded temporal extension.
+ *
+ * Option B (permissive on boundary-instant restriction) per SME consolidated
+ * review lock 2026-04-25. Expanding affirmation paths to recognize positive
+ * structural evidence (hasFirstInstant / hasLastInstant) does not violate
+ * absence-not-evidence — these are positive markers, not absences.
+ *
+ * Asymmetric Occurrent handling: ProcessNC4 affirms ONLY on bfo:Process or
+ * Process-descendants. Generic bfo:Occurrent ancestor alone is insufficient
+ * (per Process-specific strengthening of OccurrentNC3).
+ *
+ * Multi-inheritance contradiction-wins: Continuant or ProcessBoundary-only
+ * ancestors contradict, regardless of Process descendant presence
+ * (modeling anomaly).
+ */
+export function cauAdmitsProcessBoundaries(input) {
+  const { signature, ancestorChain = [] } = input;
+  if (!signature) throw new Error('cauAdmitsProcessBoundaries: signature required');
+
+  const continuantAncestor = ancestorChain.find((a) => CONTINUANT_SUBTREE.includes(a));
+  const hasProcessBoundary = ancestorChain.includes('bfo:ProcessBoundary');
+  const processAncestor = ancestorChain.find((a) => PROCESS_SUBTREE.includes(a));
+
+  // Contradiction wins: Continuant ancestor.
+  if (continuantAncestor) {
+    return {
+      result: false,
+      reason: 'continuant_subtree_ancestor',
+      evidence: { contradictingAncestor: continuantAncestor },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Contradiction: ProcessBoundary alone (no Process ancestor) — boundaries
+  // don't admit boundaries, they ARE boundaries.
+  // Multi-inheritance: ProcessBoundary AND Process both present → contradiction
+  // wins per multi-inheritance contradiction-wins precedence.
+  if (hasProcessBoundary) {
+    return {
+      result: false,
+      reason: 'process_boundary_subtree_ancestor',
+      evidence: { contradictingAncestor: 'bfo:ProcessBoundary' },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Affirmation: Process ancestor.
+  if (processAncestor) {
+    return {
+      result: true,
+      reason: 'process_subtree_ancestor',
+      evidence: { matchedAncestor: processAncestor },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Affirmation: existential restriction on hasFirstInstant.
+  const firstInstantExistential = (signature.existentialRestrictions || [])
+    .find((r) => isHasFirstInstant(r.onProperty));
+  if (firstInstantExistential) {
+    return {
+      result: true,
+      reason: 'first_instant_restriction',
+      evidence: { matchedFirstInstantRestriction: { onProperty: firstInstantExistential.onProperty, target: firstInstantExistential.someValuesFrom } },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Affirmation: existential restriction on hasLastInstant.
+  const lastInstantExistential = (signature.existentialRestrictions || [])
+    .find((r) => isHasLastInstant(r.onProperty));
+  if (lastInstantExistential) {
+    return {
+      result: true,
+      reason: 'last_instant_restriction',
+      evidence: { matchedLastInstantRestriction: { onProperty: lastInstantExistential.onProperty, target: lastInstantExistential.someValuesFrom } },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Affirmation: cardinality ≥ 1 on hasFirstInstant.
+  const firstInstantCardinality = (signature.cardinalityRestrictions || []).find((r) =>
+    isHasFirstInstant(r.onProperty) &&
+    ((typeof r.cardinality === 'number' && r.cardinality >= 1) ||
+      (typeof r.qualifiedCardinality === 'number' && r.qualifiedCardinality >= 1) ||
+      (typeof r.minCardinality === 'number' && r.minCardinality >= 1))
+  );
+  if (firstInstantCardinality) {
+    return {
+      result: true,
+      reason: 'first_instant_cardinality',
+      evidence: { matchedCardinality: { onProperty: firstInstantCardinality.onProperty, count: firstInstantCardinality.cardinality ?? firstInstantCardinality.qualifiedCardinality ?? firstInstantCardinality.minCardinality } },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Affirmation: cardinality ≥ 1 on hasLastInstant.
+  const lastInstantCardinality = (signature.cardinalityRestrictions || []).find((r) =>
+    isHasLastInstant(r.onProperty) &&
+    ((typeof r.cardinality === 'number' && r.cardinality >= 1) ||
+      (typeof r.qualifiedCardinality === 'number' && r.qualifiedCardinality >= 1) ||
+      (typeof r.minCardinality === 'number' && r.minCardinality >= 1))
+  );
+  if (lastInstantCardinality) {
+    return {
+      result: true,
+      reason: 'last_instant_cardinality',
+      evidence: { matchedCardinality: { onProperty: lastInstantCardinality.onProperty, count: lastInstantCardinality.cardinality ?? lastInstantCardinality.qualifiedCardinality ?? lastInstantCardinality.minCardinality } },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  // Affirmation: equivalent to Process or descendant.
+  const equivalentProcess = (signature.equivalenceClaims || [])
+    .find((e) => PROCESS_SUBTREE.includes(e));
+  if (equivalentProcess) {
+    return {
+      result: true,
+      reason: 'equivalent_class_to_process',
+      evidence: { matchedEquivalence: equivalentProcess },
+      groundsNC: 'ProcessNC4',
+      helperIRI: 'cau_admits_process_boundaries/1',
+    };
+  }
+
+  return {
+    result: false,
+    reason: 'no_structural_evidence',
+    evidence: {},
+    groundsNC: 'ProcessNC4',
+    helperIRI: 'cau_admits_process_boundaries/1',
+  };
+}
+
 /**
  * Return the populated curated-list metadata for inspection / validation
  * / reporting. Used by the SME validation artifact.

@@ -277,8 +277,9 @@ export function initUploadPanel(el, nav) {
         }
       }
 
-      // Create session in ingest state
-      const { id, session, error } = nav.ingestState.createSession({
+      // Create session in ingest state — async since X9 Step 2 (init
+      // per-session Tau Prolog handle alongside session record per X9 §3.1).
+      const { id, session, error } = await nav.ingestState.createSession({
         sourceFilename: fileName || 'uploaded-ontology',
         ontologyIRI: parsed.ontologyIRI,
         format: detectedFormat,

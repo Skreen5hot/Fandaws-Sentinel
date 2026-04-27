@@ -115,12 +115,23 @@ function normalizeBfoClass(ref) {
 /**
  * Evaluate BFO placement for an external class.
  *
- * @param {object} externalClass - { iri, label, superclass, properties }
- * @param {object} [context={}] - { disjointnessMap, existingConcepts }
+ * @param {object} externalClass - { iri, label, superclass, ancestorChain, properties }
+ *   ancestorChain (X9 Step 7.5 2026-04-27): transitively-closed parent
+ *   IRIs from immediate parent to root. Per X9 §3.1 caller-contract.
+ *   When the immediate superclass doesn't resolve to BFO, the heuristic
+ *   walks ancestorChain looking for an inherited BFO ancestor (NA-1.1
+ *   taxonomic-descent inheritance per D1.6-L25). Backwards-compatible:
+ *   absent ancestorChain → behaves identically to pre-7.5 single-level
+ *   superclass check.
+ * @param {object} [context={}] - { disjointnessMap, existingConcepts, resolvedPlacements }
+ *   resolvedPlacements (optional): Map<iri, bfoCategory> of already-
+ *   resolved ancestor placements. Enables cascade-from-resolved per X9
+ *   Step 7.5 NA-1.1 cascade discipline.
  * @returns {{ placement: string|null, confidence: number, justification: string, candidates?: object[] }}
  */
 export function evaluatePlacement(externalClass, context = {}) {
-  const { iri, label, superclass, properties = [] } = externalClass;
+  const { iri, label, superclass, ancestorChain = [], properties = [] } = externalClass;
+  const { resolvedPlacements } = context;
   const candidates = [];
   const justifications = [];
 
@@ -133,6 +144,45 @@ export function evaluatePlacement(externalClass, context = {}) {
     // Superclass declared but doesn't resolve to any BFO node
     // Don't immediately reject — other heuristics may still apply
     justifications.push(`Declared superclass ${superclass} does not resolve to a known BFO class`);
+  }
+
+  // ── X9 Step 7.5 Heuristic 1b: Transitive ancestor walk (NA-1.1 cascade) ──
+  // When immediate superclass doesn't resolve to BFO, walk the ancestor
+  // chain looking for (a) a previously-resolved ancestor placement
+  // (cascade-from-resolved per D1.6-L25), then (b) an inherited BFO
+  // ancestor (heuristic). Confidence diminishes with distance.
+  if (!normalizedSuper && ancestorChain.length > 0) {
+    let cascadeFired = false;
+    // Pass (a): cascade from resolved-placement of any ancestor (NA-1.1)
+    if (resolvedPlacements) {
+      for (let depth = 0; depth < ancestorChain.length; depth++) {
+        const ancestor = ancestorChain[depth];
+        const inherited = resolvedPlacements.get(ancestor);
+        if (inherited) {
+          // Cascade-from-resolved: child inherits parent's authoritative placement.
+          // Confidence stays high (0.88) since parent's placement was authoritative.
+          candidates.push({ placement: inherited, confidence: 0.88, source: `cascade_from_resolved:${ancestor}` });
+          justifications.push(`NA-1.1 cascade: inherits ${inherited} from resolved ancestor ${ancestor} at depth ${depth + 1} (0.88)`);
+          cascadeFired = true;
+          break;
+        }
+      }
+    }
+    // Pass (b): walk to first BFO-resolvable ancestor (heuristic)
+    if (!cascadeFired) {
+      for (let depth = 0; depth < ancestorChain.length; depth++) {
+        const ancestor = ancestorChain[depth];
+        const norm = normalizeBfoClass(ancestor);
+        if (norm) {
+          // Confidence diminishes with distance: 0.91 - 0.05 * (depth + 1).
+          // depth 0 (immediate-grandparent BFO) → 0.86; depth 4 → 0.66.
+          const conf = Math.max(0.50, 0.91 - 0.05 * (depth + 1));
+          candidates.push({ placement: norm, confidence: conf, source: `inherited_bfo_ancestor:${ancestor}` });
+          justifications.push(`NA-1.1 inherited ${norm} from ancestor ${ancestor} at depth ${depth + 1} (${conf.toFixed(2)})`);
+          break;
+        }
+      }
+    }
   }
 
   // ── Heuristic 2: Property-based inference ──

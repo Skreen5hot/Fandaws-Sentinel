@@ -1367,8 +1367,16 @@ export class InMemoryStateAdapter extends StateAdapter {
     const graph = this._graphs.get(graphId);
     if (!graph) return { error: 'Graph not found' };
 
+    // X9 Step 7.5 (2026-04-27): build classMap for transitive ancestor-chain
+    // construction per X9 §3.1 caller-contract. Each class's ancestorChain
+    // is built by walking parsed.classes[i].superclass transitively until
+    // a root (no superclass) or external/BFO class is reached.
+    const classMap = new Map();
+    for (const cls of classes) classMap.set(cls.iri, cls);
+
     // ── Phase 1a: Create staging records ──
     const stagingIds = [];
+    const stagingIdByIRI = new Map();
     for (const cls of classes) {
       const stagingId = `fandaws:staging/${Date.now()}-${cls.iri}`;
       const record = {
@@ -1377,6 +1385,7 @@ export class InMemoryStateAdapter extends StateAdapter {
         sourceLabel: cls.label,
         sourceOntology,
         superclass: cls.superclass || null,
+        ancestorChain: buildTransitiveAncestorChain(cls.iri, classMap),
         properties: cls.properties || [],
         ingestedInSession: sessionId,
         candidateStatus: 'Pending',
@@ -1386,11 +1395,35 @@ export class InMemoryStateAdapter extends StateAdapter {
       };
       this._sourceAxiomGraph.set(stagingId, record);
       stagingIds.push(stagingId);
+      stagingIdByIRI.set(cls.iri, stagingId);
       session.classesIngested++;
     }
 
+    // X9 Step 7.5 Gap 2: generate CandidateRelation staging records from
+    // parsed.properties at session creation. Workbench Phase 2 Review
+    // consumes these via getSourceAxiomGraph() filter on type === 'CandidateRelation'.
+    const relationStagingIds = [];
+    for (const prop of properties) {
+      const stagingId = `fandaws:staging/${Date.now()}-rel-${prop.iri}`;
+      const record = {
+        type: 'CandidateRelation',
+        sourceIRI: prop.iri,
+        sourceLabel: prop.label,
+        sourceOntology,
+        declaredDomain: prop.declaredDomain ?? prop.domain ?? null,
+        declaredRange: prop.declaredRange ?? prop.range ?? null,
+        declaredCharacteristics: prop.declaredCharacteristics ?? prop.characteristics ?? [],
+        subPropertyOf: prop.subPropertyOf ?? null,
+        ingestedInSession: sessionId,
+        candidateStatus: 'Pending',
+        normalizationStatus: null,
+      };
+      this._sourceAxiomGraph.set(stagingId, record);
+      relationStagingIds.push(stagingId);
+    }
+
     if (stopAfterStaging) {
-      return { sessionId, staged: stagingIds.length, stopped: true };
+      return { sessionId, staged: stagingIds.length, stagedRelations: relationStagingIds.length, stopped: true };
     }
 
     // ── Phase 1b: Evaluate placement for each staged class ──
@@ -1398,14 +1431,34 @@ export class InMemoryStateAdapter extends StateAdapter {
     const { evaluatePlacement, routePlacement } = this._getPlacementSandbox();
     const delta = session.confidenceDelta;
 
-    for (const stagingId of stagingIds) {
+    // X9 Step 7.5 NA-1.1 cascade: evaluate parents before children so
+    // child evaluations can read parent's resolved placement via
+    // resolvedPlacements Map. Topological sort by ancestorChain length
+    // (root classes have empty chain → sort first; deepest descendants
+    // sort last).
+    const sortedStagingIds = [...stagingIds].sort((a, b) => {
+      const ra = this._sourceAxiomGraph.get(a);
+      const rb = this._sourceAxiomGraph.get(b);
+      return (ra.ancestorChain?.length || 0) - (rb.ancestorChain?.length || 0);
+    });
+
+    // resolvedPlacements: tracks each CAU's resolved BFO placement so
+    // descendants can inherit per NA-1.1 cascade. Populated as Phase 1b
+    // walks the topologically-sorted list parents-first.
+    const resolvedPlacements = new Map();
+
+    for (const stagingId of sortedStagingIds) {
       const record = this._sourceAxiomGraph.get(stagingId);
       const result = evaluatePlacement({
         iri: record.sourceIRI,
         label: record.sourceLabel,
         superclass: record.superclass,
+        ancestorChain: record.ancestorChain || [],
         properties: record.properties,
-      }, { disjointnessMap: this._bfoDisjointnessMap });
+      }, {
+        disjointnessMap: this._bfoDisjointnessMap,
+        resolvedPlacements,
+      });
 
       const routing = routePlacement(result, delta);
       record.candidateStatus = routing.status;
@@ -1417,6 +1470,8 @@ export class InMemoryStateAdapter extends StateAdapter {
         // Auto-promote to canonical
         this._promoteCandidate(graphId, record, sessionId);
         session.classesPlaced++;
+        // X9 Step 7.5: register in resolvedPlacements so descendants inherit
+        if (routing.placement) resolvedPlacements.set(record.sourceIRI, routing.placement);
       } else if (routing.status === 'PlacementAmbiguous') {
         record.normalizationStatus = 'PendingHumanResolution';
         session.classesAmbiguous++;
@@ -2552,4 +2607,32 @@ export class InMemoryStateAdapter extends StateAdapter {
     }
     return adapter;
   }
+}
+
+/**
+ * X9 Step 7.5 (2026-04-27): build a transitively-closed ancestor chain
+ * for a given class IRI by walking parsed.classes' superclass field
+ * chain-of-ancestors. Stops at first parent missing from classMap (root
+ * external class, e.g., owl:Thing or a BFO class) OR on cycle detection
+ * (defensive — BFO is single-inheritance but external ontologies may
+ * declare cycles).
+ *
+ * Per X9 §3.1 caller-contract: ancestorChain MUST be transitively closed
+ * before passing to dispatcher / placement-sandbox.
+ *
+ * @param {string} rootIRI - the class IRI whose ancestor chain to build
+ * @param {Map<string, object>} classMap - parsed.classes indexed by IRI
+ * @returns {string[]} ancestor IRIs from immediate parent to root,
+ *   excluding the rootIRI itself; empty array when no superclass
+ */
+export function buildTransitiveAncestorChain(rootIRI, classMap) {
+  const chain = [];
+  const seen = new Set([rootIRI]);
+  let cursor = classMap.get(rootIRI);
+  while (cursor && cursor.superclass && !seen.has(cursor.superclass)) {
+    chain.push(cursor.superclass);
+    seen.add(cursor.superclass);
+    cursor = classMap.get(cursor.superclass);
+  }
+  return chain;
 }

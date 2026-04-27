@@ -564,6 +564,16 @@ export function initPhase1ReviewPanel(el, nav) {
       }
     }
 
+    // X9 Step 7.5++ (2026-04-27): set of in-session property IRIs for the
+    // declared-parent precedence override. Built once before the loop;
+    // mirrors Phase 1+'s parentInOntology check on the class side. When a
+    // property's subPropertyOf points to another property in this same
+    // session AND the routing disposition is below AutoMerged, override
+    // to RelationDeferred — preventing silent NovelPromotionPanel routing
+    // for declared in-session sub-properties (per SME spec lock for
+    // Step 7.5++).
+    const parsedPropertyIRIs = new Set(properties.map(p => p.iri));
+
     for (const prop of properties) {
       const fingerprint = Fandaws.buildFingerprint({
         declaredDomain: prop.declaredDomain,
@@ -586,6 +596,23 @@ export function initPhase1ReviewPanel(el, nav) {
         routing = { disposition: 'NovelPromotionPanel', topScore: 0, secondScore: 0, margin: 0 };
       }
 
+      // X9 Step 7.5++ declared-parent precedence: if the declared
+      // subPropertyOf is itself a property staged in this session AND
+      // the score didn't clear AutoMerged, override to RelationDeferred.
+      // AutoMerged short-circuit is preserved — high-confidence canonical
+      // matches still win even when a declared in-session parent exists.
+      if (prop.subPropertyOf &&
+          parsedPropertyIRIs.has(prop.subPropertyOf) &&
+          routing.disposition !== 'AutoMerged') {
+        routing = {
+          disposition: 'RelationDeferred',
+          topScore: routing.topScore,
+          secondScore: routing.secondScore,
+          margin: routing.margin,
+          parentPropertyIRI: prop.subPropertyOf,
+        };
+      }
+
       phase2Records.push({
         iri: prop.iri,
         label: prop.label,
@@ -596,6 +623,10 @@ export function initPhase1ReviewPanel(el, nav) {
         declaredRange: prop.declaredRange,
         declaredCharacteristics: prop.declaredCharacteristics || [],
         subPropertyOf: prop.subPropertyOf,
+        // X9 Step 7.5++: surface the parentPropertyInOntology flag at the
+        // Phase 2 record level so cascade-revert (parent rejected) can
+        // clear it, flipping subsequent renders from Deferred → Novel.
+        parentPropertyInOntology: !!(prop.subPropertyOf && parsedPropertyIRIs.has(prop.subPropertyOf)),
         action: null,       // Merge|Reject|PromoteAsSubProperty|PromoteAsNewRelation
         justification: '',
         resolved: routing.disposition === 'AutoMerged',

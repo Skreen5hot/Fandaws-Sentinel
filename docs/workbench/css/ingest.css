@@ -634,6 +634,10 @@
 .ig-disp--merged { background: var(--green-bg); color: var(--green); }
 .ig-disp--disambig { background: var(--yellow-bg); color: var(--yellow); }
 .ig-disp--novel { background: rgba(108, 138, 255, 0.12); color: var(--accent); }
+/* X9 Step 7.5++ (2026-04-27): Phase 2 RelationDeferred badge — declared
+   in-session sub-property awaiting reactive cascade from parent. Same
+   teal-blue palette as Phase 1's PlacementDeferred (.ig-status--deferred). */
+.ig-disp--deferred { background: rgba(95, 190, 216, 0.12); color: #5fbed8; }
 .ig-disp--default { background: var(--surface-alt); color: var(--text-muted); }
 
 .ig-action-badge {

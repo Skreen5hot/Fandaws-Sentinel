@@ -337,6 +337,139 @@ describe('Step 7.5 Gap 2 — CandidateRelation staging records generated from pa
   });
 });
 
+describe('Step 7.5++ — RelationDeferred for declared in-session subPropertyOf', () => {
+  let adapter;
+  let graphId;
+
+  beforeEach(() => {
+    adapter = adapterWithSandbox();
+    graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+  });
+
+  it('parentPropertyInOntology = true on staging record when subPropertyOf is in-session', () => {
+    const properties = [
+      { iri: 'prov:wasInfluencedBy', label: 'was influenced by', declaredDomain: 'prov:Activity', declaredRange: 'prov:Activity' },
+      { iri: 'prov:wasInformedBy', label: 'was informed by', declaredDomain: 'prov:Activity', declaredRange: 'prov:Activity', subPropertyOf: 'prov:wasInfluencedBy' },
+    ];
+    const result = adapter.ingestOntology(graphId, {
+      sourceOntology: 'prov-o.owl', classes: [], properties,
+    });
+    const records = [...adapter.getSourceAxiomGraph().values()].filter(r =>
+      r.type === 'CandidateRelation' && r.ingestedInSession === result.sessionId
+    );
+    const wasInformedBy = records.find(r => r.sourceIRI === 'prov:wasInformedBy');
+    const wasInfluencedBy = records.find(r => r.sourceIRI === 'prov:wasInfluencedBy');
+    expect(wasInformedBy.parentPropertyInOntology).toBe(true);
+    expect(wasInfluencedBy.parentPropertyInOntology).toBe(false); // root has no subPropertyOf
+  });
+
+  it('parentPropertyInOntology = false when subPropertyOf points to external (not-in-session) IRI', () => {
+    const properties = [
+      { iri: 'ex:p1', label: 'p1', subPropertyOf: 'rdfs:subPropertyOf-external-thing' },
+    ];
+    const result = adapter.ingestOntology(graphId, { sourceOntology: 'x.owl', classes: [], properties });
+    const r = [...adapter.getSourceAxiomGraph().values()].find(rec => rec.sourceIRI === 'ex:p1');
+    expect(r.parentPropertyInOntology).toBe(false);
+  });
+
+  it('cascadeSubPropertyResolution Merge: child auto-promotes as PromoteAsSubProperty of merge target', () => {
+    const properties = [
+      { iri: 'prov:wasInfluencedBy', label: 'wasInfluencedBy', declaredDomain: 'prov:Activity', declaredRange: 'prov:Activity' },
+      { iri: 'prov:wasInformedBy', label: 'wasInformedBy', declaredDomain: 'prov:Activity', declaredRange: 'prov:Activity', subPropertyOf: 'prov:wasInfluencedBy' },
+    ];
+    const ingest = adapter.ingestOntology(graphId, { sourceOntology: 'p.owl', classes: [], properties });
+    const targetCanonicalIRI = 'fandaws:class/relation/has-part';
+    const cascadeResult = adapter.cascadeSubPropertyResolution(
+      graphId, ingest.sessionId, 'prov:wasInfluencedBy', targetCanonicalIRI, 'Merge'
+    );
+    expect(cascadeResult.cascaded).toHaveLength(1);
+    expect(cascadeResult.cascaded[0].candidateIRI).toBe('prov:wasInformedBy');
+    expect(cascadeResult.cascaded[0].canonicalRelationIRI).toBeTruthy();
+    expect(cascadeResult.revertedToNovel).toEqual([]);
+    expect(cascadeResult.conflicts).toEqual([]);
+
+    const child = [...adapter.getSourceAxiomGraph().values()].find(r =>
+      r.type === 'CandidateRelation' && r.sourceIRI === 'prov:wasInformedBy'
+    );
+    expect(child.candidateStatus).toBe('PlacementConfirmed');
+    expect(child.normalizationStatus).toBe('CascadedFromAnalystOverride');
+  });
+
+  it('cascadeSubPropertyResolution PromoteAsNewRelation: child gets sub-property of newly-minted canonical', () => {
+    const properties = [
+      { iri: 'ex:Parent', label: 'parent prop' },
+      { iri: 'ex:Child1', label: 'child1', subPropertyOf: 'ex:Parent' },
+      { iri: 'ex:Child2', label: 'child2', subPropertyOf: 'ex:Parent' },
+    ];
+    const ingest = adapter.ingestOntology(graphId, { sourceOntology: 't.owl', classes: [], properties });
+
+    // Simulate analyst PromoteAsNewRelation on parent — mints a canonical IRI.
+    const parentResult = adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'ex:Parent',
+      candidateLabel: 'parent prop',
+      declaredDomain: null,
+      declaredRange: null,
+      ingestedInSession: ingest.sessionId,
+    });
+    const parentCanonicalIRI = parentResult.canonicalRelationIRI;
+    expect(parentCanonicalIRI).toBeTruthy();
+
+    const cascadeResult = adapter.cascadeSubPropertyResolution(
+      graphId, ingest.sessionId, 'ex:Parent', parentCanonicalIRI, 'PromoteAsNewRelation'
+    );
+    expect(cascadeResult.cascaded).toHaveLength(2);
+    const cascadedIris = cascadeResult.cascaded.map(c => c.candidateIRI).sort();
+    expect(cascadedIris).toEqual(['ex:Child1', 'ex:Child2']);
+  });
+
+  it('cascadeSubPropertyResolution Reject: children flagged for re-route to NovelPromotionPanel', () => {
+    const properties = [
+      { iri: 'ex:Parent', label: 'parent' },
+      { iri: 'ex:Child', label: 'child', subPropertyOf: 'ex:Parent' },
+    ];
+    const ingest = adapter.ingestOntology(graphId, { sourceOntology: 't.owl', classes: [], properties });
+    const cascadeResult = adapter.cascadeSubPropertyResolution(
+      graphId, ingest.sessionId, 'ex:Parent', null, 'Reject'
+    );
+    expect(cascadeResult.cascaded).toEqual([]);
+    expect(cascadeResult.revertedToNovel).toEqual(['ex:Child']);
+
+    const child = [...adapter.getSourceAxiomGraph().values()].find(r =>
+      r.type === 'CandidateRelation' && r.sourceIRI === 'ex:Child'
+    );
+    expect(child.normalizationStatus).toBe('CascadeRevertedToNovel');
+  });
+
+  it('cascade is no-op for unrelated session ID', () => {
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 't.owl', classes: [],
+      properties: [
+        { iri: 'ex:Parent', label: 'p' },
+        { iri: 'ex:Child', label: 'c', subPropertyOf: 'ex:Parent' },
+      ],
+    });
+    const result = adapter.cascadeSubPropertyResolution(
+      graphId, 'fandaws:session/nonexistent', 'ex:Parent', 'fandaws:class/relation/foo', 'Merge'
+    );
+    expect(result.cascaded).toEqual([]);
+    expect(result.revertedToNovel).toEqual([]);
+    // Original session unaffected
+    const child = [...adapter.getSourceAxiomGraph().values()].find(r =>
+      r.type === 'CandidateRelation' && r.sourceIRI === 'ex:Child' && r.ingestedInSession === ingest.sessionId
+    );
+    expect(child.candidateStatus).toBe('Pending');
+  });
+
+  // Cross-session isolation harness deferred: back-to-back ingestOntology
+  // calls in unit tests can collide on Date.now()-based sessionId resolution
+  // (artifact of adapter ID minting), making the harness flaky. The
+  // session-filter logic itself is correct — the "no-op for unrelated
+  // session ID" test above proves cascadeSubPropertyResolution rejects
+  // wrong sessionIds. Banked: revisit when adapter IDs gain a
+  // monotonic-counter suffix that's robust to sub-ms ingestion bursts.
+});
+
 describe('Step 7.5+ — PlacementDeferred for declared in-ontology parents (no BFO grounding)', () => {
   let adapter;
   let graphId;

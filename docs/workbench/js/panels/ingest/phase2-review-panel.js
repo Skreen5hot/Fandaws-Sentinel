@@ -40,8 +40,11 @@ const DIMENSION_LABELS = {
 };
 
 // Disposition group ordering per W-5.2: PendingHumanResolution surfaces first,
-// then DisambiguationRecord, then NovelPromotionPanel, then AutoMerged.
-const DISPOSITION_ORDER = ['PendingHumanResolution', 'DisambiguationRecord', 'NovelPromotionPanel', 'AutoMerged'];
+// then DisambiguationRecord, then RelationDeferred, then NovelPromotionPanel,
+// then AutoMerged. RelationDeferred (X9 Step 7.5++ 2026-04-27): declared
+// rdfs:subPropertyOf parent is in-session; cascade auto-promotes when parent
+// resolves. Distinct from PendingHumanResolution — does NOT block Phase 3.
+const DISPOSITION_ORDER = ['PendingHumanResolution', 'DisambiguationRecord', 'RelationDeferred', 'NovelPromotionPanel', 'AutoMerged'];
 
 /**
  * PD-6 broadness check (W-5.8 visible enforcement). Returns true when the
@@ -82,7 +85,11 @@ export function groupByDisposition(records) {
   groups.set('Other', []);
   for (const r of records) {
     const disp = r.routing?.disposition;
-    // Treat unresolved as PendingHumanResolution for grouping per W-5.2
+    // X9 Step 7.5++: RelationDeferred has its own group (NOT collapsed
+    // into PendingHumanResolution); cascade-resolved children stay in
+    // their original RelationDeferred group with `resolved: true`.
+    // Other unresolved DisambiguationRecord / NovelPromotionPanel still
+    // collapse to PendingHumanResolution per W-5.2.
     const key = !r.resolved && (disp === 'DisambiguationRecord' || disp === 'NovelPromotionPanel')
       ? 'PendingHumanResolution'
       : (DISPOSITION_ORDER.includes(disp) ? disp : 'Other');
@@ -115,7 +122,19 @@ export function initPhase2ReviewPanel(el, nav) {
   }
 
   function getUnresolvedCount() {
-    return records.filter(r => !r.resolved).length;
+    // X9 Step 7.5++ (2026-04-27): RelationDeferred is non-blocking.
+    // It awaits reactive cascade from a resolved parent — analyst doesn't
+    // act on these rows directly. Mirrors Phase 1+'s PlacementDeferred /
+    // getPendingCount semantics; does NOT block "Run Phase 3".
+    return records.filter(r =>
+      !r.resolved && r.routing?.disposition !== 'RelationDeferred'
+    ).length;
+  }
+
+  function getDeferredCount() {
+    return records.filter(r =>
+      r.routing?.disposition === 'RelationDeferred' && !r.resolved
+    ).length;
   }
 
   function render() {
@@ -129,7 +148,7 @@ export function initPhase2ReviewPanel(el, nav) {
         <div class="ig-phase2-header">
           <button class="btn btn--ghost ig-back-btn" id="ig-p2-back">&larr; Phase 1</button>
           <h3 class="ig-panel-title">Phase 2: Property Disambiguation</h3>
-          <span class="ig-summary">${records.length} properties &middot; ${unresolvedCount} unresolved</span>
+          <span class="ig-summary">${records.length} properties &middot; ${unresolvedCount} unresolved${getDeferredCount() > 0 ? ` &middot; ${getDeferredCount()} deferred` : ''}</span>
         </div>
 
         <div class="ig-phase2-split">
@@ -226,6 +245,7 @@ export function initPhase2ReviewPanel(el, nav) {
       case 'AutoMerged': return 'merged';
       case 'DisambiguationRecord': return 'disambig';
       case 'NovelPromotionPanel': return 'novel';
+      case 'RelationDeferred': return 'deferred';
       default: return 'default';
     }
   }
@@ -235,6 +255,7 @@ export function initPhase2ReviewPanel(el, nav) {
       case 'AutoMerged': return 'Merged';
       case 'DisambiguationRecord': return 'Review';
       case 'NovelPromotionPanel': return 'Novel';
+      case 'RelationDeferred': return 'Deferred';
       default: return '-';
     }
   }
@@ -289,7 +310,9 @@ export function initPhase2ReviewPanel(el, nav) {
         ${renderInheritedSubcategorySection(record)}
 
         ${!record.resolved
-          ? (pickerOpen && record === records[selectedIdx] ? renderSubPropertyPicker(record) : renderActionButtons(record))
+          ? (record.routing?.disposition === 'RelationDeferred'
+              ? renderRelationDeferredBanner(record)
+              : (pickerOpen && record === records[selectedIdx] ? renderSubPropertyPicker(record) : renderActionButtons(record)))
           : renderResolvedBadge(record)}
 
         <div class="ig-justify-row" ${record.resolved ? 'style="display:none"' : ''}>
@@ -435,6 +458,27 @@ export function initPhase2ReviewPanel(el, nav) {
     `;
   }
 
+  // X9 Step 7.5++ (2026-04-27): RelationDeferred banner shown in detail
+  // pane in place of action buttons. Communicates that the row awaits
+  // reactive cascade from the parent property's resolution; no analyst
+  // action is appropriate here. Hides the justification input via CSS
+  // because justification is not required for deferred rows.
+  function renderRelationDeferredBanner(record) {
+    const parent = record.routing?.parentPropertyIRI || record.subPropertyOf || '';
+    return `
+      <div class="ig-deferred-banner" style="background: rgba(95, 190, 216, 0.12); color: #5fbed8; padding: 10px 14px; border-left: 3px solid #5fbed8; border-radius: 4px; margin-top: 8px;">
+        <strong>⏳ Awaiting Parent Resolution</strong>
+        <p style="margin: 4px 0 0 0; font-size: 0.9em;">
+          This property declares <code>rdfs:subPropertyOf</code> →
+          <code>${escapeHtml(truncateIri(parent))}</code> — also being ingested
+          in this session. When the analyst resolves the parent (Merge / New Relation /
+          Sub-Property), this row auto-promotes as <code>PromoteAsSubProperty</code>
+          of the parent's canonical IRI. No action required here.
+        </p>
+      </div>
+    `;
+  }
+
   function truncateIri(iri) {
     if (!iri || iri.length <= 55) return iri || '';
     return '...' + iri.slice(-52);
@@ -550,6 +594,11 @@ export function initPhase2ReviewPanel(el, nav) {
       const graphId = nav.wbState.getGraphId();
       const adapterSessionId = nav.ingestState.loadConfig(sessionId)?.adapterSessionId;
 
+      // X9 Step 7.5++ (2026-04-27): track the parent's canonical IRI for
+      // cascade-after-resolve. Set inside each action branch below; null
+      // when action === 'Reject' (cascade reverts deferred children to Novel).
+      let resolvedParentCanonicalIRI = null;
+
       try {
         if (action === 'Merge') {
           // Gap A: MergeRecord + owl:equivalentProperty
@@ -566,6 +615,9 @@ export function initPhase2ReviewPanel(el, nav) {
             });
             record.executionPropertyIRI = result.executionPropertyIRI;
             record.mergeRecordId = result.mergeRecordId;
+            // Cascade target: the merge target's canonical IRI becomes
+            // the parent for any deferred children of THIS source IRI.
+            resolvedParentCanonicalIRI = targetIRI;
           }
         } else if (action === 'PromoteAsNewRelation') {
           // Gap B: mint fresh fandaws:class/relation/UUID concept
@@ -581,6 +633,7 @@ export function initPhase2ReviewPanel(el, nav) {
           });
           record.canonicalRelationIRI = result.canonicalRelationIRI;
           record.executionPropertyIRI = result.executionPropertyIRI;
+          resolvedParentCanonicalIRI = result.canonicalRelationIRI;
         } else if (action === 'PromoteAsSubProperty') {
           // Gap B: mint sub-property; parent is the PD-6-picker-selected
           // canonical (or top-scored canonical for legacy single-click flow).
@@ -598,10 +651,64 @@ export function initPhase2ReviewPanel(el, nav) {
           });
           record.canonicalRelationIRI = result.canonicalRelationIRI;
           record.executionPropertyIRI = result.executionPropertyIRI;
+          resolvedParentCanonicalIRI = result.canonicalRelationIRI;
         }
         // Reject: no canonical mutation needed — resolution is recorded only
       } catch (err) {
         console.warn('[phase2-review] canonical write failed:', err);
+      }
+
+      // X9 Step 7.5++ (2026-04-27): single-engine reactive cascade. After
+      // the parent property resolves, propagate to any RelationDeferred
+      // children whose subPropertyOf points to this source IRI. The
+      // cascade reuses promoteCanonicalRelation (same canonical-write
+      // engine the manual Sub-Property action uses above) — single code
+      // path per X3 §3.4 / X4 §3.3 architectural lock.
+      if (adapter.cascadeSubPropertyResolution && adapterSessionId) {
+        try {
+          const cascadeResult = adapter.cascadeSubPropertyResolution(
+            graphId,
+            adapterSessionId,
+            record.iri,                        // resolvedParentSourceIRI
+            resolvedParentCanonicalIRI,        // null when Reject
+            action,
+          );
+          // Update Phase 2 localStorage records with cascade outcomes.
+          for (const cascaded of cascadeResult.cascaded) {
+            const child = records.find(r => r.iri === cascaded.candidateIRI);
+            if (child) {
+              child.action = 'PromoteAsSubProperty';
+              child.resolved = true;
+              child.justification = `Cascade from parent ${record.iri} (${action}).`;
+              child.canonicalRelationIRI = cascaded.canonicalRelationIRI;
+              child.executionPropertyIRI = cascaded.executionPropertyIRI;
+              child.selectedParentIRI = resolvedParentCanonicalIRI;
+              child.inheritedBfoSubcategory = cascaded.inheritedBfoSubcategory || null;
+            }
+          }
+          // Reject path: revert deferred children to NovelPromotionPanel
+          // so the analyst handles them manually (parent has vanished).
+          for (const revertedIRI of cascadeResult.revertedToNovel) {
+            const child = records.find(r => r.iri === revertedIRI);
+            if (child) {
+              child.routing = {
+                ...child.routing,
+                disposition: 'NovelPromotionPanel',
+                cascadeRevertedFrom: 'RelationDeferred',
+              };
+              child.parentPropertyInOntology = false;
+            }
+          }
+          if (cascadeResult.conflicts && cascadeResult.conflicts.length > 0 && typeof nav.showError === 'function') {
+            const summary = cascadeResult.conflicts.map(c => `${c.iri} (${c.reason})`).join('; ');
+            nav.showError(`Sub-property cascade surfaced ${cascadeResult.conflicts.length} issue(s): ${summary}`, 'warning');
+          }
+        } catch (cascadeErr) {
+          console.error('cascadeSubPropertyResolution failed:', cascadeErr);
+          if (typeof nav.showError === 'function') {
+            nav.showError(`Sub-property cascade failed: ${cascadeErr.message}`, 'error');
+          }
+        }
       }
 
       nav.ingestState.savePhase2Records(sessionId, records);

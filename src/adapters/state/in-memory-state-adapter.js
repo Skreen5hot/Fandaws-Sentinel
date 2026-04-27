@@ -1416,6 +1416,14 @@ export class InMemoryStateAdapter extends StateAdapter {
     // X9 Step 7.5 Gap 2: generate CandidateRelation staging records from
     // parsed.properties at session creation. Workbench Phase 2 Review
     // consumes these via getSourceAxiomGraph() filter on type === 'CandidateRelation'.
+    // X9 Step 7.5++ (2026-04-27): build propertyMap parallel to classMap so
+    // each relation record can flag whether its declared subPropertyOf
+    // points to another property staged in this same session. Mirrors
+    // Phase 1+'s parentInOntology pattern; lets Phase 2 routing override
+    // NovelPromotionPanel to RelationDeferred for in-session sub-properties.
+    const propertyMap = new Map();
+    for (const prop of properties) propertyMap.set(prop.iri, prop);
+
     const relationStagingIds = [];
     for (const prop of properties) {
       const stagingId = `fandaws:staging/${Date.now()}-rel-${prop.iri}`;
@@ -1428,6 +1436,10 @@ export class InMemoryStateAdapter extends StateAdapter {
         declaredRange: prop.declaredRange ?? prop.range ?? null,
         declaredCharacteristics: prop.declaredCharacteristics ?? prop.characteristics ?? [],
         subPropertyOf: prop.subPropertyOf ?? null,
+        // X9 Step 7.5++: caller-determined signal for Phase 2 router.
+        // True iff the immediate subPropertyOf is itself a property
+        // declared in the same ingested ontology (propertyMap).
+        parentPropertyInOntology: !!(prop.subPropertyOf && propertyMap.has(prop.subPropertyOf)),
         ingestedInSession: sessionId,
         candidateStatus: 'Pending',
         normalizationStatus: null,
@@ -1813,6 +1825,112 @@ export class InMemoryStateAdapter extends StateAdapter {
     }
 
     return { cascaded, conflicts };
+  }
+
+  /**
+   * X9 Step 7.5++ (2026-04-27) — Reactive cascade after analyst resolves
+   * a Phase 2 property. Mirror of cascadeAnalystResolution (Phase 1) for
+   * sub-property declarations: when a property is resolved (Merge,
+   * PromoteAsNewRelation, or PromoteAsSubProperty), any RelationDeferred
+   * children whose subPropertyOf points to the resolved property's source
+   * IRI auto-promote as PromoteAsSubProperty of the parent's canonical
+   * IRI.
+   *
+   * Single-engine discipline (X3 §3.4 / X4 §3.3 lock): the cascade reuses
+   * promoteCanonicalRelation — the SAME canonical-write engine the manual
+   * Sub-Property action invokes at phase2-review-panel.js:584-601. No
+   * parallel descent, no re-fingerprinting; the OWL spec literally
+   * declared subPropertyOf, so the cascade just honors that fact.
+   *
+   * For action='Reject': children are flagged for re-routing (parent
+   * vanished); the panel re-routes their disposition to NovelPromotionPanel
+   * so the analyst handles them manually. The adapter returns the IRI
+   * list; the panel does the localStorage update.
+   *
+   * @param {string} graphId
+   * @param {string} sessionId - the adapter-side IngestionSession ID
+   * @param {string} resolvedParentSourceIRI - source IRI of the resolved property
+   * @param {string|null} parentCanonicalIRI - canonical IRI minted/merged for parent
+   *   (null when action === 'Reject')
+   * @param {string} action - 'Merge' | 'PromoteAsNewRelation' | 'PromoteAsSubProperty' | 'Reject'
+   * @returns {{ cascaded: Array<{candidateIRI, canonicalRelationIRI, executionPropertyIRI}>, revertedToNovel: string[], conflicts: Array<object> }}
+   */
+  cascadeSubPropertyResolution(graphId, sessionId, resolvedParentSourceIRI, parentCanonicalIRI, action) {
+    const session = this._ingestionSessions.get(sessionId);
+    if (!session) return { cascaded: [], revertedToNovel: [], conflicts: [] };
+
+    const cascaded = [];
+    const revertedToNovel = [];
+    const conflicts = [];
+
+    // Walk all CandidateRelation records belonging to this session whose
+    // subPropertyOf matches the resolved parent's source IRI.
+    const eligible = [];
+    for (const [stagingId, record] of this._sourceAxiomGraph.entries()) {
+      if (record.type !== 'CandidateRelation') continue;
+      if (record.ingestedInSession !== sessionId) continue;
+      if (record.subPropertyOf !== resolvedParentSourceIRI) continue;
+      if (record.candidateStatus === 'PlacementConfirmed') continue; // already resolved
+      eligible.push({ stagingId, record });
+    }
+
+    if (action === 'Reject' || !parentCanonicalIRI) {
+      // Parent rejected (or no canonical produced) — flag children for
+      // re-routing to NovelPromotionPanel. The adapter doesn't promote;
+      // the caller (Phase 2 panel) updates the localStorage Phase 2
+      // record's routing.disposition + clears parentPropertyInOntology
+      // so subsequent renders show Novel rather than Deferred.
+      for (const { record } of eligible) {
+        record.normalizationStatus = 'CascadeRevertedToNovel';
+        revertedToNovel.push(record.sourceIRI);
+      }
+      return { cascaded, revertedToNovel, conflicts };
+    }
+
+    // Merge / PromoteAsNewRelation / PromoteAsSubProperty: each Deferred
+    // child auto-promotes as a sub-property of the parent's canonical IRI.
+    // Reuses promoteCanonicalRelation — single-engine canonical-write path.
+    // Inherit BFO subcategory from the parent's resolved canonical when
+    // available (PD-7 inheritance) — look up in the existing graph.
+    const graph = this._graphs.get(graphId);
+    const concepts = graph?.['fandaws:concepts'] || [];
+    const parentConcept = concepts.find(c =>
+      c['@id'] === parentCanonicalIRI || c['fandaws:executionPropertyIRI'] === parentCanonicalIRI
+    );
+    const inheritedBfoSubcategory = parentConcept?.['fandaws:bfoSubcategory'] || null;
+
+    for (const { record } of eligible) {
+      try {
+        const result = this.promoteCanonicalRelation(graphId, {
+          candidateIRI: record.sourceIRI,
+          candidateLabel: record.sourceLabel,
+          declaredDomain: record.declaredDomain,
+          declaredRange: record.declaredRange,
+          characteristics: record.declaredCharacteristics || [],
+          bfoSubcategory: inheritedBfoSubcategory,
+          justification: `Cascade from parent resolution (${action} of ${resolvedParentSourceIRI}).`,
+          ingestedInSession: sessionId,
+          subPropertyOf: parentCanonicalIRI,
+        });
+        record.candidateStatus = 'PlacementConfirmed';
+        record.normalizationStatus = 'CascadedFromAnalystOverride';
+        record.canonicalRelationIRI = result.canonicalRelationIRI;
+        record.executionPropertyIRI = result.executionPropertyIRI;
+        cascaded.push({
+          candidateIRI: record.sourceIRI,
+          canonicalRelationIRI: result.canonicalRelationIRI,
+          executionPropertyIRI: result.executionPropertyIRI,
+          inheritedBfoSubcategory,
+        });
+      } catch (err) {
+        conflicts.push({
+          iri: record.sourceIRI,
+          reason: err.message || 'promoteCanonicalRelation failed',
+        });
+      }
+    }
+
+    return { cascaded, revertedToNovel, conflicts };
   }
 
   /**

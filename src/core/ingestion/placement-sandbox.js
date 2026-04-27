@@ -115,7 +115,7 @@ function normalizeBfoClass(ref) {
 /**
  * Evaluate BFO placement for an external class.
  *
- * @param {object} externalClass - { iri, label, superclass, ancestorChain, properties }
+ * @param {object} externalClass - { iri, label, superclass, ancestorChain, parentInOntology, properties }
  *   ancestorChain (X9 Step 7.5 2026-04-27): transitively-closed parent
  *   IRIs from immediate parent to root. Per X9 §3.1 caller-contract.
  *   When the immediate superclass doesn't resolve to BFO, the heuristic
@@ -123,14 +123,21 @@ function normalizeBfoClass(ref) {
  *   taxonomic-descent inheritance per D1.6-L25). Backwards-compatible:
  *   absent ancestorChain → behaves identically to pre-7.5 single-level
  *   superclass check.
+ *   parentInOntology (X9 Step 7.5+ 2026-04-27): boolean signaling that
+ *   the immediate superclass is itself a class declared in the same
+ *   ingested ontology (caller-determined; sandbox doesn't have classMap).
+ *   When true and no BFO grounding is found anywhere in the chain, the
+ *   sandbox returns a `deferred: true` result instead of low-confidence
+ *   Ambiguous — the class has a known parent and BFO category will
+ *   inherit reactively when an ancestor root is analyst-resolved.
  * @param {object} [context={}] - { disjointnessMap, existingConcepts, resolvedPlacements }
  *   resolvedPlacements (optional): Map<iri, bfoCategory> of already-
  *   resolved ancestor placements. Enables cascade-from-resolved per X9
  *   Step 7.5 NA-1.1 cascade discipline.
- * @returns {{ placement: string|null, confidence: number, justification: string, candidates?: object[] }}
+ * @returns {{ placement: string|null, confidence: number, justification: string, candidates?: object[], deferred?: boolean }}
  */
 export function evaluatePlacement(externalClass, context = {}) {
-  const { iri, label, superclass, ancestorChain = [], properties = [] } = externalClass;
+  const { iri, label, superclass, ancestorChain = [], parentInOntology = false, properties = [] } = externalClass;
   const { resolvedPlacements } = context;
   const candidates = [];
   const justifications = [];
@@ -210,10 +217,31 @@ export function evaluatePlacement(externalClass, context = {}) {
   // ── No candidates at all ──
   if (candidates.length === 0) {
     if (superclass) {
+      // X9 Step 7.5+ (2026-04-27): if the parent is declared in the
+      // same ingested ontology (caller signals via parentInOntology),
+      // the class is NOT placement-ambiguous — it has a known parent;
+      // BFO grounding will inherit reactively when an ancestor root is
+      // analyst-resolved. Returns deferred:true so routePlacement can
+      // produce PlacementDeferred (a third disposition distinct from
+      // Confirmed/Ambiguous). Reading B work-burden-reduction lock:
+      // PendingHumanResolution reduces to ~3-5 root classes only.
+      if (parentInOntology) {
+        return {
+          placement: superclass,
+          confidence: 0.7,
+          justification: `Declared rdfs:subClassOf ${superclass} (in-ontology parent). BFO category will inherit when an ancestor root is analyst-resolved.`,
+          candidates: [],
+          deferred: true,
+        };
+      }
+
       // Check if superclass is from the same ontology namespace as the candidate.
       // Intra-ontology superclasses (e.g., prov:Bundle rdfs:subClassOf prov:Entity)
       // are valid hierarchy — they just don't resolve to BFO. Route to Ambiguous
       // for human placement, not Rejected.
+      // NOTE: this branch fires only when parentInOntology was NOT set — e.g.,
+      // legacy callers or test fixtures. The parentInOntology path above is
+      // the production route for ingestOntology callers post-Step-7.5+.
       const candidateNs = iri ? iri.replace(/[^/#]*$/, '') : '';
       const superNs = superclass.replace(/[^/#]*$/, '');
       const isIntraOntology = candidateNs && superNs && candidateNs === superNs;
@@ -259,6 +287,24 @@ export function evaluatePlacement(externalClass, context = {}) {
   const sorted = [...placementMap.values()].sort((a, b) => b.confidence - a.confidence);
   const top = sorted[0];
 
+  // ── X9 Step 7.5+ (2026-04-27): declared-parent precedence ──
+  // When a class has a declared in-ontology parent (parentInOntology), the
+  // parent assertion is a stronger signal than weak label/property hints
+  // (heuristics 2, 3 at confidence < 0.7). Per SME spec: "classes that
+  // have a subClassOf those are NOT ambiguous and should match the
+  // specified parent class". If no candidate clears the 0.7 confirmation
+  // threshold, prefer Deferred (parent IRI shown, awaits cascade) over
+  // low-confidence routing that would silently render as PlacementAmbiguous.
+  if (parentInOntology && top.confidence < 0.7) {
+    return {
+      placement: superclass,
+      confidence: 0.7,
+      justification: `Declared rdfs:subClassOf ${superclass} (in-ontology parent) outranks weak heuristics: ${justifications.join(' + ')}. BFO category will inherit when an ancestor root is analyst-resolved.`,
+      candidates: [],
+      deferred: true,
+    };
+  }
+
   // ── Heuristic 4: Disjointness consistency check ──
   // If we have a disjointness map and the top placement would create violations,
   // reduce confidence
@@ -299,6 +345,13 @@ export function routePlacement(result, confidenceDelta = 0.15) {
   // Declared superclass that doesn't resolve → Rejected (Q4)
   if (result.noSuperclassResolution) {
     return { status: 'PlacementRejected', placement: null };
+  }
+
+  // X9 Step 7.5+ (2026-04-27): declared in-ontology parent without BFO
+  // grounding → Deferred (third disposition; awaits cascade from analyst-
+  // resolved root). Placement column shows the parent IRI literally.
+  if (result.deferred) {
+    return { status: 'PlacementDeferred', placement: result.placement };
   }
 
   // No placement and very low confidence → Ambiguous (needs human)

@@ -1331,9 +1331,17 @@ export class InMemoryStateAdapter extends StateAdapter {
       classesIngested: 0,
       classesPlaced: 0,
       classesAmbiguous: 0,
+      classesDeferred: 0,
       classesRejected: 0,
       autoMergeThreshold: options.autoMergeThreshold ?? 0.85,
       confidenceDelta: options.confidenceDelta ?? 0.15,
+      // X9 Step 7.5+ (2026-04-27): session-scoped resolvedPlacements Map.
+      // Persists across ingestOntology + cascadeAnalystResolution calls so
+      // both NA-1.1 initial cascade (parents-before-children at ingest time)
+      // and NA-1.4 reactive cascade (analyst resolves a root post-ingest)
+      // route through the SAME evaluatePlacement engine — single-engine
+      // discipline per X3 §3.4 / X4 §3.3 architectural lock.
+      resolvedPlacements: new Map(),
     };
     this._ingestionSessions.set(sessionId, session);
     return { sessionId, session };
@@ -1386,6 +1394,12 @@ export class InMemoryStateAdapter extends StateAdapter {
         sourceOntology,
         superclass: cls.superclass || null,
         ancestorChain: buildTransitiveAncestorChain(cls.iri, classMap),
+        // X9 Step 7.5+ (2026-04-27): caller-determined signal for the
+        // sandbox. True iff the immediate superclass is itself declared in
+        // the same ingested ontology (classMap). The sandbox uses this to
+        // route to PlacementDeferred (declared-parent-no-BFO-grounding)
+        // instead of low-confidence PlacementAmbiguous.
+        parentInOntology: !!(cls.superclass && classMap.has(cls.superclass)),
         properties: cls.properties || [],
         ingestedInSession: sessionId,
         candidateStatus: 'Pending',
@@ -1442,10 +1456,11 @@ export class InMemoryStateAdapter extends StateAdapter {
       return (ra.ancestorChain?.length || 0) - (rb.ancestorChain?.length || 0);
     });
 
-    // resolvedPlacements: tracks each CAU's resolved BFO placement so
-    // descendants can inherit per NA-1.1 cascade. Populated as Phase 1b
-    // walks the topologically-sorted list parents-first.
-    const resolvedPlacements = new Map();
+    // X9 Step 7.5+ (2026-04-27): resolvedPlacements is now session-scoped
+    // (lifted from ingestion-loop closure) so cascadeAnalystResolution can
+    // re-invoke evaluatePlacement against the SAME Map post-ingest. Single-
+    // engine discipline per X3 §3.4 / X4 §3.3.
+    const resolvedPlacements = session.resolvedPlacements;
 
     for (const stagingId of sortedStagingIds) {
       const record = this._sourceAxiomGraph.get(stagingId);
@@ -1454,6 +1469,7 @@ export class InMemoryStateAdapter extends StateAdapter {
         label: record.sourceLabel,
         superclass: record.superclass,
         ancestorChain: record.ancestorChain || [],
+        parentInOntology: record.parentInOntology || false,
         properties: record.properties,
       }, {
         disjointnessMap: this._bfoDisjointnessMap,
@@ -1472,6 +1488,14 @@ export class InMemoryStateAdapter extends StateAdapter {
         session.classesPlaced++;
         // X9 Step 7.5: register in resolvedPlacements so descendants inherit
         if (routing.placement) resolvedPlacements.set(record.sourceIRI, routing.placement);
+      } else if (routing.status === 'PlacementDeferred') {
+        // X9 Step 7.5+ (2026-04-27): declared in-ontology parent without
+        // BFO grounding yet. Awaits cascadeAnalystResolution from analyst-
+        // resolved root. Does NOT block Phase 2; does NOT count toward
+        // classesAmbiguous. Single-engine cascade promotes to Confirmed
+        // post-resolve via the same evaluatePlacement call path.
+        record.normalizationStatus = 'AwaitingCascade';
+        session.classesDeferred++;
       } else if (routing.status === 'PlacementAmbiguous') {
         record.normalizationStatus = 'PendingHumanResolution';
         session.classesAmbiguous++;
@@ -1482,6 +1506,10 @@ export class InMemoryStateAdapter extends StateAdapter {
     }
 
     // ── Check blocking rule (Decision D-4) ──
+    // X9 Step 7.5+: 'AwaitingCascade' (PlacementDeferred) does NOT block
+    // Phase 2 — descendants inherit reactively when a root resolves.
+    // Only PendingHumanResolution (true Ambiguous, no in-ontology parent)
+    // counts.
     const unresolvedClasses = [];
     for (const sid of stagingIds) {
       const r = this._sourceAxiomGraph.get(sid);
@@ -1668,6 +1696,123 @@ export class InMemoryStateAdapter extends StateAdapter {
         phase2CanProceed: allResolved,
       },
     };
+  }
+
+  /**
+   * X9 Step 7.5+ (2026-04-27) — Reactive cascade after analyst resolves a
+   * root class to a BFO category. Walks every PlacementDeferred staging
+   * record whose ancestorChain contains the resolved root and re-invokes
+   * evaluatePlacement against the now-updated session.resolvedPlacements
+   * Map. The cascade route is the SAME Pass-(a) cascade-from-resolved at
+   * placement-sandbox.js:157-170 used during initial ingestion — single-
+   * engine discipline per X3 §3.4 / X4 §3.3 architectural lock. NA-1.1
+   * (initial cascade, parents-before-children at ingest) and NA-1.4
+   * (reactive cascade, root resolved post-ingest) run through one code
+   * path, not two.
+   *
+   * Multi-inheritance contradiction edge case (Appendix A.2.6 / bundle v6
+   * SWC discipline): if the new evaluation surfaces a placement that
+   * conflicts with an already-confirmed ancestor in the chain, the routing
+   * status returned is what evaluatePlacement+routePlacement produces —
+   * the cascade does NOT silently overwrite a prior PlacementConfirmed
+   * with a new conflicting category. (Today's implementation: single-root
+   * promotion overwrites since contradiction detection at this layer is
+   * deferred to the dispatcher; the cascade exposes a `cascadeConflicts`
+   * array on the return for callers to surface.)
+   *
+   * @param {string} graphId
+   * @param {string} sessionId - the adapter-side IngestionSession ID
+   * @param {string} rootIRI - the analyst-resolved root class IRI
+   * @param {string} bfoCategory - the BFO category (e.g., 'Process')
+   * @returns {{ cascaded: number, conflicts: Array<{iri,prevPlacement,newPlacement}> }}
+   */
+  cascadeAnalystResolution(graphId, sessionId, rootIRI, bfoCategory) {
+    const session = this._ingestionSessions.get(sessionId);
+    if (!session) return { cascaded: 0, conflicts: [] };
+
+    // Seed the session-scoped resolvedPlacements Map with the new root.
+    // Subsequent evaluatePlacement calls find this entry via Pass (a)
+    // cascade-from-resolved at placement-sandbox.js:157-170.
+    const resolvedPlacements = session.resolvedPlacements || new Map();
+    resolvedPlacements.set(rootIRI, bfoCategory);
+    session.resolvedPlacements = resolvedPlacements;
+
+    const { evaluatePlacement, routePlacement } = this._getPlacementSandbox();
+    const delta = session.confidenceDelta ?? 0.15;
+
+    let cascaded = 0;
+    const conflicts = [];
+
+    // Walk all CandidateClass records belonging to this session that are
+    // currently PlacementDeferred AND whose ancestorChain contains rootIRI.
+    // Order them parents-first so multi-level cascade chains build up
+    // resolvedPlacements progressively.
+    const eligible = [];
+    for (const [stagingId, record] of this._sourceAxiomGraph.entries()) {
+      if (record.type !== 'CandidateClass') continue;
+      if (record.ingestedInSession !== sessionId) continue;
+      if (record.candidateStatus !== 'PlacementDeferred') continue;
+      if (!record.ancestorChain || !record.ancestorChain.includes(rootIRI)) continue;
+      eligible.push({ stagingId, record });
+    }
+    eligible.sort((a, b) =>
+      (a.record.ancestorChain?.length || 0) - (b.record.ancestorChain?.length || 0)
+    );
+
+    for (const { record } of eligible) {
+      const result = evaluatePlacement({
+        iri: record.sourceIRI,
+        label: record.sourceLabel,
+        superclass: record.superclass,
+        ancestorChain: record.ancestorChain || [],
+        parentInOntology: record.parentInOntology || false,
+        properties: record.properties,
+      }, {
+        disjointnessMap: this._bfoDisjointnessMap,
+        resolvedPlacements,
+      });
+
+      const routing = routePlacement(result, delta);
+
+      if (routing.status === 'PlacementConfirmed') {
+        const prevPlacement = record.placementResult;
+        record.candidateStatus = 'PlacementConfirmed';
+        record.placementResult = routing.placement;
+        record.placementConfidence = result.confidence;
+        record.placementJustification = result.justification;
+        record.normalizationStatus = 'CascadedFromAnalystOverride';
+        // Promote to canonical now that the BFO category is known.
+        this._promoteCandidate(graphId, record, sessionId);
+        if (session.classesDeferred > 0) session.classesDeferred--;
+        session.classesPlaced++;
+        // Register so descendants downstream of THIS record cascade further.
+        if (routing.placement) resolvedPlacements.set(record.sourceIRI, routing.placement);
+        cascaded++;
+        // Surface multi-inheritance contradiction if new placement
+        // conflicts with prior parent IRI display (the previous
+        // placementResult was the parent IRI literal under Deferred).
+        if (prevPlacement && prevPlacement !== routing.placement && prevPlacement !== record.superclass) {
+          conflicts.push({
+            iri: record.sourceIRI,
+            prevPlacement,
+            newPlacement: routing.placement,
+          });
+        }
+      } else if (routing.status === 'PlacementRejected') {
+        // Disjointness or other contradiction — surface the conflict
+        // without silently overwriting (Appendix A.2.6 / bundle v6 SWC).
+        conflicts.push({
+          iri: record.sourceIRI,
+          prevPlacement: record.placementResult,
+          newPlacement: null,
+          reason: result.justification,
+        });
+      }
+      // PlacementDeferred unchanged: descendant remains awaiting cascade
+      // (e.g., its own root hasn't been resolved yet — multi-root chain).
+    }
+
+    return { cascaded, conflicts };
   }
 
   /**

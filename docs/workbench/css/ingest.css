@@ -463,6 +463,10 @@
 .ig-status--ambiguous { background: var(--yellow-bg); color: var(--yellow); }
 .ig-status--rejected { background: rgba(255, 107, 107, 0.12); color: var(--red); }
 .ig-status--pending { background: rgba(108, 138, 255, 0.12); color: var(--accent); }
+/* X9 Step 7.5+ (2026-04-27): Deferred — declared in-ontology parent,
+   BFO grounding awaiting reactive cascade. Distinct teal-blue, visually
+   separate from Confirmed (green) and Ambiguous (yellow). */
+.ig-status--deferred { background: rgba(95, 190, 216, 0.12); color: #5fbed8; }
 .ig-status--default { background: var(--surface-alt); color: var(--text-muted); }
 
 .ig-expand-row td {

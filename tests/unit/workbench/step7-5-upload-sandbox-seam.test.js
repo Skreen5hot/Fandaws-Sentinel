@@ -337,6 +337,223 @@ describe('Step 7.5 Gap 2 — CandidateRelation staging records generated from pa
   });
 });
 
+describe('Step 7.5+ — PlacementDeferred for declared in-ontology parents (no BFO grounding)', () => {
+  let adapter;
+  let graphId;
+
+  beforeEach(() => {
+    adapter = adapterWithSandbox();
+    graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+  });
+
+  it('PROV-O-shape with NO BFO grounding: descendants Deferred (parent shown in placement), root Ambiguous', () => {
+    // Mimics actual PROV-O fragment: prov:Communication → prov:ActivityInfluence → prov:Influence → owl:Thing
+    // None of the chain reaches BFO. Per Reading B (§A.4 architectural payload):
+    //   - prov:Influence (root, no superclass): PlacementAmbiguous (yellow)
+    //   - All descendants: PlacementDeferred (blue) showing parent IRI
+    const classes = [
+      { iri: 'prov:Communication', label: 'Communication', superclass: 'prov:ActivityInfluence' },
+      { iri: 'prov:ActivityInfluence', label: 'ActivityInfluence', superclass: 'prov:Influence' },
+      { iri: 'prov:Influence', label: 'Influence', superclass: null }, // root
+    ];
+    const result = adapter.ingestOntology(graphId, {
+      sourceOntology: 'prov-o.owl',
+      classes,
+      properties: [],
+    });
+
+    const records = [...adapter.getSourceAxiomGraph().values()].filter(r =>
+      r.type === 'CandidateClass' && r.ingestedInSession === result.sessionId
+    );
+    expect(records).toHaveLength(3);
+
+    const influence = records.find(r => r.sourceIRI === 'prov:Influence');
+    const activityInfluence = records.find(r => r.sourceIRI === 'prov:ActivityInfluence');
+    const communication = records.find(r => r.sourceIRI === 'prov:Communication');
+
+    // Root: no superclass, no BFO grounding → Ambiguous (yellow; needs analyst BFO)
+    expect(influence.candidateStatus).toBe('PlacementAmbiguous');
+    expect(influence.normalizationStatus).toBe('PendingHumanResolution');
+
+    // Descendants: declared in-ontology parent → Deferred, placement = parent IRI
+    expect(activityInfluence.candidateStatus).toBe('PlacementDeferred');
+    expect(activityInfluence.placementResult).toBe('prov:Influence');
+    expect(activityInfluence.placementConfidence).toBe(0.7);
+    expect(activityInfluence.normalizationStatus).toBe('AwaitingCascade');
+
+    expect(communication.candidateStatus).toBe('PlacementDeferred');
+    expect(communication.placementResult).toBe('prov:ActivityInfluence');
+    expect(communication.placementConfidence).toBe(0.7);
+    expect(communication.normalizationStatus).toBe('AwaitingCascade');
+  });
+
+  it('phase2Blocked semantics: Deferred records do NOT block Phase 2', () => {
+    // Two roots (one Ambiguous, one with BFO superclass), and descendants under each.
+    const classes = [
+      { iri: 'prov:Influence', label: 'Influence', superclass: null }, // root → Ambiguous
+      { iri: 'prov:ActivityInfluence', label: 'ActivityInfluence', superclass: 'prov:Influence' }, // Deferred
+      { iri: 'prov:Communication', label: 'Communication', superclass: 'prov:ActivityInfluence' }, // Deferred
+    ];
+    const result = adapter.ingestOntology(graphId, {
+      sourceOntology: 'p.owl', classes, properties: [],
+    });
+
+    // Root is Ambiguous → phase2Blocked = true (only roots block).
+    expect(result.pipelineState.phase2Blocked).toBe(true);
+    expect(result.pipelineState.unresolvedClasses).toEqual(['prov:Influence']);
+    expect(result.pipelineState.unresolvedClasses).not.toContain('prov:ActivityInfluence');
+    expect(result.pipelineState.unresolvedClasses).not.toContain('prov:Communication');
+  });
+
+  it('phase2Blocked = false when only Deferred + Confirmed (no Ambiguous roots)', () => {
+    // All classes have BFO grounding via root with bfo:Process superclass.
+    const classes = [
+      { iri: 'ex:Root', label: 'R', superclass: 'bfo:Process' },          // Confirmed via BFO
+      { iri: 'ex:Mid', label: 'M', superclass: 'ex:Root' },                // Confirmed via cascade
+      { iri: 'ex:Leaf', label: 'L', superclass: 'ex:Mid' },                // Confirmed via cascade
+    ];
+    const result = adapter.ingestOntology(graphId, {
+      sourceOntology: 'p.owl', classes, properties: [],
+    });
+    expect(result.pipelineState.phase2Blocked).toBe(false);
+  });
+
+  it('classesDeferred session counter tracks Deferred count', () => {
+    const classes = [
+      { iri: 'prov:Influence', label: 'I', superclass: null },
+      { iri: 'prov:ActivityInfluence', label: 'A', superclass: 'prov:Influence' },
+      { iri: 'prov:Communication', label: 'C', superclass: 'prov:ActivityInfluence' },
+    ];
+    const result = adapter.ingestOntology(graphId, {
+      sourceOntology: 'p.owl', classes, properties: [],
+    });
+    expect(result.session.classesDeferred).toBe(2);
+    expect(result.session.classesAmbiguous).toBe(1);
+    expect(result.session.classesPlaced).toBe(0);
+  });
+});
+
+describe('Step 7.5+ — cascadeAnalystResolution (single-engine reactive cascade)', () => {
+  let adapter;
+  let graphId;
+
+  beforeEach(() => {
+    adapter = adapterWithSandbox();
+    graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+  });
+
+  it('cascade after analyst root resolution: descendants flip Deferred → Confirmed with inherited BFO', () => {
+    const classes = [
+      { iri: 'prov:Influence', label: 'I', superclass: null },
+      { iri: 'prov:ActivityInfluence', label: 'A', superclass: 'prov:Influence' },
+      { iri: 'prov:Communication', label: 'C', superclass: 'prov:ActivityInfluence' },
+    ];
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 'p.owl', classes, properties: [],
+    });
+    const adapterSessionId = ingest.sessionId;
+
+    // Analyst resolves the root to Process.
+    const cascadeResult = adapter.cascadeAnalystResolution(graphId, adapterSessionId, 'prov:Influence', 'Process');
+
+    expect(cascadeResult.cascaded).toBe(2); // ActivityInfluence + Communication
+    expect(cascadeResult.conflicts).toEqual([]);
+
+    const records = [...adapter.getSourceAxiomGraph().values()].filter(r =>
+      r.type === 'CandidateClass' && r.ingestedInSession === adapterSessionId
+    );
+    const activityInfluence = records.find(r => r.sourceIRI === 'prov:ActivityInfluence');
+    const communication = records.find(r => r.sourceIRI === 'prov:Communication');
+
+    // Both descendants now Confirmed with inherited BFO category.
+    expect(activityInfluence.candidateStatus).toBe('PlacementConfirmed');
+    expect(activityInfluence.placementResult).toBe('Process');
+    expect(activityInfluence.normalizationStatus).toBe('CascadedFromAnalystOverride');
+    expect(activityInfluence.placementConfidence).toBe(0.88); // cascade-from-resolved confidence
+
+    expect(communication.candidateStatus).toBe('PlacementConfirmed');
+    expect(communication.placementResult).toBe('Process');
+    expect(communication.normalizationStatus).toBe('CascadedFromAnalystOverride');
+  });
+
+  it('cascade reuses evaluatePlacement single-engine path (Pass-a cascade-from-resolved)', () => {
+    // Verify the cascade route is the same evaluatePlacement Pass-(a) by
+    // checking the placementJustification carries the canonical NA-1.1
+    // cascade phrasing emitted at placement-sandbox.js Pass (a).
+    const classes = [
+      { iri: 'ex:Root', label: 'R', superclass: null },
+      { iri: 'ex:Child', label: 'C', superclass: 'ex:Root' },
+    ];
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 't.owl', classes, properties: [],
+    });
+    adapter.cascadeAnalystResolution(graphId, ingest.sessionId, 'ex:Root', 'Quality');
+
+    const records = [...adapter.getSourceAxiomGraph().values()].filter(r =>
+      r.type === 'CandidateClass' && r.ingestedInSession === ingest.sessionId
+    );
+    const child = records.find(r => r.sourceIRI === 'ex:Child');
+    // Canonical Pass-(a) phrasing confirms single-engine reuse.
+    expect(child.placementJustification).toContain('NA-1.1 cascade');
+    expect(child.placementJustification).toContain('resolved ancestor');
+  });
+
+  it('session.classesDeferred decrements as descendants cascade-promote', () => {
+    const classes = [
+      { iri: 'ex:Root', label: 'R', superclass: null },
+      { iri: 'ex:Child1', label: 'C1', superclass: 'ex:Root' },
+      { iri: 'ex:Child2', label: 'C2', superclass: 'ex:Root' },
+    ];
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 't.owl', classes, properties: [],
+    });
+    expect(ingest.session.classesDeferred).toBe(2);
+    adapter.cascadeAnalystResolution(graphId, ingest.sessionId, 'ex:Root', 'MaterialEntity');
+    expect(ingest.session.classesDeferred).toBe(0);
+    expect(ingest.session.classesPlaced).toBe(2);
+  });
+
+  it('cascade is no-op for unrelated session ID', () => {
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 't.owl',
+      classes: [
+        { iri: 'ex:Root', label: 'R', superclass: null },
+        { iri: 'ex:Child', label: 'C', superclass: 'ex:Root' },
+      ],
+      properties: [],
+    });
+    const result = adapter.cascadeAnalystResolution(graphId, 'fandaws:session/nonexistent', 'ex:Root', 'Process');
+    expect(result.cascaded).toBe(0);
+    // Original session unaffected
+    const child = [...adapter.getSourceAxiomGraph().values()].find(r =>
+      r.sourceIRI === 'ex:Child' && r.ingestedInSession === ingest.sessionId
+    );
+    expect(child.candidateStatus).toBe('PlacementDeferred');
+  });
+
+  // Multi-inheritance contradiction harness — forward-flag (skip-if-no-shape).
+  // PROV-O is single-inheritance throughout, so this test covers a
+  // synthetic shape representing future multi-parent ontologies. Skipping
+  // is the correct behavior if no PROV-O fixture surfaces this; explicitly
+  // running it documents the cascade's contradiction-aware semantics per
+  // bundle v6 SWC discipline + Appendix A.2.6.
+  it.skip('multi-inheritance contradiction harness: cascade surfaces conflict, does not silently overwrite', () => {
+    // Hypothetical shape: ex:MultiChild has TWO declared parents (one
+    // already resolved to MaterialEntity, second now resolved to Process).
+    // BFO disjointness: MaterialEntity and Process are disjoint
+    // (Continuant vs Occurrent). The cascade should surface this in
+    // cascadeResult.conflicts rather than silently overwriting.
+    //
+    // NOTE: current parser shape supports single superclass field. To
+    // exercise multi-inheritance, the staging record would need a
+    // multiParents array. This harness is parked until parser supports
+    // owl:intersectionOf / multi-superclass extraction.
+    expect(true).toBe(true);
+  });
+});
+
 describe('Step 7.5 — backwards-compat preservation', () => {
   let adapter;
   let graphId;

@@ -66,6 +66,10 @@ const STATUS_CLASSES = {
   PlacementAmbiguous: 'ambiguous',
   PlacementRejected: 'rejected',
   PendingHumanResolution: 'pending',
+  // X9 Step 7.5+ (2026-04-27): third disposition — declared in-ontology
+  // parent without BFO grounding. Awaits reactive cascade when an
+  // ancestor root is analyst-resolved.
+  PlacementDeferred: 'deferred',
 };
 
 export function initPhase1ReviewPanel(el, nav) {
@@ -107,9 +111,18 @@ export function initPhase1ReviewPanel(el, nav) {
   }
 
   function getPendingCount() {
+    // X9 Step 7.5+ (2026-04-27): PlacementDeferred is NOT pending — it is
+    // a non-blocking disposition awaiting reactive cascade from an
+    // analyst-resolved root. Only true Ambiguous (no in-ontology parent)
+    // counts toward "Run Phase 2 disabled" gate.
     return records.filter(r =>
-      r.normalizationStatus === 'PendingHumanResolution' || r.candidateStatus === 'PlacementAmbiguous'
+      r.candidateStatus !== 'PlacementDeferred' &&
+      (r.normalizationStatus === 'PendingHumanResolution' || r.candidateStatus === 'PlacementAmbiguous')
     ).length;
+  }
+
+  function getDeferredCount() {
+    return records.filter(r => r.candidateStatus === 'PlacementDeferred').length;
   }
 
   function render() {
@@ -120,7 +133,9 @@ export function initPhase1ReviewPanel(el, nav) {
     const pageRecords = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
     const pendingCount = getPendingCount();
 
-    const summary = `${records.length} total &middot; ${records.filter(r => r.candidateStatus === 'PlacementConfirmed').length} confirmed &middot; ${pendingCount} pending`;
+    const confirmedCount = records.filter(r => r.candidateStatus === 'PlacementConfirmed').length;
+    const deferredCount = getDeferredCount();
+    const summary = `${records.length} total &middot; ${confirmedCount} confirmed &middot; ${deferredCount} deferred &middot; ${pendingCount} pending`;
 
     el.innerHTML = `
       <div class="ig-phase1-container">
@@ -174,9 +189,13 @@ export function initPhase1ReviewPanel(el, nav) {
   function renderRow(record, index) {
     const statusCls = STATUS_CLASSES[record.candidateStatus] || 'default';
     const isPending = record.normalizationStatus === 'PendingHumanResolution' || record.candidateStatus === 'PlacementAmbiguous';
+    // X9 Step 7.5+: Deferred rows are NOT pending (analyst dropdown
+    // suppressed). They show `→ <parentIRI>` in Placement column.
+    const isDeferred = record.candidateStatus === 'PlacementDeferred';
     const hasDp2 = Boolean(record.dp2Record);
-    // Even non-pending rows expand if they have DP-2 records to display
-    const isExpandable = isPending || hasDp2;
+    // Even non-pending rows expand if they have DP-2 records or are
+    // Deferred (so analyst can read the cascade-awaiting justification).
+    const isExpandable = isPending || hasDp2 || isDeferred;
     const confidence = record.placementConfidence != null ? record.placementConfidence.toFixed(2) : '-';
 
     // X9 §3.4: SWC marker badge on row header when contradiction reasons present
@@ -185,12 +204,19 @@ export function initPhase1ReviewPanel(el, nav) {
       ? `<span class="badge badge--warning" title="${escapeHtml(swcReasons.join(', '))}">⚠ Multi-inheritance anomaly</span>`
       : '';
 
+    // Placement column: Deferred rows show `→ <parent IRI>` (truncated)
+    // instead of a BFO category, signaling that the parent is declared
+    // and BFO category will inherit reactively.
+    const placementCell = isDeferred && record.placementResult
+      ? `&rarr; ${escapeHtml(truncateIri(record.placementResult))}`
+      : escapeHtml(record.placementResult || '-');
+
     let rowHtml = `
       <tr class="ig-row ${isExpandable ? 'ig-row--expandable' : ''}" data-index="${index}">
         <td>${escapeHtml(record.sourceLabel || '')} ${swcBadge}</td>
         <td class="ig-cell-iri" title="${escapeHtml(record.sourceIRI || '')}">${escapeHtml(truncateIri(record.sourceIRI || ''))}</td>
         <td><span class="ig-status-badge ig-status--${statusCls}">${escapeHtml(record.candidateStatus || '-')}</span></td>
-        <td>${escapeHtml(record.placementResult || '-')}</td>
+        <td>${placementCell}</td>
         <td>${confidence}</td>
       </tr>
     `;
@@ -412,6 +438,54 @@ export function initPhase1ReviewPanel(el, nav) {
           record.placementResult = placement;
           record.placementJustification = (record.placementJustification || '') + ' | User: ' + justification;
           if (dp2Record) record.dp2Record = dp2Record;
+        }
+
+        // X9 Step 7.5+ (2026-04-27): single-engine reactive cascade per
+        // X3 §3.4 / X4 §3.3. After the analyst resolves a root, propagate
+        // the BFO category to all PlacementDeferred descendants whose
+        // ancestorChain contains this root. The cascade route is the same
+        // evaluatePlacement Pass-(a) cascade-from-resolved used at ingest
+        // time — single code path, not parallel descent.
+        const config = nav.ingestState.loadConfig(sessionId) || {};
+        const adapterSessionId = config.adapterSessionId;
+        if (adapter.cascadeAnalystResolution && adapterSessionId) {
+          try {
+            const cascadeResult = adapter.cascadeAnalystResolution(
+              graphId, adapterSessionId, iri, placement
+            );
+            // Refresh local records from adapter so cascaded descendants
+            // pick up new placementResult / candidateStatus fields.
+            const axiomGraph = adapter.getSourceAxiomGraph();
+            for (const r of records) {
+              for (const adapterRecord of axiomGraph.values()) {
+                if (adapterRecord.type === 'CandidateClass' &&
+                    adapterRecord.sourceIRI === r.sourceIRI &&
+                    adapterRecord.ingestedInSession === adapterSessionId) {
+                  r.candidateStatus = adapterRecord.candidateStatus;
+                  r.placementResult = adapterRecord.placementResult;
+                  r.placementConfidence = adapterRecord.placementConfidence;
+                  r.placementJustification = adapterRecord.placementJustification;
+                  r.normalizationStatus = adapterRecord.normalizationStatus;
+                  break;
+                }
+              }
+            }
+            // Surface cascade conflicts via the shared error banner so
+            // multi-inheritance contradictions are visible (Appendix A.2.6 /
+            // bundle v6 SWC discipline).
+            if (cascadeResult.conflicts && cascadeResult.conflicts.length > 0 && typeof nav.showError === 'function') {
+              const summary = cascadeResult.conflicts.map(c => `${c.iri} (${c.reason || 'placement conflict'})`).join('; ');
+              nav.showError(`Cascade surfaced ${cascadeResult.conflicts.length} contradiction(s): ${summary}`, 'warning');
+            }
+          } catch (cascadeErr) {
+            console.error('cascadeAnalystResolution failed:', cascadeErr);
+            if (typeof nav.showError === 'function') {
+              nav.showError(`Cascade failed: ${cascadeErr.message}`, 'error');
+            }
+          }
+        }
+
+        if (record) {
           nav.ingestState.saveStagingRecords(sessionId, records);
         }
 

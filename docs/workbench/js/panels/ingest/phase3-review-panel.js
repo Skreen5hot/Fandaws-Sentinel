@@ -16,17 +16,41 @@ import { escapeHtml } from '../../utils.js';
  * Implements PS-4a through PS-4f rules producing identical result shapes
  * to the Prolog sandbox, without requiring tau-prolog CJS interop.
  */
-function runViolationHarness(graph, stagingRecords, phase2Records, config) {
+export function runViolationHarness(graph, stagingRecords, phase2Records, config) {
   const Fandaws = config.Fandaws;
   const concepts = graph?.['fandaws:concepts'] || [];
   const violations = [];
   const traces = [];
 
-  // Build parent lookup
+  // X9 Step 7.5+++ (2026-04-27): build parent lookup recognizing all
+  // three parent-attribution mechanisms.
+  // - Concept classes attribute parent via skos:broader (legacy).
+  // - Relation classes (@type includes 'fandaws:RelationTypeClass') attribute
+  //   parent via rdfs:subClassOf[0] when the entry is an IRI string (sub-
+  //   property parent canonical IRI written by promoteCanonicalRelation), and/
+  //   or via fandaws:bfoSubcategory (BFO category root).
+  // owl:Restriction objects on rdfs:subClassOf are filtered — those are
+  // property-shape constraints, not parents.
+  // Fixes Step 7.5++ regression where every cascaded relation class was
+  // flagged OrphanClassViolation because the rule only read skos:broader.
   const parentMap = new Map();
   for (const c of concepts) {
-    const broader = c['skos:broader'] || c.parent;
-    if (broader) parentMap.set(c['@id'], broader);
+    let parent = c['skos:broader'] || c.parent || null;
+
+    if (!parent) {
+      const subClassOf = c['rdfs:subClassOf'] || [];
+      for (const entry of subClassOf) {
+        if (typeof entry === 'string') { parent = entry; break; }
+        if (entry && typeof entry === 'object' && entry['@id'] &&
+            !entry['owl:onProperty']) { parent = entry['@id']; break; }
+      }
+    }
+
+    if (!parent && c['fandaws:bfoSubcategory']) {
+      parent = c['fandaws:bfoSubcategory'];
+    }
+
+    if (parent) parentMap.set(c['@id'], parent);
   }
 
   // PS-4a: TypeDisjointnessViolation — restriction target BFO category disjoint with expected range
@@ -59,18 +83,29 @@ function runViolationHarness(graph, stagingRecords, phase2Records, config) {
     }
   }
 
-  // Orphan class check (supplementary, not a D2 catalog rule)
+  // Orphan class check (supplementary, not a D2 catalog rule).
+  // X9 Step 7.5+++ (2026-04-27): repair text branches on @type so relation
+  // classes (which use rdfs:subClassOf / fandaws:bfoSubcategory) get
+  // relation-specific repair guidance rather than the concept-class text.
   for (const c of concepts) {
     const iri = c['@id'];
     if (!parentMap.has(iri) && !iri.startsWith('bfo:') && !c['fandaws:isImported']) {
+      const isRelationClass = Array.isArray(c['@type'])
+        ? c['@type'].includes('fandaws:RelationTypeClass')
+        : c['@type'] === 'fandaws:RelationTypeClass';
+      const label = c['skos:prefLabel'] || c['rdfs:label'] || iri;
       violations.push({
         rule: 'supplementary',
         ruleName: 'OrphanClassViolation',
         severity: 'warning',
         conceptIri: iri,
-        label: c['skos:prefLabel'] || c['rdfs:label'] || iri,
-        message: `Class has no parent and is not a BFO root.`,
-        suggestedRepair: `Assign ${c['skos:prefLabel'] || iri} a parent class under a BFO category.`,
+        label,
+        message: isRelationClass
+          ? `Relation class has no parent: neither rdfs:subClassOf nor fandaws:bfoSubcategory is set.`
+          : `Class has no parent and is not a BFO root.`,
+        suggestedRepair: isRelationClass
+          ? `Promote ${label} as a sub-property of an existing canonical relation, or assign a BFO subcategory (bfo:Quality, bfo:Disposition, etc.).`
+          : `Assign ${label} a parent class under a BFO category.`,
         trace: `orphan_check(${iri}) :- \\+ parent(${iri}, _), \\+ bfo_root(${iri}).`,
       });
     }

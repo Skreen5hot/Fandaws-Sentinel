@@ -585,6 +585,14 @@ export function initPhase2ReviewPanel(el, nav) {
   // reactive cascade from the parent property's resolution; no analyst
   // action is appropriate here. Hides the justification input via CSS
   // because justification is not required for deferred rows.
+  // X9 Step 7.5+++++ (2026-04-28): Override escape hatch — analyst can
+  // detach a deferred row from its declared subPropertyOf parent when
+  // (a) parent was Rejected, (b) parent's own cascade chain stalls, or
+  // (c) analyst wants to root the property independently. Override
+  // flips disposition RelationDeferred → NovelPromotionPanel so the
+  // regular action buttons (Merge / Reject / Sub-Property / New Relation)
+  // surface for manual resolution. Mirrors the Step 7.5++ Reject-cascade
+  // revert path but driven by analyst action.
   function renderRelationDeferredBanner(record) {
     const parent = record.routing?.parentPropertyIRI || record.subPropertyOf || '';
     return `
@@ -595,8 +603,18 @@ export function initPhase2ReviewPanel(el, nav) {
           <code>${escapeHtml(truncateIri(parent))}</code> — also being ingested
           in this session. When the analyst resolves the parent (Merge / New Relation /
           Sub-Property), this row auto-promotes as <code>PromoteAsSubProperty</code>
-          of the parent's canonical IRI. No action required here.
+          of the parent's canonical IRI.
         </p>
+        <div style="margin-top: 8px;">
+          <button class="btn btn--ghost ig-deferred-override" id="ig-deferred-override"
+                  title="Detach this row from its declared subPropertyOf parent and resolve it manually (Step 7.5+++++)"
+                  style="font-size: 0.85em;">
+            Override → resolve manually
+          </button>
+          <span style="margin-left: 8px; font-size: 0.8em; color: var(--muted);">
+            Use when the parent was Rejected or you want to root this property independently.
+          </span>
+        </div>
       </div>
     `;
   }
@@ -662,6 +680,30 @@ export function initPhase2ReviewPanel(el, nav) {
     el.querySelector('#ig-bfo-cancel')?.addEventListener('click', () => {
       bfoPickerOpen = false;
       pickerSelectedBfo = null;
+      render();
+    });
+
+    // X9 Step 7.5+++++ (2026-04-28): Override button on RelationDeferred
+    // banner. Flips the row's disposition from RelationDeferred to
+    // NovelPromotionPanel so the standard action buttons render. The
+    // analyst can then Merge / Reject / Sub-Property / New Relation
+    // manually. Original subPropertyOf is preserved on the record for
+    // reference; cascadeRevertedFrom annotation marks the override path
+    // (parallel to the Step 7.5++ Reject-cascade revert annotation).
+    el.querySelector('#ig-deferred-override')?.addEventListener('click', () => {
+      const record = records[selectedIdx];
+      if (!record) return;
+      record.routing = {
+        ...record.routing,
+        disposition: 'NovelPromotionPanel',
+        cascadeRevertedFrom: 'RelationDeferred',
+        overrideTrigger: 'AnalystManualOverride',
+      };
+      // Clear parentPropertyInOntology so subsequent cascade evaluations
+      // don't re-defer the row; analyst has explicitly opted out of the
+      // declared subPropertyOf chain for this row.
+      record.parentPropertyInOntology = false;
+      nav.ingestState.savePhase2Records(sessionId, records);
       render();
     });
 

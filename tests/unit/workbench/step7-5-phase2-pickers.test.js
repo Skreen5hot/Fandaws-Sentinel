@@ -227,6 +227,81 @@ describe('Step 7.5++++ — Gap A end-to-end: BFO subcategory write-through', () 
   });
 });
 
+describe('Step 7.5+++++ — Override escape hatch on RelationDeferred row', () => {
+  it('Override flips RelationDeferred record to NovelPromotionPanel; subsequent resolveAction promotes manually', () => {
+    // Simulates the panel-side Override path: analyst clicks
+    // "Override → resolve manually" on a deferred row whose parent was
+    // Rejected (or stalled). The override mutates record.routing.disposition
+    // and clears parentPropertyInOntology. The record then renders with
+    // standard action buttons; analyst Promotes as new relation.
+    const adapter = adapterWithSandbox();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 'p.owl', classes: [],
+      properties: [
+        { iri: 'prov:wasInfluencedBy', label: 'wasInfluencedBy' },
+        { iri: 'prov:hadPrimarySource', label: 'hadPrimarySource', subPropertyOf: 'prov:wasInfluencedBy' },
+      ],
+    });
+
+    // Simulate analyst Reject of wasInfluencedBy → cascade reverts
+    // hadPrimarySource to NovelPromotionPanel via cascadeSubPropertyResolution.
+    const cascade = adapter.cascadeSubPropertyResolution(
+      graphId, ingest.sessionId, 'prov:wasInfluencedBy', null, 'Reject'
+    );
+    expect(cascade.revertedToNovel).toEqual(['prov:hadPrimarySource']);
+
+    // The Phase 2 panel-side simulation: build a Phase 2 record matching
+    // the post-Reject state (record.routing.disposition still says
+    // RelationDeferred until panel applies the revert). The Override
+    // button does the same flip the cascade does, but for stalled rows
+    // whose parent stayed unresolved (no cascade fired).
+    const phase2Record = {
+      iri: 'prov:hadPrimarySource',
+      label: 'hadPrimarySource',
+      subPropertyOf: 'prov:wasInfluencedBy',
+      parentPropertyInOntology: true,
+      routing: { disposition: 'RelationDeferred', parentPropertyIRI: 'prov:wasInfluencedBy' },
+      action: null,
+      resolved: false,
+    };
+
+    // Apply Override (the panel handler's mutation, replicated in test):
+    phase2Record.routing = {
+      ...phase2Record.routing,
+      disposition: 'NovelPromotionPanel',
+      cascadeRevertedFrom: 'RelationDeferred',
+      overrideTrigger: 'AnalystManualOverride',
+    };
+    phase2Record.parentPropertyInOntology = false;
+
+    expect(phase2Record.routing.disposition).toBe('NovelPromotionPanel');
+    expect(phase2Record.routing.overrideTrigger).toBe('AnalystManualOverride');
+    expect(phase2Record.routing.cascadeRevertedFrom).toBe('RelationDeferred');
+    expect(phase2Record.parentPropertyInOntology).toBe(false);
+
+    // Analyst can now Promote manually with BFO subcategory; canonical
+    // record gets created independent of the rejected parent.
+    const result = adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: phase2Record.iri,
+      candidateLabel: phase2Record.label,
+      bfoSubcategory: 'bfo:Process',
+      ingestedInSession: ingest.sessionId,
+    });
+    expect(result.canonicalRelationIRI).toBeTruthy();
+
+    // Phase 3: zero orphan warnings on the manually-rooted property.
+    const graph = adapter._graphs.get(graphId);
+    const { violations } = runViolationHarness(graph, [], [], { Fandaws: {} });
+    const orphans = violations.filter(v =>
+      v.ruleName === 'OrphanClassViolation' && v.label === 'hadprimarysource'
+    );
+    expect(orphans).toHaveLength(0);
+  });
+});
+
 describe('Step 7.5++++ — Gap B: in-session sibling visible to Sub-Property picker', () => {
   it('records[] containing a promoted sibling exposes it via findPickerCandidate', () => {
     // Simulate the post-promotion records[] state in the Phase 2 panel

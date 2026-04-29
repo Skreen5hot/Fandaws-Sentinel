@@ -2110,6 +2110,33 @@ export class InMemoryStateAdapter extends StateAdapter {
   }
 
   /**
+   * X9 Step 7.11 (2026-04-29) — Back-port a BFO subcategory onto an
+   * already-promoted canonical relation class. Used by the Phase 3
+   * "Assign BFO Subcategory" repair affordance for OrphanClassViolation
+   * rows: when the analyst chose Skip in the Phase 2 BFO picker (or
+   * promoted before Step 7.5++++ landed), the canonical was minted with
+   * fandaws:bfoSubcategory: null. This method updates that field in
+   * place — no re-mint, no IRI change, provenance preserved.
+   *
+   * @param {string} graphId
+   * @param {string} canonicalIRI - the fandaws:class/relation/<uuid>/<slug> IRI
+   * @param {string} bfoSubcategory - e.g. 'bfo:Role', 'bfo:Disposition'
+   * @returns {{ updated: boolean, prior: string|null }}
+   */
+  setRelationBfoSubcategory(graphId, canonicalIRI, bfoSubcategory) {
+    const graph = this._graphs.get(graphId);
+    if (!graph) return { updated: false, prior: null };
+    const concepts = graph['fandaws:concepts'] || [];
+    const target = concepts.find(c => c['@id'] === canonicalIRI);
+    if (!target) return { updated: false, prior: null };
+    const prior = target['fandaws:bfoSubcategory'] || null;
+    target['fandaws:bfoSubcategory'] = bfoSubcategory;
+    this._graphs.set(graphId, graph);
+    this.compile(graphId);
+    return { updated: true, prior };
+  }
+
+  /**
    * Merge an external property into an existing canonical relation type class.
    * Writes a MergeRecord with owl:equivalentProperty bridging source IRI to the
    * canonical execution property. Rule PD-8, Decision D-19.

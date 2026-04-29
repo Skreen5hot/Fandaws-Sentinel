@@ -20,6 +20,8 @@
 
 import { describe, it, expect } from '@jest/globals';
 import { runViolationHarness } from '../../../docs/workbench/js/panels/ingest/phase3-review-panel.js';
+import { InMemoryStateAdapter } from '../../../src/adapters/state/in-memory-state-adapter.js';
+import { createKnowledgeGraph } from '../../../src/types/index.js';
 
 function makeGraph(concepts) {
   return { 'fandaws:concepts': concepts };
@@ -239,5 +241,98 @@ describe('Step 7.5+++ — runViolationHarness OrphanClassViolation parentMap exp
     ]);
     const { violations } = runViolationHarness(graph, [], [], { Fandaws: {} });
     expect(violations.filter(v => v.ruleName === 'OrphanClassViolation')).toHaveLength(0);
+  });
+});
+
+describe('Step 7.11 — setRelationBfoSubcategory back-port repair', () => {
+  it('writes fandaws:bfoSubcategory on the existing canonical record in-place', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    // Seed an orphan canonical relation (the post-Skip-PromoteAsNewRelation shape).
+    adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'cco:ont00001831',
+      candidateLabel: 'is subordinate role to',
+      bfoSubcategory: null, // analyst chose Skip in Phase 2 picker
+    });
+    const graph = adapter._graphs.get(graphId);
+    const canonical = graph['fandaws:concepts'].find(c =>
+      c['rdfs:label'] === 'is subordinate role to'
+    );
+    expect(canonical['fandaws:bfoSubcategory']).toBeNull();
+
+    // Pre-repair: Phase 3 flags it.
+    const before = runViolationHarness(graph, [], [], { Fandaws: {} });
+    const beforeOrphans = before.violations.filter(v => v.ruleName === 'OrphanClassViolation');
+    expect(beforeOrphans.length).toBeGreaterThan(0);
+
+    // Apply repair (Step 7.11 path).
+    const result = adapter.setRelationBfoSubcategory(graphId, canonical['@id'], 'bfo:Role');
+    expect(result.updated).toBe(true);
+    expect(result.prior).toBeNull();
+
+    // Post-repair: canonical now has bfoSubcategory.
+    const updated = adapter._graphs.get(graphId);
+    const updatedCanonical = updated['fandaws:concepts'].find(c =>
+      c['@id'] === canonical['@id']
+    );
+    expect(updatedCanonical['fandaws:bfoSubcategory']).toBe('bfo:Role');
+
+    // Phase 3 re-run: orphan warning cleared for this canonical.
+    const after = runViolationHarness(updated, [], [], { Fandaws: {} });
+    const afterOrphans = after.violations.filter(v =>
+      v.ruleName === 'OrphanClassViolation' && v.conceptIri === canonical['@id']
+    );
+    expect(afterOrphans).toHaveLength(0);
+  });
+
+  it('returns updated:false when the canonical IRI does not exist', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const result = adapter.setRelationBfoSubcategory(graphId, 'fandaws:class/relation/missing', 'bfo:Role');
+    expect(result.updated).toBe(false);
+    expect(result.prior).toBeNull();
+  });
+
+  it('preserves the canonical IRI and other fields (no re-mint)', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const minted = adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'ex:foo',
+      candidateLabel: 'foo',
+      bfoSubcategory: null,
+    });
+    const before = adapter._graphs.get(graphId)['fandaws:concepts'].find(c =>
+      c['@id'] === minted.canonicalRelationIRI
+    );
+    const priorLabel = before['rdfs:label'];
+    const priorExecIRI = before['fandaws:executionPropertyIRI'];
+
+    adapter.setRelationBfoSubcategory(graphId, minted.canonicalRelationIRI, 'bfo:Process');
+
+    // IRI unchanged; label/execProp preserved.
+    const after = adapter._graphs.get(graphId)['fandaws:concepts'].find(c =>
+      c['@id'] === minted.canonicalRelationIRI
+    );
+    expect(after).toBeDefined();
+    expect(after['rdfs:label']).toBe(priorLabel);
+    expect(after['fandaws:executionPropertyIRI']).toBe(priorExecIRI);
+    expect(after['fandaws:bfoSubcategory']).toBe('bfo:Process');
+  });
+
+  it('returns prior bfoSubcategory when overwriting an existing value', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const minted = adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'ex:bar',
+      candidateLabel: 'bar',
+      bfoSubcategory: 'bfo:Quality',
+    });
+    const result = adapter.setRelationBfoSubcategory(graphId, minted.canonicalRelationIRI, 'bfo:Disposition');
+    expect(result.updated).toBe(true);
+    expect(result.prior).toBe('bfo:Quality');
   });
 });

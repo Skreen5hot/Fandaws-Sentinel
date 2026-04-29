@@ -10,6 +10,7 @@
  * Uses JS-side violation checking harness (PS-4a through PS-4f rules).
  */
 import { escapeHtml } from '../../utils.js';
+import { BFO_SUBCATEGORY_OPTIONS } from './phase2-review-panel.js';
 
 /**
  * JS-side violation checking harness.
@@ -198,6 +199,11 @@ export function initPhase3ReviewPanel(el, nav) {
   let violations = [];
   let selectedViolationIdx = 0;
   let isRunning = false;
+  // X9 Step 7.11 (2026-04-29): inline BFO subcategory picker state for
+  // OrphanClassViolation back-port repair. When analyst clicks "Assign
+  // BFO Subcategory" on a relation-class orphan row, picker opens in
+  // place of the suggested-repair text.
+  let repairPickerOpenForIri = null;
 
   function getSessionId(data) {
     return data?.sessionId || nav.ingestState.getActiveSession();
@@ -278,11 +284,29 @@ export function initPhase3ReviewPanel(el, nav) {
   }
 
   function renderViolationDetail(v) {
+    // X9 Step 7.11 (2026-04-29): surface inline BFO subcategory picker
+    // when violation is OrphanClassViolation against a relation class
+    // (IRI matches fandaws:class/relation/...). Lets analyst back-port
+    // a BFO subcategory onto an already-promoted canonical without
+    // re-minting (provenance preserved). Mirror of Phase 2 BFO picker;
+    // reuses BFO_SUBCATEGORY_OPTIONS exported from phase2-review-panel.
+    const isRelationOrphan = v.ruleName === 'OrphanClassViolation' &&
+      typeof v.conceptIri === 'string' &&
+      v.conceptIri.includes('fandaws:class/relation/');
+    const pickerActive = isRelationOrphan && repairPickerOpenForIri === v.conceptIri;
+
     return `
       <div class="ig-detail-scroll">
         <div class="ig-repair-suggestion">
           <strong>Suggested Repair:</strong> ${escapeHtml(v.suggestedRepair || 'No repair suggestion available.')}
+          ${isRelationOrphan && !pickerActive
+            ? `<button class="btn btn--primary ig-p3-repair-btn"
+                       data-iri="${escapeHtml(v.conceptIri)}"
+                       style="margin-left: 12px; font-size: 0.85em;">Assign BFO Subcategory →</button>`
+            : ''}
         </div>
+
+        ${pickerActive ? renderBfoRepairPicker(v) : ''}
 
         <h4 class="ig-detail-title">${escapeHtml(v.ruleName || v.rule)}</h4>
         <div class="ig-detail-meta">
@@ -308,6 +332,39 @@ export function initPhase3ReviewPanel(el, nav) {
         </div>
 
         ${renderDp2Section(v)}
+      </div>
+    `;
+  }
+
+  // X9 Step 7.11 (2026-04-29): inline BFO subcategory picker for back-
+  // porting a category onto an already-promoted relation canonical. Same
+  // BFO_SUBCATEGORY_OPTIONS as Phase 2's New Relation picker (7 BFO
+  // categories + Skip option for analysts who explicitly want to keep
+  // the orphan as documented absence-of-grounding).
+  function renderBfoRepairPicker(v) {
+    return `
+      <div class="ig-bfo-repair-picker" id="ig-p3-bfo-picker"
+           style="background: var(--surface-2); padding: 12px; border-radius: 6px; border: 1px solid var(--border); margin-top: 8px;">
+        <h6 style="margin: 0 0 8px 0;">Assign BFO Subcategory (Repair Orphan)</h6>
+        <div class="ig-p3-bfo-help" style="font-size: 0.85em; margin-bottom: 8px; color: var(--muted);">
+          Selection writes <code>fandaws:bfoSubcategory</code> on the existing canonical record;
+          provenance preserved (no re-mint). Phase 3 re-runs after Confirm to clear this warning.
+        </div>
+        <div class="ig-p3-bfo-list">
+          ${BFO_SUBCATEGORY_OPTIONS.filter(o => o.value !== null).map((opt, i) => {
+            const radioId = `ig-p3-bfo-radio-${i}`;
+            return `
+              <label class="ig-p3-bfo-option" style="display: block; padding: 6px 8px; cursor: pointer;">
+                <input type="radio" name="ig-p3-bfo-cat" value="${escapeHtml(opt.value)}" id="${radioId}" />
+                <span style="margin-left: 6px;">${escapeHtml(opt.label)}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+        <div class="ig-p3-bfo-actions" style="margin-top: 10px;">
+          <button class="btn btn--primary" id="ig-p3-bfo-confirm" data-iri="${escapeHtml(v.conceptIri)}">Confirm BFO Subcategory</button>
+          <button class="btn btn--ghost" id="ig-p3-bfo-cancel">Cancel</button>
+        </div>
       </div>
     `;
   }
@@ -378,6 +435,50 @@ export function initPhase3ReviewPanel(el, nav) {
           const btn = el.querySelector('#ig-copy-trace');
           if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); }
         });
+      }
+    });
+
+    // X9 Step 7.11 (2026-04-29): repair affordance handlers.
+    el.querySelector('.ig-p3-repair-btn')?.addEventListener('click', (e) => {
+      const iri = e.currentTarget.dataset.iri;
+      if (iri) {
+        repairPickerOpenForIri = iri;
+        render();
+      }
+    });
+    el.querySelector('#ig-p3-bfo-cancel')?.addEventListener('click', () => {
+      repairPickerOpenForIri = null;
+      render();
+    });
+    el.querySelector('#ig-p3-bfo-confirm')?.addEventListener('click', async (e) => {
+      const iri = e.currentTarget.dataset.iri;
+      const checkedRadio = el.querySelector('input[name="ig-p3-bfo-cat"]:checked');
+      if (!checkedRadio || !iri) {
+        const help = el.querySelector('.ig-p3-bfo-help');
+        if (help) help.style.color = 'var(--red)';
+        return;
+      }
+      const bfoSubcategory = checkedRadio.value;
+      try {
+        const adapter = nav.wbState.getAdapter();
+        const graphId = nav.wbState.getGraphId();
+        const result = adapter.setRelationBfoSubcategory(graphId, iri, bfoSubcategory);
+        if (!result.updated) {
+          if (typeof nav.showError === 'function') {
+            nav.showError(`Could not locate canonical relation ${iri} to repair.`, 'error');
+          }
+          return;
+        }
+        // Re-run violation harness against the updated graph to refresh
+        // the violation list. Orphan warning for this conceptIri should
+        // disappear; other violations stay intact.
+        repairPickerOpenForIri = null;
+        await executePhase3();
+      } catch (err) {
+        console.error('Step 7.11 BFO repair failed:', err);
+        if (typeof nav.showError === 'function') {
+          nav.showError(`BFO repair failed: ${err.message}`, 'error');
+        }
       }
     });
 

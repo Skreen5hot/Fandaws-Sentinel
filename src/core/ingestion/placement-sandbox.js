@@ -90,6 +90,72 @@ const BFO_CLASS_NORMALIZE = {
   'bfo:Entity': 'Entity',
   'bfo:BFO_0000001': 'Entity',
   'Entity': 'Entity',
+
+  // X9 Step 7.8 (2026-04-28): BFO 2020 mid-level + leaf class coverage.
+  // CCO and other OBO Foundry ontologies declare rdfs:subClassOf against
+  // these specific BFO classes (not just the 16 top-level categories).
+  // Each leaf maps to its canonical placement root per BFO 2020 spec.
+  // Without these entries, classes like Group-of-Agents (subClassOf
+  // BFO_0000027 / ObjectAggregate) routed PlacementRejected because the
+  // table lookup returned null.
+
+  // ── MaterialEntity subtree ──
+  'bfo:ObjectAggregate': 'MaterialEntity',         // BFO_0000027
+  'bfo:BFO_0000027': 'MaterialEntity',
+  'bfo:FiatObjectPart': 'MaterialEntity',          // BFO_0000024
+  'bfo:BFO_0000024': 'MaterialEntity',
+  'bfo:Object': 'MaterialEntity',                  // BFO_0000030
+  'bfo:BFO_0000030': 'MaterialEntity',
+
+  // ── IndependentContinuant subtree (ImmaterialEntity branch) ──
+  'bfo:ImmaterialEntity': 'IndependentContinuant', // BFO_0000141
+  'bfo:BFO_0000141': 'IndependentContinuant',
+  'bfo:Site': 'IndependentContinuant',             // BFO_0000029
+  'bfo:BFO_0000029': 'IndependentContinuant',
+  'bfo:ContinuantFiatBoundary': 'IndependentContinuant', // BFO_0000140
+  'bfo:BFO_0000140': 'IndependentContinuant',
+  'bfo:FiatLine': 'IndependentContinuant',         // BFO_0000142
+  'bfo:BFO_0000142': 'IndependentContinuant',
+  'bfo:FiatPoint': 'IndependentContinuant',        // BFO_0000146
+  'bfo:BFO_0000146': 'IndependentContinuant',
+  'bfo:FiatSurface': 'IndependentContinuant',      // BFO_0000149
+  'bfo:BFO_0000149': 'IndependentContinuant',
+  'bfo:ZeroDimensionalContinuantFiatBoundary': 'IndependentContinuant', // BFO_0000147
+  'bfo:BFO_0000147': 'IndependentContinuant',
+
+  // ── RealizableEntity subtree ──
+  'bfo:Function': 'RealizableEntity',              // BFO_0000034
+  'bfo:BFO_0000034': 'RealizableEntity',
+
+  // ── Process subtree ──
+  'bfo:History': 'Process',                        // BFO_0000182
+  'bfo:BFO_0000182': 'Process',
+
+  // ── Occurrent subtree (peer of Process / SpatiotemporalRegion) ──
+  'bfo:ProcessBoundary': 'Occurrent',              // BFO_0000035
+  'bfo:BFO_0000035': 'Occurrent',
+  'bfo:SpatiotemporalRegion': 'Occurrent',         // BFO_0000011
+  'bfo:BFO_0000011': 'Occurrent',
+
+  // ── SpatialRegion subtree ──
+  'bfo:ZeroDimensionalSpatialRegion': 'SpatialRegion', // BFO_0000018
+  'bfo:BFO_0000018': 'SpatialRegion',
+  'bfo:OneDimensionalSpatialRegion': 'SpatialRegion',  // BFO_0000026
+  'bfo:BFO_0000026': 'SpatialRegion',
+  'bfo:TwoDimensionalSpatialRegion': 'SpatialRegion',  // BFO_0000009
+  'bfo:BFO_0000009': 'SpatialRegion',
+  'bfo:ThreeDimensionalSpatialRegion': 'SpatialRegion', // BFO_0000028
+  'bfo:BFO_0000028': 'SpatialRegion',
+
+  // ── TemporalRegion subtree ──
+  'bfo:ZeroDimensionalTemporalRegion': 'TemporalRegion', // BFO_0000148
+  'bfo:BFO_0000148': 'TemporalRegion',
+  'bfo:OneDimensionalTemporalRegion': 'TemporalRegion',  // BFO_0000038
+  'bfo:BFO_0000038': 'TemporalRegion',
+  'bfo:TemporalInstant': 'TemporalRegion',         // BFO_0000203
+  'bfo:BFO_0000203': 'TemporalRegion',
+  'bfo:TemporalInterval': 'TemporalRegion',        // BFO_0000202
+  'bfo:BFO_0000202': 'TemporalRegion',
 };
 
 /**

@@ -145,6 +145,133 @@ describe('Step 7.7 — isBlankNode catches n3-N format used by underlying RDF pa
   });
 });
 
+describe('Step 7.8 — BFO 2020 mid-level / leaf class coverage', () => {
+  it('Group of Agents (subClassOf obo:BFO_0000027 / ObjectAggregate) routes Confirmed → MaterialEntity', () => {
+    // Reproduces the exact CCO AgentOntology.ttl shape (line 715-733):
+    // cco:ont00000300 rdfs:subClassOf obo:BFO_0000027 , [restriction] .
+    // BFO_0000027 = ObjectAggregate, which is a subclass of MaterialEntity
+    // in BFO 2020. Pre-Step-7.8 the table lookup returned null →
+    // PlacementRejected. Post-fix: maps to MaterialEntity at 0.91.
+    const result = evaluatePlacement({
+      iri: 'https://www.commoncoreontologies.org/ont00000300',
+      label: 'Group of Agents',
+      superclass: 'http://purl.obolibrary.org/obo/BFO_0000027',
+    });
+    expect(result.placement).toBe('MaterialEntity');
+    expect(result.confidence).toBe(0.91);
+  });
+
+  it('MaterialEntity subtree IDs all route to MaterialEntity', () => {
+    const cases = [
+      { id: 'BFO_0000027', label: 'ObjectAggregate' },
+      { id: 'BFO_0000024', label: 'FiatObjectPart' },
+      { id: 'BFO_0000030', label: 'Object' },
+    ];
+    for (const { id } of cases) {
+      const result = evaluatePlacement({
+        iri: 'ex:test', superclass: `http://purl.obolibrary.org/obo/${id}`,
+      });
+      expect(result.placement).toBe('MaterialEntity');
+      expect(result.confidence).toBe(0.91);
+    }
+  });
+
+  it('IndependentContinuant subtree (ImmaterialEntity branch) routes correctly', () => {
+    const cases = [
+      'BFO_0000141', // ImmaterialEntity
+      'BFO_0000029', // Site
+      'BFO_0000140', // ContinuantFiatBoundary
+      'BFO_0000142', // FiatLine
+      'BFO_0000146', // FiatPoint
+      'BFO_0000149', // FiatSurface
+      'BFO_0000147', // ZeroDimensionalContinuantFiatBoundary
+    ];
+    for (const id of cases) {
+      const result = evaluatePlacement({
+        iri: 'ex:test', superclass: `http://purl.obolibrary.org/obo/${id}`,
+      });
+      expect(result.placement).toBe('IndependentContinuant');
+      expect(result.confidence).toBe(0.91);
+    }
+  });
+
+  it('Function (BFO_0000034) routes to RealizableEntity per BFO 2020', () => {
+    const result = evaluatePlacement({
+      iri: 'ex:test', superclass: 'http://purl.obolibrary.org/obo/BFO_0000034',
+    });
+    expect(result.placement).toBe('RealizableEntity');
+    expect(result.confidence).toBe(0.91);
+  });
+
+  it('History (BFO_0000182) routes to Process', () => {
+    const result = evaluatePlacement({
+      iri: 'ex:test', superclass: 'http://purl.obolibrary.org/obo/BFO_0000182',
+    });
+    expect(result.placement).toBe('Process');
+    expect(result.confidence).toBe(0.91);
+  });
+
+  it('Occurrent peers (ProcessBoundary, SpatiotemporalRegion) route to Occurrent', () => {
+    const cases = ['BFO_0000035', 'BFO_0000011'];
+    for (const id of cases) {
+      const result = evaluatePlacement({
+        iri: 'ex:test', superclass: `http://purl.obolibrary.org/obo/${id}`,
+      });
+      expect(result.placement).toBe('Occurrent');
+      expect(result.confidence).toBe(0.91);
+    }
+  });
+
+  it('all spatial-region dimensional subclasses route to SpatialRegion', () => {
+    const cases = [
+      'BFO_0000018', // ZeroDimensionalSpatialRegion
+      'BFO_0000026', // OneDimensionalSpatialRegion
+      'BFO_0000009', // TwoDimensionalSpatialRegion
+      'BFO_0000028', // ThreeDimensionalSpatialRegion
+    ];
+    for (const id of cases) {
+      const result = evaluatePlacement({
+        iri: 'ex:test', superclass: `http://purl.obolibrary.org/obo/${id}`,
+      });
+      expect(result.placement).toBe('SpatialRegion');
+      expect(result.confidence).toBe(0.91);
+    }
+  });
+
+  it('all temporal-region subclasses route to TemporalRegion', () => {
+    const cases = [
+      'BFO_0000148', // ZeroDimensionalTemporalRegion
+      'BFO_0000038', // OneDimensionalTemporalRegion
+      'BFO_0000203', // TemporalInstant
+      'BFO_0000202', // TemporalInterval
+    ];
+    for (const id of cases) {
+      const result = evaluatePlacement({
+        iri: 'ex:test', superclass: `http://purl.obolibrary.org/obo/${id}`,
+      });
+      expect(result.placement).toBe('TemporalRegion');
+      expect(result.confidence).toBe(0.91);
+    }
+  });
+
+  it('named-form variants (bfo:ObjectAggregate, bfo:Function, etc.) also normalize', () => {
+    const cases = [
+      { ref: 'bfo:ObjectAggregate', expected: 'MaterialEntity' },
+      { ref: 'bfo:FiatObjectPart', expected: 'MaterialEntity' },
+      { ref: 'bfo:Object', expected: 'MaterialEntity' },
+      { ref: 'bfo:Function', expected: 'RealizableEntity' },
+      { ref: 'bfo:History', expected: 'Process' },
+      { ref: 'bfo:Site', expected: 'IndependentContinuant' },
+      { ref: 'bfo:ProcessBoundary', expected: 'Occurrent' },
+      { ref: 'bfo:SpatiotemporalRegion', expected: 'Occurrent' },
+    ];
+    for (const { ref, expected } of cases) {
+      const result = evaluatePlacement({ iri: 'ex:test', superclass: ref });
+      expect(result.placement).toBe(expected);
+    }
+  });
+});
+
 describe('Step 7.6 + 7.7 — combined: CCO Eye Color shape routes Confirmed/Quality', () => {
   it('Eye Color (subClassOf BFO_0000019 + restriction blank node) → Quality at 0.91', () => {
     // Simulates the post-fix parser output: blank-node restriction

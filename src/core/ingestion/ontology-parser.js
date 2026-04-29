@@ -26,6 +26,17 @@ const OWL_EQUIVALENT_CLASS = OWL + 'equivalentClass';
 const OWL_DISJOINT_WITH = OWL + 'disjointWith';
 const OWL_IMPORTS = OWL + 'imports';
 const OWL_ONTOLOGY = OWL + 'Ontology';
+const OWL_RESTRICTION = OWL + 'Restriction';
+const OWL_ON_PROPERTY = OWL + 'onProperty';
+const OWL_SOME_VALUES_FROM = OWL + 'someValuesFrom';
+const OWL_ALL_VALUES_FROM = OWL + 'allValuesFrom';
+const OWL_HAS_VALUE = OWL + 'hasValue';
+const OWL_MIN_CARDINALITY = OWL + 'minCardinality';
+const OWL_MIN_QUAL_CARDINALITY = OWL + 'minQualifiedCardinality';
+const OWL_MAX_CARDINALITY = OWL + 'maxCardinality';
+const OWL_MAX_QUAL_CARDINALITY = OWL + 'maxQualifiedCardinality';
+const OWL_CARDINALITY = OWL + 'cardinality';
+const OWL_QUAL_CARDINALITY = OWL + 'qualifiedCardinality';
 
 const RDF_TYPE = RDF + 'type';
 const RDFS_SUBCLASS_OF = RDFS + 'subClassOf';
@@ -268,6 +279,69 @@ function extractPipelineInput(triples) {
     }
   }
 
+  // X9 Step 7.13 (2026-04-29): two-pass owl:Restriction capture.
+  // CCO and BFO routinely declare `subClassOf [owl:Restriction;
+  // owl:onProperty X; owl:someValuesFrom Y]` against blank-node
+  // restriction objects. The first pass above filters those at line ~229
+  // via the isBlankNode guard (Step 7.7) — the named-node parent IRI is
+  // preserved, but the restriction expression is silently dropped.
+  // This second pass walks every blank-node subject collecting OWL
+  // restriction predicates into a structured object, then walks the
+  // subClassOf-with-bnode-object triples to attach restrictions to the
+  // named class. Output appears as parsed.classes[i].restrictions —
+  // an additive field; consumers without restriction-awareness ignore it.
+  // Phase 3 orphan rule (Step 7.5+++) already filters restriction objects
+  // from parent attribution via the `owl:onProperty` field check.
+  const restrictionsByClass = new Map(); // classIRI → restriction[]
+  const blankNodeRestrictions = new Map(); // bnodeID → { @type, owl:onProperty, owl:someValuesFrom?, ... }
+
+  for (const t of triples) {
+    if (!isBlankNode(t.subject)) continue;
+    if (!blankNodeRestrictions.has(t.subject)) {
+      blankNodeRestrictions.set(t.subject, {});
+    }
+    const r = blankNodeRestrictions.get(t.subject);
+    switch (t.predicate) {
+      case RDF_TYPE:
+        if (t.object === OWL_RESTRICTION) r['@type'] = 'owl:Restriction';
+        break;
+      case OWL_ON_PROPERTY:
+        r['owl:onProperty'] = t.object; break;
+      case OWL_SOME_VALUES_FROM:
+        r['owl:someValuesFrom'] = t.object; break;
+      case OWL_ALL_VALUES_FROM:
+        r['owl:allValuesFrom'] = t.object; break;
+      case OWL_HAS_VALUE:
+        r['owl:hasValue'] = t.object; break;
+      case OWL_MIN_CARDINALITY:
+      case OWL_MIN_QUAL_CARDINALITY:
+        r['owl:minCardinality'] = t.object; break;
+      case OWL_MAX_CARDINALITY:
+      case OWL_MAX_QUAL_CARDINALITY:
+        r['owl:maxCardinality'] = t.object; break;
+      case OWL_CARDINALITY:
+      case OWL_QUAL_CARDINALITY:
+        r['owl:cardinality'] = t.object; break;
+    }
+  }
+
+  for (const t of triples) {
+    if (t.predicate !== RDFS_SUBCLASS_OF) continue;
+    if (isBlankNode(t.subject)) continue;
+    if (!isBlankNode(t.object)) continue;
+    const r = blankNodeRestrictions.get(t.object);
+    // Only attach well-formed restrictions: must declare @type owl:Restriction
+    // AND carry an owl:onProperty. Other blank-node expressions (e.g.,
+    // owl:intersectionOf list nodes used by Group of Agents in CCO) are
+    // not retained at this stage; future scope can extend.
+    if (r && r['@type'] === 'owl:Restriction' && r['owl:onProperty']) {
+      if (!restrictionsByClass.has(t.subject)) {
+        restrictionsByClass.set(t.subject, []);
+      }
+      restrictionsByClass.get(t.subject).push(r);
+    }
+  }
+
   // Build classes array
   const classes = [];
   for (const iri of classIRIs) {
@@ -281,6 +355,8 @@ function extractPipelineInput(triples) {
       superclass,
       equivalentClass: equivalentClasses.get(iri) || [],
       disjointWith: disjointWith.get(iri) || [],
+      // X9 Step 7.13: owl:Restriction blank-node objects retained per class.
+      restrictions: restrictionsByClass.get(iri) || [],
     });
   }
 

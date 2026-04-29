@@ -1401,6 +1401,15 @@ export class InMemoryStateAdapter extends StateAdapter {
         // instead of low-confidence PlacementAmbiguous.
         parentInOntology: !!(cls.superclass && classMap.has(cls.superclass)),
         properties: cls.properties || [],
+        // X9 Step 7.13 (2026-04-29): retain owl:Restriction blank-node
+        // objects + owl:disjointWith pairs from the parsed source on the
+        // staging record so _promoteCandidate can write them into the
+        // canonical concept's rdfs:subClassOf / owl:disjointWith fields.
+        // Without this, the parsed axiomatic content of the source ontology
+        // is lost at promotion time; the canonical graph becomes a bare
+        // skeleton without the constraints that define the imported classes.
+        restrictions: cls.restrictions || [],
+        disjointWith: cls.disjointWith || [],
         ingestedInSession: sessionId,
         candidateStatus: 'Pending',
         normalizationStatus: null,
@@ -1611,13 +1620,25 @@ export class InMemoryStateAdapter extends StateAdapter {
       }
     }
 
+    // X9 Step 7.13 (2026-04-29): retain restrictions + disjointness on
+    // the canonical concept. rdfs:subClassOf is a JSON-LD array of mixed
+    // entries — IRI strings (named parents) AND restriction objects
+    // (owl:Restriction blank-node bodies parsed from source). Step 7.5+++
+    // orphan rule (phase3-review-panel.js:36-43) already filters
+    // restriction objects from parent attribution via the owl:onProperty
+    // field check, so adding them here doesn't trigger Phase 3 false-flags.
+    const subClassOfArray = [];
+    if (broaderIri) subClassOfArray.push(broaderIri);
+    for (const r of (record.restrictions || [])) subClassOfArray.push(r);
+
     const concept = {
       '@id': conceptIri,
       '@type': ['owl:Class', 'skos:Concept'],
       'rdfs:label': record.sourceLabel,
       'skos:prefLabel': label,
       'skos:broader': broaderIri,
-      'rdfs:subClassOf': broaderIri ? [broaderIri] : [],
+      'rdfs:subClassOf': subClassOfArray,
+      'owl:disjointWith': record.disjointWith || [],
       'dcterms:created': new Date().toISOString(),
       'owl:equivalentClass': [record.sourceIRI],
       'fandaws:isImported': false,

@@ -3,8 +3,49 @@
  *
  * Subscribes to: graph-changed, concept-selected, concept-deselected
  * Emits: concept-selected (via state.selectConcept)
+ *
+ * X9 Step 7.12 (2026-04-29): tabbed view splits the tree into Concepts
+ * (concept-class hierarchy) and Relations (FANDAWS relation-class
+ * records, currently typed `fandaws:RelationTypeClass`). Tab labels
+ * intentionally use "Relations" rather than "Object Properties" — the
+ * Reified Constitutive Relations Specification (in flight) will revise
+ * what these records carry; "Relations" is short, accurate at the
+ * FANDAWS storage level, and avoids over-committing to OWL-source
+ * terminology that may shift when the spec locks. Step 7.12 scope is
+ * intentionally minimal: render existing fields only, no schema
+ * additions, no anticipatory rendering for the spec-driven richer
+ * detail-pane work that lands in its own cycle.
  */
 import { escapeHtml, bfoDotClass } from '../utils.js';
+
+/**
+ * Detect whether a concept is a FANDAWS relation-class record.
+ * Used by the Step 7.12 tab filter.
+ * @param {object} concept
+ * @returns {boolean}
+ */
+export function isRelationClass(concept) {
+  const t = concept?.['@type'];
+  if (!t) return false;
+  if (Array.isArray(t)) return t.includes('fandaws:RelationTypeClass');
+  return t === 'fandaws:RelationTypeClass';
+}
+
+/**
+ * Filter a concepts list by tab. Concepts tab = non-relation, non-imported.
+ * Relations tab = relation-class records only. Exported for unit testability.
+ * @param {object[]} concepts
+ * @param {'concepts'|'relations'} tab
+ * @returns {object[]}
+ */
+export function filterConceptsByTab(concepts, tab) {
+  if (tab === 'relations') {
+    return concepts.filter(c => isRelationClass(c));
+  }
+  // Default 'concepts' tab: exclude relation-classes; include both
+  // user-promoted concepts and BFO infrastructure (fandaws:isImported).
+  return concepts.filter(c => !isRelationClass(c));
+}
 
 /**
  * Detect BFO category from concept's rdfs:subClassOf entries.
@@ -30,15 +71,41 @@ export function initGraphTree(container, state) {
   const treeContainer = container.querySelector('#tree-container');
   const filterInput = container.querySelector('#tree-filter');
   let expandedNodes = new Set();
+  // X9 Step 7.12: active tab state (Concepts default; Relations option).
+  let activeTreeTab = 'concepts';
+
+  function renderTabs(allConcepts) {
+    const conceptsCount = filterConceptsByTab(allConcepts, 'concepts').length;
+    const relationsCount = filterConceptsByTab(allConcepts, 'relations').length;
+    return `
+      <div class="wb-tree-tabs" role="tablist" style="display: flex; gap: 4px; padding: 4px 8px 8px 8px; border-bottom: 1px solid var(--border);">
+        <button class="wb-tree-tab ${activeTreeTab === 'concepts' ? 'wb-tree-tab--active' : ''}"
+                data-tab="concepts" role="tab"
+                style="flex: 1; padding: 4px 8px; font-size: 0.85em; cursor: pointer; background: ${activeTreeTab === 'concepts' ? 'var(--accent-bg, rgba(108, 138, 255, 0.12))' : 'transparent'}; border: 1px solid var(--border); border-radius: 3px; color: ${activeTreeTab === 'concepts' ? 'var(--accent)' : 'inherit'};">
+          Concepts (${conceptsCount})
+        </button>
+        <button class="wb-tree-tab ${activeTreeTab === 'relations' ? 'wb-tree-tab--active' : ''}"
+                data-tab="relations" role="tab"
+                style="flex: 1; padding: 4px 8px; font-size: 0.85em; cursor: pointer; background: ${activeTreeTab === 'relations' ? 'var(--accent-bg, rgba(108, 138, 255, 0.12))' : 'transparent'}; border: 1px solid var(--border); border-radius: 3px; color: ${activeTreeTab === 'relations' ? 'var(--accent)' : 'inherit'};">
+          Relations (${relationsCount})
+        </button>
+      </div>
+    `;
+  }
 
   function render() {
     const graph = state.getGraph();
-    const concepts = graph?.['fandaws:concepts'] || [];
+    const allConcepts = graph?.['fandaws:concepts'] || [];
 
-    if (concepts.length === 0) {
+    if (allConcepts.length === 0) {
       treeContainer.innerHTML = '<div class="wb-tree-empty">No concepts yet. Start conversing to build your graph.</div>';
       return;
     }
+
+    // X9 Step 7.12 (2026-04-29): tab-scoped concept set. Default tab is
+    // Concepts (non-relation-class). Relations tab shows only the
+    // fandaws:RelationTypeClass entries.
+    const concepts = filterConceptsByTab(allConcepts, activeTreeTab);
 
     const filterText = (filterInput?.value || '').toLowerCase().trim();
 
@@ -111,11 +178,33 @@ export function initGraphTree(container, state) {
       renderNode(root, 0);
     }
 
-    treeContainer.innerHTML = html.join('');
+    // X9 Step 7.12: tab strip rendered above the tree body. Active-tab
+    // visual highlight via wb-tree-tab--active. If the active tab has
+    // zero entries (e.g., empty Relations tab), show a quiet empty hint
+    // beneath the tabs so the panel doesn't look broken.
+    const treeBody = html.length > 0
+      ? html.join('')
+      : `<div class="wb-tree-empty" style="padding: 12px; font-size: 0.85em; color: var(--muted);">No ${activeTreeTab === 'relations' ? 'relations' : 'concepts'} yet in this graph.</div>`;
+    treeContainer.innerHTML = renderTabs(allConcepts) + treeBody;
   }
 
   // Click handlers (delegated)
   treeContainer.addEventListener('click', (e) => {
+    // X9 Step 7.12: tab click — switch active tab and re-render. Resets
+    // expandedNodes scope is fine; re-using the same set across tabs is
+    // acceptable since IRIs are unique.
+    const tab = e.target.closest('[data-tab]');
+    if (tab) {
+      const next = tab.dataset.tab;
+      if (next === 'concepts' || next === 'relations') {
+        if (activeTreeTab !== next) {
+          activeTreeTab = next;
+          render();
+        }
+      }
+      return;
+    }
+
     const toggle = e.target.closest('[data-toggle]');
     if (toggle) {
       const iri = toggle.dataset.toggle;

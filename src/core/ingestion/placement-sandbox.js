@@ -94,13 +94,35 @@ const BFO_CLASS_NORMALIZE = {
 
 /**
  * Normalize a BFO class reference to a canonical category name.
+ *
+ * X9 Step 7.6 (2026-04-28): obofoundry URI normalization. CCO and other
+ * BFO-importing ontologies declare rdfs:subClassOf using full obofoundry
+ * URIs (`http://purl.obolibrary.org/obo/BFO_0000019`) or the obo: prefix
+ * (`obo:BFO_0000019`) rather than the bfo: prefix (`bfo:BFO_0000019`)
+ * the existing normalize table is keyed under. Strip known obofoundry
+ * prefixes to the canonical `bfo:BFO_NNNNNNN` short form before lookup
+ * so all three URI variants resolve to the same BFO category.
+ *
  * @param {string} ref
  * @returns {string|null}
  */
 function normalizeBfoClass(ref) {
   if (!ref) return null;
-  // Direct lookup
+  // Direct lookup (existing entries in BFO_CLASS_NORMALIZE)
   if (BFO_CLASS_NORMALIZE[ref]) return BFO_CLASS_NORMALIZE[ref];
+
+  // X9 Step 7.6: prefix-strip pre-normalizer for obofoundry URI variants.
+  // Recognize:
+  //   http://purl.obolibrary.org/obo/BFO_NNNNNNN  (full obofoundry URI)
+  //   https://purl.obolibrary.org/obo/BFO_NNNNNNN (TLS variant)
+  //   obo:BFO_NNNNNNN                              (obo prefix shorthand)
+  // Map to the canonical bfo:BFO_NNNNNNN form for lookup.
+  const obofoundryMatch = /^(?:https?:\/\/purl\.obolibrary\.org\/obo\/|obo:)(BFO_\d{7})$/.exec(ref);
+  if (obofoundryMatch) {
+    const canonical = `bfo:${obofoundryMatch[1]}`;
+    if (BFO_CLASS_NORMALIZE[canonical]) return BFO_CLASS_NORMALIZE[canonical];
+  }
+
   // Without spaces
   const noSpaces = ref.replace(/\s+/g, '');
   if (BFO_CLASS_NORMALIZE[noSpaces]) return BFO_CLASS_NORMALIZE[noSpaces];

@@ -74,9 +74,22 @@ export function detectFormat(filename, contentStart) {
 
 /**
  * Check if a term is a blank node (anonymous class expression).
+ *
+ * X9 Step 7.7 (2026-04-28): widened to catch `n3-N` style blank-node
+ * identifiers emitted by the underlying RDF parser when CCO-style
+ * multi-valued rdfs:subClassOf includes anonymous owl:Restriction
+ * classes alongside named BFO superclasses. Previously the regex only
+ * matched `n\d+$` (e.g., `n5`); the actual emitted format is `n3-0`
+ * (digit-hyphen-digit), so blank-node restrictions fell through the
+ * filter and overwrote the real BFO superclass IRI in the parser's
+ * subClassOf Map. Now matches both `n5` and `n3-0` forms.
  */
-function isBlankNode(value) {
-  return value && (value.startsWith('_:') || /^df_\d+_\d+$/.test(value) || /^n\d+$/.test(value));
+export function isBlankNode(value) {
+  return value && (
+    value.startsWith('_:') ||
+    /^df_\d+_\d+$/.test(value) ||
+    /^n\d+(-\d+)?$/.test(value)
+  );
 }
 
 /**
@@ -206,8 +219,14 @@ function extractPipelineInput(triples) {
     }
 
     if (predicate === RDFS_SUBCLASS_OF && !isBlankNode(subject)) {
-      // Only store named-node superclasses; blank nodes are complex expressions
-      if (!isBlankNode(object)) {
+      // Only store named-node superclasses; blank nodes are complex expressions.
+      // X9 Step 7.7 (2026-04-28): first-named-wins guard. CCO-style ontologies
+      // declare `rdfs:subClassOf NamedClass , [owl:Restriction ...]` —
+      // multiple subClassOf triples for one class. If a named IRI was already
+      // stored, don't overwrite it with a later named IRI (preserves first-
+      // declared semantics). Blank-node restrictions are rejected by the
+      // isBlankNode check above; this guard handles the multi-named case.
+      if (!isBlankNode(object) && !subClassOf.has(subject)) {
         subClassOf.set(subject, object);
       }
     }

@@ -596,14 +596,47 @@ export function initPhase1ReviewPanel(el, nav) {
         routing = { disposition: 'NovelPromotionPanel', topScore: 0, secondScore: 0, margin: 0 };
       }
 
-      // X9 Step 7.5++ declared-parent precedence: if the declared
-      // subPropertyOf is itself a property staged in this session AND
-      // the score didn't clear AutoMerged, override to RelationDeferred.
-      // AutoMerged short-circuit is preserved — high-confidence canonical
-      // matches still win even when a declared in-session parent exists.
-      if (prop.subPropertyOf &&
-          parsedPropertyIRIs.has(prop.subPropertyOf) &&
-          routing.disposition !== 'AutoMerged') {
+      // X9 Step 7.9 (2026-04-29): BFO object property auto-confirm.
+      // When prop.subPropertyOf resolves to a known BFO 2020 object
+      // property (BFO_0000056 / BFO_0000115 / BFO_0000178 / etc.), route
+      // directly to AutoMerged at 0.91 against the BFO IRI as canonical.
+      // Mirror of Step 7.6's BFO class normalization for Phase 1. This
+      // pre-empts both fingerprint-scoring (only 3 hardcoded seeds) and
+      // the Step 7.5++ in-session-sibling override below — BFO root
+      // parents outrank everything because the analyst's declared
+      // subPropertyOf is the definitive assertion.
+      // Synthesizes a top-score entry so the existing Merge canonical-
+      // write path (record.scores[0].canonicalId) finds the BFO target.
+      const bfoParent = prop.subPropertyOf && Fandaws.normalizeBfoObjectProperty
+        ? Fandaws.normalizeBfoObjectProperty(prop.subPropertyOf)
+        : null;
+      if (bfoParent) {
+        routing = {
+          disposition: 'AutoMerged',
+          topScore: 0.91,
+          secondScore: routing.topScore || 0,
+          margin: 0.91 - (routing.topScore || 0),
+          mergedInto: bfoParent.canonicalIRI,
+          bfoParent,
+        };
+        scores = [
+          {
+            canonicalId: bfoParent.canonicalIRI,
+            score: 0.91,
+            breakdown: {},
+            label: bfoParent.label,
+            source: 'bfo',
+          },
+          ...scores,
+        ].slice(0, 10);
+      } else if (prop.subPropertyOf &&
+                 parsedPropertyIRIs.has(prop.subPropertyOf) &&
+                 routing.disposition !== 'AutoMerged') {
+        // X9 Step 7.5++ declared-parent precedence: if the declared
+        // subPropertyOf is itself a property staged in this session AND
+        // the score didn't clear AutoMerged, override to RelationDeferred.
+        // AutoMerged short-circuit is preserved — high-confidence canonical
+        // matches still win even when a declared in-session parent exists.
         routing = {
           disposition: 'RelationDeferred',
           topScore: routing.topScore,

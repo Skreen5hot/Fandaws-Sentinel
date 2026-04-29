@@ -158,6 +158,77 @@ const BFO_CLASS_NORMALIZE = {
   'bfo:BFO_0000202': 'TemporalRegion',
 };
 
+// ── BFO Object Property Catalog (X9 Step 7.9 — 2026-04-29) ──
+//
+// Property-side analog of BFO_CLASS_NORMALIZE. Each entry is a BFO 2020
+// object property (BFO root relation) keyed by its `BFO_NNNNNNN` ID.
+//
+// Used by:
+//   - Phase 2 runPhase2 auto-confirm: when a candidate declares
+//     `rdfs:subPropertyOf` against one of these IRIs, route directly to
+//     AutoMerged at 0.91 (mirror of Step 7.6's BFO class normalization).
+//   - Phase 2 Sub-Property picker (Step 7.10): third source pool of
+//     well-known BFO parent options badged "BFO" alongside in-session
+//     siblings + score-ranked seeds.
+//
+// Inverse-of pairs preserved for future fingerprint-scoring enhancements
+// (banked Step 7.9 out-of-scope) and for picker tooltip context.
+export const BFO_OBJECT_PROPERTIES = [
+  { id: 'BFO_0000050', name: 'part_of',                    label: 'part of',                    inverseOf: 'BFO_0000051' },
+  { id: 'BFO_0000051', name: 'has_part',                   label: 'has part',                   inverseOf: 'BFO_0000050' },
+  { id: 'BFO_0000054', name: 'realized_in',                label: 'realized in',                inverseOf: 'BFO_0000055' },
+  { id: 'BFO_0000055', name: 'realizes',                   label: 'realizes',                   inverseOf: 'BFO_0000054' },
+  { id: 'BFO_0000056', name: 'participates_in',            label: 'participates in',            inverseOf: 'BFO_0000057' },
+  { id: 'BFO_0000057', name: 'has_participant',            label: 'has participant',            inverseOf: 'BFO_0000056' },
+  { id: 'BFO_0000058', name: 'concretizes',                label: 'concretizes',                inverseOf: 'BFO_0000059' },
+  { id: 'BFO_0000059', name: 'is_concretized_by',          label: 'is concretized by',          inverseOf: 'BFO_0000058' },
+  { id: 'BFO_0000062', name: 'preceded_by',                label: 'preceded by',                inverseOf: 'BFO_0000063' },
+  { id: 'BFO_0000063', name: 'precedes',                   label: 'precedes',                   inverseOf: 'BFO_0000062' },
+  { id: 'BFO_0000066', name: 'occurs_in',                  label: 'occurs in',                  inverseOf: 'BFO_0000067' },
+  { id: 'BFO_0000067', name: 'site_of',                    label: 'site of',                    inverseOf: 'BFO_0000066' },
+  { id: 'BFO_0000084', name: 'specifically_depends_on',    label: 'specifically depends on',    inverseOf: 'BFO_0000195' },
+  { id: 'BFO_0000101', name: 'generically_depends_on',     label: 'generically depends on',     inverseOf: null },
+  { id: 'BFO_0000115', name: 'has_member_part',            label: 'has member part',            inverseOf: 'BFO_0000129' },
+  { id: 'BFO_0000129', name: 'member_part_of',             label: 'member part of',             inverseOf: 'BFO_0000115' },
+  { id: 'BFO_0000176', name: 'continuant_part_of',         label: 'continuant part of',         inverseOf: 'BFO_0000178' },
+  { id: 'BFO_0000178', name: 'has_continuant_part',        label: 'has continuant part',        inverseOf: 'BFO_0000176' },
+  { id: 'BFO_0000183', name: 'environs',                   label: 'environs',                   inverseOf: 'BFO_0000184' },
+  { id: 'BFO_0000184', name: 'environed_by',               label: 'environed by',               inverseOf: 'BFO_0000183' },
+  { id: 'BFO_0000195', name: 'specifically_depended_on_by',label: 'specifically depended on by',inverseOf: 'BFO_0000084' },
+  { id: 'BFO_0000196', name: 'bearer_of',                  label: 'bearer of',                  inverseOf: 'BFO_0000197' },
+  { id: 'BFO_0000197', name: 'inheres_in',                 label: 'inheres in',                 inverseOf: 'BFO_0000196' },
+  { id: 'BFO_0000199', name: 'occupies_temporal_region',   label: 'occupies temporal region',   inverseOf: null },
+  { id: 'BFO_0000200', name: 'occupies_spatial_region',    label: 'occupies spatial region',    inverseOf: null },
+  { id: 'BFO_0000218', name: 'has_temporal_part',          label: 'has temporal part',          inverseOf: 'BFO_0000219' },
+  { id: 'BFO_0000219', name: 'temporal_part_of',           label: 'temporal part of',           inverseOf: 'BFO_0000218' },
+];
+
+/**
+ * X9 Step 7.9 (2026-04-29) — Normalize a BFO object property reference
+ * (full obofoundry URI / obo: / bfo: prefix / snake_case name) to a
+ * catalog entry with canonical IRI. Mirror of normalizeBfoClass for the
+ * property side. Returns null when the reference doesn't resolve to a
+ * known BFO 2020 object property.
+ *
+ * @param {string} ref - rdfs:subPropertyOf target IRI or name
+ * @returns {object|null} { id, name, label, inverseOf, canonicalIRI } or null
+ */
+export function normalizeBfoObjectProperty(ref) {
+  if (!ref) return null;
+  // URI-prefix-strip pattern: matches full obofoundry URI, obo: prefix,
+  // bfo: prefix, or bare BFO_NNNNNNN. Reuses Step 7.6's regex shape.
+  const match = /^(?:https?:\/\/purl\.obolibrary\.org\/obo\/|obo:|bfo:)?(BFO_\d{7})$/.exec(ref);
+  if (match) {
+    const entry = BFO_OBJECT_PROPERTIES.find(p => p.id === match[1]);
+    if (entry) return { ...entry, canonicalIRI: `obo:${entry.id}` };
+  }
+  // Also match snake_case names ('has_member_part') or human labels
+  // ('has member part'). Lets the picker resolve user-typed entries.
+  const byName = BFO_OBJECT_PROPERTIES.find(p => p.name === ref || p.label === ref);
+  if (byName) return { ...byName, canonicalIRI: `obo:${byName.id}` };
+  return null;
+}
+
 /**
  * Normalize a BFO class reference to a canonical category name.
  *

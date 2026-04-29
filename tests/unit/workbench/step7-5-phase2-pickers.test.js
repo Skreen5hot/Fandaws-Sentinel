@@ -23,7 +23,11 @@ import {
 } from '../../../docs/workbench/js/panels/ingest/phase2-review-panel.js';
 import { runViolationHarness } from '../../../docs/workbench/js/panels/ingest/phase3-review-panel.js';
 import { InMemoryStateAdapter, buildTransitiveAncestorChain } from '../../../src/adapters/state/in-memory-state-adapter.js';
-import { evaluatePlacement, routePlacement } from '../../../src/core/ingestion/placement-sandbox.js';
+import {
+  evaluatePlacement,
+  routePlacement,
+  BFO_OBJECT_PROPERTIES,
+} from '../../../src/core/ingestion/placement-sandbox.js';
 import { createKnowledgeGraph } from '../../../src/types/index.js';
 
 function adapterWithSandbox() {
@@ -128,6 +132,87 @@ describe('Step 7.5++++ — findPickerCandidate (Gap B helper)', () => {
     ];
     const result = findPickerCandidate(record, 'fandaws:class/relation/x/parent', allRecords);
     expect(result.bfoSubcategory).toBe('bfo:Quality');
+  });
+});
+
+describe('Step 7.10 — findPickerCandidate BFO catalog source pool', () => {
+  it('resolves a BFO 2020 root object property via the bfoCatalog argument', () => {
+    const record = { iri: 'cco:ont00001787', scores: [] };
+    const result = findPickerCandidate(
+      record,
+      'obo:BFO_0000056',
+      [],
+      BFO_OBJECT_PROPERTIES,
+    );
+    expect(result).not.toBeNull();
+    expect(result.canonicalId).toBe('obo:BFO_0000056');
+    expect(result.label).toBe('participates in');
+    expect(result.source).toBe('bfo');
+  });
+
+  it('returns null when parentId points at unknown BFO IRI', () => {
+    const record = { iri: 'ex:test', scores: [] };
+    const result = findPickerCandidate(record, 'obo:BFO_9999999', [], BFO_OBJECT_PROPERTIES);
+    expect(result).toBeNull();
+  });
+
+  it('record.scores match takes precedence over BFO catalog match for same IRI', () => {
+    // Degenerate case: if a BFO IRI somehow ends up in record.scores
+    // (unlikely but possible if the analyst already promoted under it),
+    // the scores entry wins so its bfoSubcategory annotation is used.
+    const record = {
+      iri: 'ex:test',
+      scores: [{ canonicalId: 'obo:BFO_0000056', score: 1.0, bfoSubcategory: 'bfo:Process', source: 'scored' }],
+    };
+    const result = findPickerCandidate(record, 'obo:BFO_0000056', [], BFO_OBJECT_PROPERTIES);
+    expect(result.bfoSubcategory).toBe('bfo:Process');
+    expect(result.source).toBe('scored');
+  });
+
+  it('in-session sibling match takes precedence over BFO catalog match for same IRI', () => {
+    const record = { iri: 'ex:test', scores: [] };
+    const allRecords = [
+      {
+        iri: 'ex:other',
+        canonicalRelationIRI: 'obo:BFO_0000056',
+        action: 'Merge',
+        bfoSubcategoryAtPromote: 'bfo:Process',
+      },
+    ];
+    const result = findPickerCandidate(record, 'obo:BFO_0000056', allRecords, BFO_OBJECT_PROPERTIES);
+    expect(result.source).toBe('in-session');
+  });
+
+  it('PromoteAsSubProperty under BFO catalog parent writes correct subPropertyOf to canonical', () => {
+    // End-to-end: analyst sub-properties cco:ont00001787 ("agent in")
+    // under obo:BFO_0000056 (BFO participates_in) via the picker.
+    // promoteCanonicalRelation writes rdfs:subClassOf [obo:BFO_0000056]
+    // — Phase 3 orphan rule (Step 7.5+++) recognizes the parent.
+    const adapter = adapterWithSandbox();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const ingest = adapter.ingestOntology(graphId, {
+      sourceOntology: 'cco.ttl', classes: [],
+      properties: [{ iri: 'cco:ont00001787', label: 'agent in' }],
+    });
+    const result = adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'cco:ont00001787',
+      candidateLabel: 'agent in',
+      subPropertyOf: 'obo:BFO_0000056',
+      ingestedInSession: ingest.sessionId,
+    });
+    expect(result.canonicalRelationIRI).toBeTruthy();
+    const graph = adapter._graphs.get(graphId);
+    const canonical = graph['fandaws:concepts'].find(c =>
+      c['@id'] === result.canonicalRelationIRI
+    );
+    expect(canonical['rdfs:subClassOf']).toContain('obo:BFO_0000056');
+
+    // Phase 3: zero orphan warnings (Step 7.5+++ recognizes
+    // rdfs:subClassOf as a relation-class parent attribution).
+    const { violations } = runViolationHarness(graph, [], [], { Fandaws: {} });
+    const orphans = violations.filter(v => v.ruleName === 'OrphanClassViolation');
+    expect(orphans).toHaveLength(0);
   });
 });
 

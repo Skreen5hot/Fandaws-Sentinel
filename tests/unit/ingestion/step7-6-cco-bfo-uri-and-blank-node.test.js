@@ -22,7 +22,11 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { evaluatePlacement } from '../../../src/core/ingestion/placement-sandbox.js';
+import {
+  evaluatePlacement,
+  BFO_OBJECT_PROPERTIES,
+  normalizeBfoObjectProperty,
+} from '../../../src/core/ingestion/placement-sandbox.js';
 import { isBlankNode } from '../../../src/core/ingestion/ontology-parser.js';
 
 describe('Step 7.6 — BFO URI normalization (obofoundry URI variants)', () => {
@@ -269,6 +273,125 @@ describe('Step 7.8 — BFO 2020 mid-level / leaf class coverage', () => {
       const result = evaluatePlacement({ iri: 'ex:test', superclass: ref });
       expect(result.placement).toBe(expected);
     }
+  });
+});
+
+describe('Step 7.9 — BFO object property catalog + normalizeBfoObjectProperty', () => {
+  it('catalog has unique BFO IDs (no duplicates)', () => {
+    const ids = BFO_OBJECT_PROPERTIES.map(p => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('each catalog entry has required fields (id, name, label, inverseOf)', () => {
+    for (const entry of BFO_OBJECT_PROPERTIES) {
+      expect(entry.id).toMatch(/^BFO_\d{7}$/);
+      expect(typeof entry.name).toBe('string');
+      expect(entry.name.length).toBeGreaterThan(0);
+      expect(typeof entry.label).toBe('string');
+      expect(entry.label.length).toBeGreaterThan(0);
+      // inverseOf is either null or another valid BFO_NNNNNNN ID
+      if (entry.inverseOf !== null) {
+        expect(entry.inverseOf).toMatch(/^BFO_\d{7}$/);
+      }
+    }
+  });
+
+  it('inverseOf pairs are bidirectionally consistent within the catalog', () => {
+    for (const entry of BFO_OBJECT_PROPERTIES) {
+      if (!entry.inverseOf) continue;
+      const partner = BFO_OBJECT_PROPERTIES.find(p => p.id === entry.inverseOf);
+      expect(partner).toBeDefined();
+      // Each partner's inverseOf should point back at the original
+      expect(partner.inverseOf).toBe(entry.id);
+    }
+  });
+
+  it('normalizeBfoObjectProperty resolves full obofoundry URI', () => {
+    const result = normalizeBfoObjectProperty('http://purl.obolibrary.org/obo/BFO_0000056');
+    expect(result).not.toBeNull();
+    expect(result.id).toBe('BFO_0000056');
+    expect(result.name).toBe('participates_in');
+    expect(result.label).toBe('participates in');
+    expect(result.canonicalIRI).toBe('obo:BFO_0000056');
+    expect(result.inverseOf).toBe('BFO_0000057');
+  });
+
+  it('normalizeBfoObjectProperty resolves obo: prefix shorthand', () => {
+    const result = normalizeBfoObjectProperty('obo:BFO_0000115');
+    expect(result.name).toBe('has_member_part');
+    expect(result.canonicalIRI).toBe('obo:BFO_0000115');
+  });
+
+  it('normalizeBfoObjectProperty resolves bfo: prefix shorthand', () => {
+    const result = normalizeBfoObjectProperty('bfo:BFO_0000050');
+    expect(result.name).toBe('part_of');
+    expect(result.canonicalIRI).toBe('obo:BFO_0000050');
+  });
+
+  it('normalizeBfoObjectProperty resolves bare BFO_NNNNNNN', () => {
+    const result = normalizeBfoObjectProperty('BFO_0000178');
+    expect(result.name).toBe('has_continuant_part');
+  });
+
+  it('normalizeBfoObjectProperty resolves snake_case name', () => {
+    const result = normalizeBfoObjectProperty('participates_in');
+    expect(result.id).toBe('BFO_0000056');
+    expect(result.canonicalIRI).toBe('obo:BFO_0000056');
+  });
+
+  it('normalizeBfoObjectProperty resolves human label', () => {
+    const result = normalizeBfoObjectProperty('has member part');
+    expect(result.id).toBe('BFO_0000115');
+  });
+
+  it('normalizeBfoObjectProperty returns null for non-BFO IRI', () => {
+    expect(normalizeBfoObjectProperty('http://purl.obolibrary.org/obo/IAO_0000310')).toBeNull();
+    expect(normalizeBfoObjectProperty('obo:IAO_0000136')).toBeNull();
+    expect(normalizeBfoObjectProperty('cco:ont00001787')).toBeNull();
+  });
+
+  it('normalizeBfoObjectProperty returns null for unknown BFO_NNNNNNN (not in catalog)', () => {
+    // BFO_9999999 is not a real BFO ID
+    expect(normalizeBfoObjectProperty('obo:BFO_9999999')).toBeNull();
+  });
+
+  it('normalizeBfoObjectProperty handles falsy/empty values', () => {
+    expect(normalizeBfoObjectProperty(null)).toBeNull();
+    expect(normalizeBfoObjectProperty(undefined)).toBeNull();
+    expect(normalizeBfoObjectProperty('')).toBeNull();
+  });
+
+  it('catalog covers BFO root properties CCO commonly uses (smoke check)', () => {
+    // CCO AgentOntology routinely declares subPropertyOf against these.
+    const expectedSubset = [
+      'BFO_0000050', // part_of
+      'BFO_0000051', // has_part
+      'BFO_0000056', // participates_in (used by cco:ont00001787 "agent in")
+      'BFO_0000057', // has_participant
+      'BFO_0000115', // has_member_part
+      'BFO_0000178', // has_continuant_part
+      'BFO_0000196', // bearer_of
+      'BFO_0000197', // inheres_in
+    ];
+    const ids = new Set(BFO_OBJECT_PROPERTIES.map(p => p.id));
+    for (const expected of expectedSubset) {
+      expect(ids.has(expected)).toBe(true);
+    }
+  });
+
+  it('CCO "agent in" scenario: subPropertyOf BFO_0000056 resolves correctly', () => {
+    // cco:ont00001787 "agent in" declares
+    //   rdfs:subPropertyOf <http://purl.obolibrary.org/obo/BFO_0000056>
+    // The Phase 2 runPhase2 path calls normalizeBfoObjectProperty on the
+    // subPropertyOf value; resolution drives the AutoMerged disposition.
+    const result = normalizeBfoObjectProperty('http://purl.obolibrary.org/obo/BFO_0000056');
+    expect(result).toEqual({
+      id: 'BFO_0000056',
+      name: 'participates_in',
+      label: 'participates in',
+      inverseOf: 'BFO_0000057',
+      canonicalIRI: 'obo:BFO_0000056',
+    });
   });
 });
 

@@ -195,7 +195,14 @@ export { SynchronousOrchestrationAdapter } from './adapters/orchestration/synchr
 export { M2MOrchestrationAdapter } from './adapters/orchestration/m2m-orchestration-adapter.js';
 
 // Ingestion pipeline (Phases D1, D2)
-export { evaluatePlacement, routePlacement } from './core/ingestion/placement-sandbox.js';
+export {
+  evaluatePlacement,
+  routePlacement,
+  // X9 Step 7.9 (2026-04-29): BFO object property catalog + normalizer for
+  // Phase 2 subPropertyOf auto-confirm + Sub-Property picker third source pool.
+  BFO_OBJECT_PROPERTIES,
+  normalizeBfoObjectProperty,
+} from './core/ingestion/placement-sandbox.js';
 export { buildFingerprint, scoreAgainstAll, validateWeightVector, DEFAULT_WEIGHT_VECTOR, computeMatchScore } from './core/ingestion/fingerprint-matcher.js';
 export { routeCandidate, validateSubPropertyPromotion, validateMergeTarget } from './core/ingestion/disambiguation-router.js';
 export { buildFactBase, extractSubclassFacts } from './core/ingestion/fact-base-builder.js';

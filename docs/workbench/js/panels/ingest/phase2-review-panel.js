@@ -51,16 +51,18 @@ const DISPOSITION_ORDER = ['PendingHumanResolution', 'DisambiguationRecord', 'Re
 // categories that are valid relation parents. "Skip" lets the analyst
 // leave the canonical ungraded — Phase 3 will still emit the orphan
 // warning in that case (per Step 7.5+++ relation-class orphan logic).
-// X9 Step 7.5++++ (2026-04-28): unified picker-candidate lookup. The
-// PromoteAsSubProperty Confirm handler reads pickerSelectedParent (a
-// canonicalId from the radio); that canonicalId may match either an
-// entry in record.scores (seed/graph candidates pre-computed at Phase
-// 2 start) OR an in-session promoted sibling (records[i] whose
-// canonicalRelationIRI was set by an earlier resolveAction). This
-// helper searches both pools so the parent's bfoSubcategory propagates
-// to the child via PD-7 inheritance regardless of the parent's source.
+// X9 Step 7.5++++ (2026-04-28) + Step 7.10 (2026-04-29): unified picker-
+// candidate lookup. The PromoteAsSubProperty Confirm handler reads
+// pickerSelectedParent (a canonicalId from the radio); that canonicalId
+// may match an entry in (1) record.scores (seed/graph candidates pre-
+// computed at Phase 2 start), (2) in-session promoted siblings
+// (records[i] whose canonicalRelationIRI was set by an earlier
+// resolveAction), or (3) the BFO 2020 object property catalog (Step
+// 7.10 third source pool). This helper searches all three pools so the
+// parent's bfoSubcategory / canonical IRI propagates to the child via
+// PD-7 inheritance regardless of the parent's source.
 // Exported for unit testability.
-export function findPickerCandidate(record, parentId, allRecords = []) {
+export function findPickerCandidate(record, parentId, allRecords = [], bfoCatalog = []) {
   if (!parentId) return null;
   const fromScores = record.scores?.find(s => s.canonicalId === parentId);
   if (fromScores) return fromScores;
@@ -72,6 +74,20 @@ export function findPickerCandidate(record, parentId, allRecords = []) {
       canonicalId: sibling.canonicalRelationIRI,
       bfoSubcategory: sibling.bfoSubcategoryAtPromote || sibling.inheritedBfoSubcategory || null,
       source: 'in-session',
+    };
+  }
+  // X9 Step 7.10 (2026-04-29): BFO object property catalog match. The
+  // catalog contains BFO 2020 root object properties (part_of, has_part,
+  // participates_in, has_member_part, etc.) — well-known parents that
+  // CCO and other OBO Foundry ontologies routinely declare via
+  // rdfs:subPropertyOf. canonicalId for catalog entries is `obo:BFO_NNNNNNN`.
+  const bfo = bfoCatalog.find(b => `obo:${b.id}` === parentId);
+  if (bfo) {
+    return {
+      canonicalId: `obo:${bfo.id}`,
+      label: bfo.label,
+      bfoSubcategory: null,
+      source: 'bfo',
     };
   }
   return null;
@@ -427,16 +443,23 @@ export function initPhase2ReviewPanel(el, nav) {
   // rule. Critical Invariant W-3 affordance — analyst sees the invariant
   // holding, not just the system enforcing it silently.
   function renderSubPropertyPicker(record) {
-    // X9 Step 7.5++++ (2026-04-28): two-source candidate list.
+    // X9 Step 7.5++++ (2026-04-28) + Step 7.10 (2026-04-29): three-source
+    // candidate list.
     // (1) In-session promoted siblings: properties the analyst already
     //     resolved via Merge / PromoteAsNewRelation / PromoteAsSubProperty
     //     within this Phase 2 session. canonicalId = the minted/merged
     //     IRI. canonicalDomain projected from declaredDomain so PD-6
     //     broadness greying still applies via isBroaderThanParent.
-    // (2) Score-ranked seed/graph candidates: existing record.scores
+    // (2) BFO 2020 object property catalog (Step 7.10 — NEW): well-known
+    //     BFO root parents (has_member_part, participates_in, part_of,
+    //     etc.) that CCO and OBO Foundry ontologies routinely declare
+    //     subPropertyOf. canonicalId = obo:BFO_NNNNNNN.
+    // (3) Score-ranked seed/graph candidates: existing record.scores
     //     pre-computed at Phase 2 start.
-    // In-session entries appear first with an "in-session" badge instead
-    // of a score column. PD-6 broadness greying applies uniformly.
+    // In-session entries first, then BFO catalog, then scored entries.
+    // PD-6 broadness greying applies to (1) and (3); BFO root entries
+    // are intrinsically broader than any specific candidate but accepted
+    // as parents (the analyst's declared subPropertyOf semantic).
     const inSessionSiblings = (records || [])
       .filter(r => r.canonicalRelationIRI && r.action !== 'Reject' && r.iri !== record.iri)
       .map(r => ({
@@ -446,11 +469,19 @@ export function initPhase2ReviewPanel(el, nav) {
         bfoSubcategory: r.bfoSubcategoryAtPromote || r.inheritedBfoSubcategory || null,
         source: 'in-session',
       }));
+    const Fandaws = nav.wbState?.Fandaws;
+    const bfoCatalog = (Fandaws?.BFO_OBJECT_PROPERTIES || []).map(p => ({
+      canonicalId: `obo:${p.id}`,
+      label: p.label,
+      canonicalDomain: null,
+      bfoSubcategory: null,
+      source: 'bfo',
+    }));
     const scoredCandidates = (record.scores || [])
       .slice(0, 10)
       .map(s => ({ ...s, source: 'scored' }));
 
-    const allCandidates = [...inSessionSiblings, ...scoredCandidates];
+    const allCandidates = [...inSessionSiblings, ...bfoCatalog, ...scoredCandidates];
 
     return `
       <div class="ig-subprop-picker" id="ig-p2-picker" style="background: var(--surface-2); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
@@ -458,31 +489,45 @@ export function initPhase2ReviewPanel(el, nav) {
         <div class="ig-picker-help" style="font-size: 0.85em; margin-bottom: 8px; color: var(--muted);">
           Per Invariant I-3 / Rule PD-6: child sub-property's range cannot be broader than its parent's. Broader-than-parent options are greyed out.
           ${inSessionSiblings.length > 0 ? `<br/><strong>${inSessionSiblings.length} in-session sibling${inSessionSiblings.length === 1 ? '' : 's'}</strong> available as parent candidates.` : ''}
+          ${bfoCatalog.length > 0 ? `<br/><strong>${bfoCatalog.length} BFO 2020 object propert${bfoCatalog.length === 1 ? 'y' : 'ies'}</strong> available as well-known parent options.` : ''}
         </div>
         <div class="ig-picker-list">
           ${allCandidates.length === 0
             ? '<div style="padding: 8px; color: var(--muted); font-style: italic;">No candidate parents available. Promote as New Relation instead.</div>'
             : allCandidates.map((s, i) => {
                 const broader = isBroaderThanParent(record, s);
-                const disabledAttr = broader ? 'disabled' : '';
+                // X9 Step 7.10: BFO catalog entries are intrinsically broader
+                // than any specific candidate (they're the BFO ROOT properties)
+                // — but they're VALID parents because that's the analyst's
+                // declared subPropertyOf semantic. Suppress PD-6 greying for
+                // BFO source entries; PD-6 still applies to scored + in-session.
+                const isBfo = s.source === 'bfo';
+                const broaderEnforced = broader && !isBfo;
+                const disabledAttr = broaderEnforced ? 'disabled' : '';
                 const isInSession = s.source === 'in-session';
-                const tooltipText = broader
+                const tooltipText = broaderEnforced
                   ? 'Target broader than parent — not allowed (Invariant I-3, Rule PD-6)'
-                  : (isInSession ? `In-session sibling: ${s.label || s.canonicalId}` : `Score ${(s.score || 0).toFixed(3)}`);
+                  : (isInSession
+                      ? `In-session sibling: ${s.label || s.canonicalId}`
+                      : (isBfo
+                          ? `BFO 2020 root object property: ${s.label}`
+                          : `Score ${(s.score || 0).toFixed(3)}`));
                 const radioId = `ig-pd6-radio-${i}`;
-                const trailingMeta = broader
+                const trailingMeta = broaderEnforced
                   ? '<span style="margin-left: 8px; color: var(--muted);">⚠ broader-than-parent (PD-6)</span>'
                   : (isInSession
                       ? `<span class="ig-picker-source ig-disp--deferred" style="margin-left: 8px; padding: 1px 6px; border-radius: 3px; font-size: 0.75em;">in-session</span>${s.bfoSubcategory ? `<span style="margin-left: 6px; color: var(--muted); font-size: 0.85em;">BFO: ${escapeHtml(s.bfoSubcategory)}</span>` : ''}`
-                      : `<span style="margin-left: 8px;">score: ${(s.score || 0).toFixed(3)}</span>`);
+                      : (isBfo
+                          ? `<span class="ig-picker-source ig-disp--deferred" style="margin-left: 8px; padding: 1px 6px; border-radius: 3px; font-size: 0.75em;">BFO</span>`
+                          : `<span style="margin-left: 8px;">score: ${(s.score || 0).toFixed(3)}</span>`));
                 return `
-                  <label class="ig-picker-option ${broader ? 'ig-picker-option--disabled' : ''} ${isInSession ? 'ig-picker-option--in-session' : ''}"
-                         style="display: block; padding: 6px 8px; cursor: ${broader ? 'not-allowed' : 'pointer'}; ${broader ? 'opacity: 0.4;' : ''}"
+                  <label class="ig-picker-option ${broaderEnforced ? 'ig-picker-option--disabled' : ''} ${isInSession ? 'ig-picker-option--in-session' : ''} ${isBfo ? 'ig-picker-option--bfo' : ''}"
+                         style="display: block; padding: 6px 8px; cursor: ${broaderEnforced ? 'not-allowed' : 'pointer'}; ${broaderEnforced ? 'opacity: 0.4;' : ''}"
                          title="${escapeHtml(tooltipText)}">
                     <input type="radio" name="ig-p2-pd6-parent" value="${escapeHtml(s.canonicalId || '')}" id="${radioId}" ${disabledAttr} />
                     <span style="margin-left: 6px;">
                       <code>${escapeHtml(truncateIri(s.canonicalId || ''))}</code>
-                      ${isInSession && s.label ? `<span style="margin-left: 6px; color: var(--muted); font-size: 0.85em;">(${escapeHtml(s.label)})</span>` : ''}
+                      ${(isInSession || isBfo) && s.label ? `<span style="margin-left: 6px; color: var(--muted); font-size: 0.85em;">(${escapeHtml(s.label)})</span>` : ''}
                       ${trailingMeta}
                     </span>
                   </label>
@@ -780,8 +825,13 @@ export function initPhase2ReviewPanel(el, nav) {
       // resolved earlier in this same Phase 2 session.
       let selectedParentIRI = null;
       if (action === 'PromoteAsSubProperty') {
+        // X9 Step 7.10 (2026-04-29): pass BFO catalog as third source so
+        // findPickerCandidate can resolve a parentId pointing at a BFO
+        // 2020 root object property (obo:BFO_NNNNNNN) when the analyst
+        // selected one from the picker.
+        const bfoCatalog = nav.wbState?.Fandaws?.BFO_OBJECT_PROPERTIES || [];
         const parent = pickerSelectedParent
-          ? findPickerCandidate(record, pickerSelectedParent, records)
+          ? findPickerCandidate(record, pickerSelectedParent, records, bfoCatalog)
           : record.scores?.[0];
         if (parent) {
           record.inheritedBfoSubcategory = parent.bfoSubcategory || null;

@@ -1279,6 +1279,10 @@ export class InMemoryStateAdapter extends StateAdapter {
           subject['rdfs:subClassOf'].push(restriction);
           this._graphs.set(graphId, graph);
           this.compile(graphId);
+          // X9 Step 7.14a: fire mutation callback for canonical-graph persistence.
+          this._emitDirectWriteMutation('AddRestrictionFromAxiom', graphId, {
+            classIRI: subject['@id'],
+          });
         }
       }
     }
@@ -1650,6 +1654,12 @@ export class InMemoryStateAdapter extends StateAdapter {
     graph['fandaws:concepts'].push(concept);
     this._graphs.set(graphId, graph);
     this.compile(graphId);
+    // X9 Step 7.14a: fire mutation callback so Workbench canonical-graph
+    // persistence subscriber (debounced auto-save) triggers.
+    this._emitDirectWriteMutation('PromoteCandidate', graphId, {
+      conceptIri: concept['@id'],
+      sessionId,
+    });
   }
 
   /**
@@ -2121,6 +2131,11 @@ export class InMemoryStateAdapter extends StateAdapter {
     graph['fandaws:concepts'].push(relationClass);
     this._graphs.set(graphId, graph);
     this.compile(graphId);
+    // X9 Step 7.14a: fire mutation callback for canonical-graph persistence.
+    this._emitDirectWriteMutation('PromoteCanonicalRelation', graphId, {
+      canonicalRelationIRI,
+      candidateIRI,
+    });
 
     return {
       promoted: true,
@@ -2154,6 +2169,12 @@ export class InMemoryStateAdapter extends StateAdapter {
     target['fandaws:bfoSubcategory'] = bfoSubcategory;
     this._graphs.set(graphId, graph);
     this.compile(graphId);
+    // X9 Step 7.14a: fire mutation callback for canonical-graph persistence.
+    this._emitDirectWriteMutation('SetRelationBfoSubcategory', graphId, {
+      canonicalIRI,
+      bfoSubcategory,
+      prior,
+    });
     return { updated: true, prior };
   }
 
@@ -2219,6 +2240,12 @@ export class InMemoryStateAdapter extends StateAdapter {
     }
 
     this.compile(graphId);
+    // X9 Step 7.14a: fire mutation callback for canonical-graph persistence.
+    this._emitDirectWriteMutation('MergeCanonicalRelation', graphId, {
+      mergeRecordId,
+      candidateIRI,
+      targetCanonicalIRI,
+    });
 
     return {
       merged: true,
@@ -2276,6 +2303,11 @@ export class InMemoryStateAdapter extends StateAdapter {
     concept['rdfs:subClassOf'].push(restriction);
     this._graphs.set(graphId, graph);
     this.compile(graphId);
+    // X9 Step 7.14a: fire mutation callback for canonical-graph persistence.
+    this._emitDirectWriteMutation('AddCanonicalRestriction', graphId, {
+      classIRI,
+      restrictionId,
+    });
 
     return { added: true, restrictionId };
   }
@@ -2854,6 +2886,34 @@ export class InMemoryStateAdapter extends StateAdapter {
       const idx = this._mutationListeners.indexOf(callback);
       if (idx !== -1) this._mutationListeners.splice(idx, 1);
     };
+  }
+
+  /**
+   * X9 Step 7.14a (2026-04-29) — Fire mutation listeners after a direct
+   * graph write that doesn't go through applyMutation. Sites:
+   * _promoteCandidate, promoteCanonicalRelation, mergeCanonicalRelation,
+   * setRelationBfoSubcategory, restriction-write helpers. Without this
+   * notification, downstream subscribers (Workbench canonical-graph
+   * persistence, panel re-renders) miss the change — finalized
+   * ingestion sessions previously appeared to ingest correctly but
+   * vanished on page reload because the persistence subscriber never
+   * fired.
+   *
+   * Synthetic mutation shape: { type, graphId, ... } — listeners that
+   * filter by mutation.type can match new types like 'PromoteCandidate'
+   * or treat them as opaque change signals.
+   *
+   * @private
+   * @param {string} type - synthetic mutation type label
+   * @param {string} graphId
+   * @param {object} [extra={}] - additional fields merged onto mutation
+   */
+  _emitDirectWriteMutation(type, graphId, extra = {}) {
+    const graph = this._graphs.get(graphId);
+    const mutation = { type, graphId, ...extra };
+    for (const listener of this._mutationListeners) {
+      try { listener(mutation, graph); } catch { /* swallow */ }
+    }
   }
 
   // ─────────────────────────────────────────────────────────

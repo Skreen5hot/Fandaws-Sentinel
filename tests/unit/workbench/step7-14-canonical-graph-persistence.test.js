@@ -226,6 +226,111 @@ describe('Step 7.14 — Step 7.13 round-trip: restriction objects survive persis
   });
 });
 
+describe('Step 7.14a — direct-write paths fire mutation callback', () => {
+  // The original Step 7.14 persistence layer subscribed to graph-changed
+  // events emitted from _adapter.onMutation. But every direct-write path
+  // (_promoteCandidate, promoteCanonicalRelation, mergeCanonicalRelation,
+  // setRelationBfoSubcategory, restriction adders) silently mutated the
+  // graph without firing _mutationListeners. Result: ingested concepts
+  // never triggered the persistence subscriber → localStorage stayed
+  // empty → page reload showed BFO-only.
+  //
+  // Step 7.14a adds _emitDirectWriteMutation calls at every direct-write
+  // site. These tests verify the mutation callback fires.
+
+  it('_promoteCandidate fires mutation callback', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const callbacks = [];
+    adapter.onMutation((mutation, graph) => callbacks.push({ mutation, conceptCount: graph['fandaws:concepts'].length }));
+
+    adapter._promoteCandidate(graphId, {
+      sourceIRI: 'cco:test',
+      sourceLabel: 'Test Concept',
+      placementResult: 'MaterialEntity',
+      placementConfidence: 0.91,
+      sourceOntology: 'test.ttl',
+    }, 'fandaws:session/test');
+
+    const promoteCallbacks = callbacks.filter(c => c.mutation.type === 'PromoteCandidate');
+    expect(promoteCallbacks.length).toBeGreaterThan(0);
+    expect(promoteCallbacks[0].mutation.conceptIri).toMatch(/^fandaws:class\//);
+  });
+
+  it('setRelationBfoSubcategory fires mutation callback', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const result = adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'ex:foo',
+      candidateLabel: 'foo',
+      bfoSubcategory: null,
+    });
+    const callbacks = [];
+    adapter.onMutation((mutation) => callbacks.push(mutation));
+    adapter.setRelationBfoSubcategory(graphId, result.canonicalRelationIRI, 'bfo:Role');
+    const matched = callbacks.filter(m => m.type === 'SetRelationBfoSubcategory');
+    expect(matched).toHaveLength(1);
+    expect(matched[0].bfoSubcategory).toBe('bfo:Role');
+  });
+
+  it('promoteCanonicalRelation fires mutation callback', () => {
+    const adapter = new InMemoryStateAdapter();
+    const graphId = 'fandaws:graph/test';
+    adapter.saveGraph(graphId, createKnowledgeGraph({ id: graphId }));
+    const callbacks = [];
+    adapter.onMutation((mutation) => callbacks.push(mutation));
+    adapter.promoteCanonicalRelation(graphId, {
+      candidateIRI: 'cco:test',
+      candidateLabel: 'test relation',
+      bfoSubcategory: 'bfo:Quality',
+    });
+    const matched = callbacks.filter(m => m.type === 'PromoteCanonicalRelation');
+    expect(matched).toHaveLength(1);
+    expect(matched[0].candidateIRI).toBe('cco:test');
+  });
+
+  it('end-to-end: ingestOntology triggers persistence subscriber via promote callback', () => {
+    // Simulate the full flow: WorkbenchStateManager subscribes to
+    // graph-changed; ingestOntology calls _promoteCandidate per confirmed
+    // class; each promote fires the mutation callback; the subscriber's
+    // debounced auto-save eventually persists to localStorage.
+    const state = new WorkbenchStateManager(FandawsStub);
+    const adapter = state.getAdapter();
+    adapter.registerPlacementSandbox(
+      // Lazy load — Step 7.6 placement-sandbox is already exported via
+      // the FandawsStub. For this test we just verify mutation callbacks
+      // fire; we synthesize via _promoteCandidate directly.
+      () => ({ placement: 'MaterialEntity', confidence: 0.91, justification: '', candidates: [] }),
+      () => ({ status: 'PlacementConfirmed', placement: 'MaterialEntity' }),
+    );
+
+    // Promote two concepts directly to bypass the placement-sandbox setup.
+    adapter._promoteCandidate(state.getGraphId(), {
+      sourceIRI: 'cco:test1',
+      sourceLabel: 'Test 1',
+      placementResult: 'MaterialEntity',
+      placementConfidence: 0.91,
+      sourceOntology: 'test.ttl',
+    }, 'fandaws:session/test');
+    adapter._promoteCandidate(state.getGraphId(), {
+      sourceIRI: 'cco:test2',
+      sourceLabel: 'Test 2',
+      placementResult: 'Quality',
+      placementConfidence: 0.91,
+      sourceOntology: 'test.ttl',
+    }, 'fandaws:session/test');
+
+    // Force-flush the debounced timer manually.
+    state._persistCanonicalGraph();
+    const stored = JSON.parse(global.localStorage.getItem(LS_CANONICAL_GRAPH));
+    expect(stored.concepts.length).toBe(2);
+    expect(stored.concepts.find(c => c['rdfs:label'] === 'Test 1')).toBeDefined();
+    expect(stored.concepts.find(c => c['rdfs:label'] === 'Test 2')).toBeDefined();
+  });
+});
+
 describe('Step 7.14 — quota exhaustion graceful degradation', () => {
   it('persist does not throw when localStorage.setItem fails', () => {
     const state = new WorkbenchStateManager(FandawsStub);

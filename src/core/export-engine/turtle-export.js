@@ -7,7 +7,7 @@
  * @see Fandaws_v3.3_Specification.md Section 3.2.6, 5.7
  */
 
-import { extractTriples } from './triple-extractor.js';
+import { extractTriples, compactIri } from './triple-extractor.js';
 import { serializeTurtle } from './turtle-serializer.js';
 import { VERB_TO_SCHEMA } from './relation-type-schemas.js';
 import { isRestrictionNode } from '../../types/type-checks.js';
@@ -27,6 +27,48 @@ const ALL_PREFIXES = {
   skos: 'http://www.w3.org/2004/02/skos/core#',
   xsd: 'http://www.w3.org/2001/XMLSchema#',
 };
+
+/**
+ * X9 Step 7.16 (2026-04-29) — Format an IRI value as a valid Turtle term.
+ *
+ * The Phase D2 ObjectProperty emitter at lines ~72-73 was printing
+ * fandaws:relationDomain / fandaws:relationRange raw — a full URI like
+ * `http://purl.obolibrary.org/obo/BFO_0000141` ends up in the Turtle
+ * output without angle brackets, breaking parsing. The rest of the
+ * serializer assumes inputs are already CURIEs, but property
+ * domain/range fields hold raw URIs from the parser.
+ *
+ * Fix logic (in priority order):
+ *   1. Already a CURIE shape (prefix:local where prefix is in ALL_PREFIXES)
+ *      → return as-is.
+ *   2. compactIri folds the URI to a known prefix → return prefixed form.
+ *   3. Looks like a URI (http/https/urn) → wrap in angle brackets.
+ *   4. Defensive fallback: return as-is. Caller has produced something
+ *      that isn't a URI — likely a literal that ended up in this slot.
+ *
+ * @param {string} value
+ * @returns {string} Turtle-valid IRI term
+ */
+export function formatTurtleTerm(value) {
+  if (!value || typeof value !== 'string') return String(value);
+  // Already a known CURIE? prefix:local where prefix has trailing colon.
+  const colonIdx = value.indexOf(':');
+  if (colonIdx > 0 && !value.startsWith('http:') && !value.startsWith('https:') && !value.startsWith('urn:')) {
+    const prefix = value.slice(0, colonIdx);
+    if (Object.prototype.hasOwnProperty.call(ALL_PREFIXES, prefix)) {
+      return value;
+    }
+  }
+  // Try to compact to a known prefix.
+  const compacted = compactIri(value);
+  if (compacted !== value) return compacted;
+  // Full URI fallback — wrap in angle brackets.
+  if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('urn:')) {
+    return `<${value}>`;
+  }
+  // Not a URI; pass through (caller error).
+  return value;
+}
 
 // ── Public API ──
 
@@ -69,8 +111,8 @@ export function exportTurtle(graph, config = {}) {
 
       const lines = [`${execIRI} a ${typeList.join(' , ')} ;`];
       if (cls['rdfs:label']) lines.push(`    rdfs:label ${JSON.stringify(cls['rdfs:label'])} ;`);
-      if (cls['fandaws:relationDomain']) lines.push(`    rdfs:domain ${cls['fandaws:relationDomain']} ;`);
-      if (cls['fandaws:relationRange']) lines.push(`    rdfs:range ${cls['fandaws:relationRange']} ;`);
+      if (cls['fandaws:relationDomain']) lines.push(`    rdfs:domain ${formatTurtleTerm(cls['fandaws:relationDomain'])} ;`);
+      if (cls['fandaws:relationRange']) lines.push(`    rdfs:range ${formatTurtleTerm(cls['fandaws:relationRange'])} ;`);
 
       // Sub-property: look up parent's execution IRI
       const parents = cls['rdfs:subClassOf'] || [];

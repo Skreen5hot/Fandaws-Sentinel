@@ -30,6 +30,17 @@ if (bfoResult.error) {
   console.log(`[Workbench] BFO ingested: ${bfoResult.conceptsAdded} classes`);
 }
 
+// ── Restore user-promoted canonical concepts (Step 7.14) ──
+// After BFO infrastructure loads, re-hydrate user-promoted concepts
+// from localStorage so finalized session content survives page reload.
+// Quota-safe + version-gated; a missing/old payload is a no-op.
+const restoreResult = state.restoreCanonicalGraph();
+if (restoreResult.restored && restoreResult.conceptsAdded > 0) {
+  console.log(`[Workbench] Canonical graph restored: ${restoreResult.conceptsAdded} concepts`);
+} else if (restoreResult.reason === 'version-mismatch') {
+  console.warn('[Workbench] Canonical graph payload version mismatch — discarded.');
+}
+
 // ── Initialize Panels ──
 const panelTree = document.getElementById('panel-tree');
 const panelWorkspace = document.getElementById('panel-workspace');

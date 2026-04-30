@@ -12,6 +12,39 @@ const GRAPH_ID = 'fandaws:graph/workbench';
 // workbench.html is in the same directory as bfo-core.ttl.
 const BFO_SOURCE_URL = 'bfo-core.ttl';
 
+// X9 Step 7.14 (2026-04-29): canonical graph persistence. The in-memory
+// `graph['fandaws:concepts']` is the load-bearing artifact (export reads
+// it, tree renders it, inspector inspects it). Without persistence, page
+// reload wipes user-promoted concepts — only BFO infrastructure reloads
+// fresh via ensureBfo(). Persist non-imported concepts to localStorage
+// + restore on bootstrap to close the gap.
+const LS_CANONICAL_GRAPH = 'fandaws:wb:canonicalGraph';
+const CANONICAL_GRAPH_VERSION = 1;
+const PERSIST_DEBOUNCE_MS = 500;
+
+function lsGet(key, fallback = null) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function lsSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.warn(`[Workbench] Persistence failed for ${key}:`, err);
+    return false;
+  }
+}
+
+function lsRemove(key) {
+  try { localStorage.removeItem(key); } catch { /* */ }
+}
+
 export class WorkbenchStateManager {
   /**
    * @param {object} Fandaws - The Fandaws global from the bundle.
@@ -41,6 +74,94 @@ export class WorkbenchStateManager {
         graphId: this._graphId,
       });
     });
+
+    // X9 Step 7.14 (2026-04-29): debounced auto-save on graph-changed.
+    // Bulk operations (CCO ingestion promotes ~50 concepts in rapid
+    // succession) coalesce into a single localStorage write after the
+    // debounce window. _persistTimer is reset on each event; persistence
+    // fires once when activity quiesces.
+    this._persistTimer = null;
+    this.bus.on('graph-changed', () => {
+      if (this._persistTimer) clearTimeout(this._persistTimer);
+      this._persistTimer = setTimeout(() => {
+        this._persistCanonicalGraph();
+        this._persistTimer = null;
+      }, PERSIST_DEBOUNCE_MS);
+    });
+  }
+
+  /**
+   * X9 Step 7.14 (2026-04-29) — Persist non-imported canonical concepts
+   * to localStorage. BFO infrastructure (`fandaws:isImported: true`) is
+   * NOT persisted; ensureBfo() re-loads it fresh on next bootstrap, so
+   * persisting it would double-load concepts on restore.
+   *
+   * Versioned envelope so future schema changes can migrate or invalidate
+   * gracefully. Quota safety via lsSet's try/catch — warn-not-throw so
+   * in-memory state continues working even if localStorage is exhausted.
+   *
+   * @private
+   */
+  _persistCanonicalGraph() {
+    const graph = this.getGraph();
+    if (!graph) return;
+    const allConcepts = graph['fandaws:concepts'] || [];
+    const userConcepts = allConcepts.filter(c => c['fandaws:isImported'] !== true);
+    const payload = {
+      version: CANONICAL_GRAPH_VERSION,
+      graphId: this._graphId,
+      savedAt: new Date().toISOString(),
+      concepts: userConcepts,
+    };
+    lsSet(LS_CANONICAL_GRAPH, payload);
+  }
+
+  /**
+   * X9 Step 7.14 (2026-04-29) — Restore user-promoted canonical concepts
+   * from localStorage into the in-memory graph. Called from bootstrap
+   * AFTER ensureBfo() so the BFO infrastructure is already in place;
+   * restored concepts are merged in without duplication.
+   *
+   * Returns no-op when localStorage entry is missing OR version
+   * mismatches. On version mismatch (future schema change), the old
+   * payload is discarded — user starts with BFO-only and can re-ingest.
+   *
+   * @returns {{ restored: boolean, conceptsAdded: number, reason?: string }}
+   */
+  restoreCanonicalGraph() {
+    const payload = lsGet(LS_CANONICAL_GRAPH, null);
+    if (!payload) return { restored: false, conceptsAdded: 0, reason: 'no-payload' };
+    if (payload.version !== CANONICAL_GRAPH_VERSION) {
+      return { restored: false, conceptsAdded: 0, reason: 'version-mismatch' };
+    }
+    const graph = this.getGraph();
+    if (!graph) return { restored: false, conceptsAdded: 0, reason: 'no-graph' };
+    if (!graph['fandaws:concepts']) graph['fandaws:concepts'] = [];
+
+    // Build IRI set for dedup so re-restore is idempotent and BFO concepts
+    // already loaded by ensureBfo() aren't double-pushed.
+    const existingIris = new Set(graph['fandaws:concepts'].map(c => c['@id']));
+    let conceptsAdded = 0;
+    for (const concept of (payload.concepts || [])) {
+      if (!concept || !concept['@id']) continue;
+      if (existingIris.has(concept['@id'])) continue;
+      graph['fandaws:concepts'].push(concept);
+      existingIris.add(concept['@id']);
+      conceptsAdded++;
+    }
+
+    if (conceptsAdded > 0) {
+      this._adapter.saveGraph(this._graphId, graph);
+      // Rebuild indices for the restored concepts.
+      try { this._adapter.compile(this._graphId); } catch { /* compile is idempotent; ignore */ }
+      // Notify panels.
+      this.bus.emit('graph-changed', {
+        mutation: null,
+        graph: this.getGraph(),
+        graphId: this._graphId,
+      });
+    }
+    return { restored: true, conceptsAdded };
   }
 
   /**
@@ -149,8 +270,12 @@ export class WorkbenchStateManager {
 
   /**
    * Reset graph: create fresh adapter + empty graph, emit event.
+   * X9 Step 7.14 (2026-04-29): also clears the persisted canonical-graph
+   * localStorage entry so "Reset Graph" is a true wipe — subsequent
+   * page loads do NOT silently re-hydrate the prior session's concepts.
    */
   resetGraph() {
+    lsRemove(LS_CANONICAL_GRAPH);
     this._adapter = new this.Fandaws.InMemoryStateAdapter();
     const graph = this.Fandaws.createKnowledgeGraph({ id: GRAPH_ID });
     this._adapter.saveGraph(GRAPH_ID, graph);

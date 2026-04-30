@@ -1606,12 +1606,45 @@ export class InMemoryStateAdapter extends StateAdapter {
     const uuid = this._generateUUID(label);
     const conceptIri = `fandaws:class/${uuid}/${slug}`;
 
-    // Find the BFO placement node in the graph
-    const placement = record.placementResult;
+    // X9 Step 7.15 (2026-04-29): preserve the DECLARED superclass IRI
+    // through promotion. Previously this method routed via the Phase 1
+    // placement bucket (e.g., "IndependentContinuant") — collapsing the
+    // entire CCO leaf-class hierarchy onto the 8 BFO root buckets at
+    // canonical-write time. Geospatial Region (subClassOf BFO_0000029
+    // / Site) ended up as subClassOf IndependentContinuant; Object Track
+    // (subClassOf BFO_0000026 / OneDimensionalSpatialRegion) ended up as
+    // subClassOf SpatialRegion. The declared taxonomic structure of the
+    // source ontology was destroyed.
+    //
+    // Two-pass lookup:
+    //   (1) PRIMARY: match declared superclass IRI against owl:equivalentClass
+    //       on existing graph concepts. BFO infrastructure concepts carry their
+    //       obo:BFO_NNNNNNN URI in owl:equivalentClass. In-session CCO parents
+    //       (already promoted earlier in this session) carry their cco:ont*
+    //       URI the same way.
+    //   (2) FALLBACK: placement-bucket label match (legacy behavior). Only
+    //       fires when the declared superclass doesn't resolve to an
+    //       in-graph concept (e.g., parent is in a separate ontology file
+    //       not yet ingested).
+    const concepts = graph['fandaws:concepts'] || [];
     let broaderIri = null;
-    if (placement) {
-      // Look for the BFO concept in the graph by matching label
-      const concepts = graph['fandaws:concepts'] || [];
+
+    // Pass 1: declared-superclass IRI lookup via owl:equivalentClass.
+    if (record.superclass) {
+      const declaredParent = concepts.find(c => {
+        const equiv = c['owl:equivalentClass'];
+        if (!equiv) return false;
+        if (Array.isArray(equiv)) return equiv.includes(record.superclass);
+        return equiv === record.superclass;
+      });
+      if (declaredParent) {
+        broaderIri = declaredParent['@id'];
+      }
+    }
+
+    // Pass 2: placement-bucket fallback (only when declared lookup failed).
+    if (!broaderIri && record.placementResult) {
+      const placement = record.placementResult;
       const bfoConcept = concepts.find(c => {
         const prefLabel = (c['skos:prefLabel'] || '').toLowerCase().replace(/\s+/g, '');
         const placementLower = placement.toLowerCase().replace(/\s+/g, '');

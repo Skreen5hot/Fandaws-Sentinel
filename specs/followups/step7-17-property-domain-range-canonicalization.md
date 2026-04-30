@@ -89,8 +89,27 @@ Could be extracted to a private helper `_canonicalizeIri(graphId, iri)` for reus
 
 ## Acceptance
 
-When this lands:
+### Binary completion test (per PO 2026-04-29 directive)
+
+A fresh canonical graph export — produced by ingesting an ontology that
+imports BFO and references it in property domain/range (e.g.,
+GeospatialOntology.ttl) — contains **zero references to `bfo:` or CCO
+IRIs in property `rdfs:domain` or `rdfs:range`**, OR every such
+reference is **explicitly flagged as an intentional canonicalization
+exception** with a stated reason (one-line rationale per exception).
+
+Implementation outline:
+- Test fixture: ingest GeospatialOntology.ttl through full pipeline → finalize → export Turtle.
+- Programmatic check (test): grep the rel: ObjectProperty block for any `rdfs:domain` or `rdfs:range` line whose value matches `bfo:`, `<http://purl.obolibrary.org/obo/`, `<https://www.commoncoreontologies.org/`, or any other source-IRI prefix declared in the ingestion source. Count = 0.
+- Exception list: a structured exception registry (e.g., `specs/canonicalization-exceptions.json`) declares any IRI patterns that intentionally do NOT get canonicalized, each with a stated reason ("BFO-as-canonical-import: cite §3 spec section X.Y"). Test reads this list and excludes matches from the count.
+- If count > 0 AND no exception matches → test fails.
+
+This is the binary completion gate. Judgment-call narrative ("looks
+mostly canonical now") is not sufficient evidence Step 7.17 is done.
+
+### Manual smoke verification
+
 1. Ingest GeospatialOntology.ttl → finalize.
 2. Inspect any property's canonical record (e.g., "has spatial part"). `fandaws:relationDomain` / `fandaws:relationRange` should be FANDAWS IRIs (e.g., `fandaws:class/uuid/immaterial-entity`), NOT raw `http://purl.obolibrary.org/obo/BFO_0000141`.
-3. Export Turtle. The `rel: ObjectProperty` block emits `rdfs:domain fandaws:class/...` (CURIE) for in-graph concepts; `<http://...>` (angle-bracketed) only for genuinely-external references.
+3. Export Turtle. The `rel: ObjectProperty` block emits `rdfs:domain fandaws:class/...` (CURIE) for in-graph concepts; angle-bracketed source URIs appear ONLY for entries on the canonicalization exception list.
 4. Reasoner (downstream) can traverse domain/range without dereferencing `owl:equivalentClass`.
